@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="TheRustweave/TheRustweave.csproj" />
+  <Project Path="ZZCakeBuild/CakeBuild.csproj" />
+</Solution>
