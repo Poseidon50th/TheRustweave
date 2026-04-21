@@ -1,0 +1,34 @@
+[
+    {
+        "code": "temporal-speed",
+        "type": "positive",
+        "attributes": {
+            "walkspeed": 0.1,
+            "armorWalkSpeedAffectedness": -0.2
+        }
+    },
+    {
+        "code": "rustwoven-armor",
+        "type": "positive",
+        "attributes": {
+            "armorDurabilityLoss": -0.35
+        }
+    },
+    {
+        "code": "planar-satiety",
+        "type": "positive",
+        "attributes": {
+            "hungerrate": -0.25
+        }
+    },
+    {
+        "code": "rustplane-sapped",
+        "type": "negative",
+        "attributes": {
+            "bowDrawingStrength": -0.2,
+            "miningSpeedMul": -0.1,
+            "meleeWeaponsDamage": -0.1,
+            "rangedWeaponsDamage": -0.1
+        }
+    }
+]

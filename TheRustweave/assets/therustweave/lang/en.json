@@ -1,3 +1,21 @@
 {
-    "hello": "hello world!"
+    "hello": "hello world!",
+    "game:characterclass-rustweaver": "Rustweaver",
+    "game:characterdesc-rustweaver": "<font color=\"#99c9f9\"><i>The world has been corrupted long before you were here by people like you. You feel the strands of reality, of time, ebbing and flowing in unnatural ways, ripe for manipulation by your hand. It is power incarnate, a tool that could be used for the greater good or greater evil. The world looks upon you as an anomaly to blame for its instability yet only you and people like you can correct it...if you choose to.\n</i></font><font color=\"#c69c29\"><br>You are a Rustweaver. Manipulate the Rust how you wish though remember, there is always a cost.</i></font><br><br>",
+    "game:trait-temporal-speed": "<font color=\"#84ff84\">• Temporal Speed </font>",
+    "game:traitname-temporal-speed": "Temporal Speed",
+    "game:trait-rustwoven-armor": "<font color=\"#84ff84\">• Rustwoven Armor </font>",
+    "game:traitname-rustwoven-armor": "Rustwoven Armor",
+    "game:trait-planar-satiety": "<font color=\"#84ff84\">• Planar Satiety </font>",
+    "game:traitname-planar-satiety": "Planar Satiety",
+    "game:trait-rustplane-sapped": "<font color=\"#ff8484\">• Rustplane Sapped </font>",
+    "game:traitname-rustplane-sapped": "Rustplane Sapped",
+    "game:charattribute-walkspeed-0.1": "Increases walking speed by 10%",
+    "game:charattribute-armorWalkSpeedAffectedness--0.2": "Reduces armor speed penalty by 20%",
+    "game:charattribute-armorDurabilityLoss--0.35": "Reduces armor durability loss by 35%",
+    "game:charattribute-hungerrate--0.25": "Reduces hunger rate by 25%",
+    "game:charattribute-bowDrawingStrength--0.2": "Reduces bow drawing strength by 20%",
+    "game:charattribute-miningSpeedMul--0.1": "Reduces mining speed by 10%",
+    "game:charattribute-meleeWeaponsDamage--0.1": "Reduces melee weapon damage by 10%",
+    "game:charattribute-rangedWeaponsDamage--0.1": "Reduces ranged weapon damage by 10%"
 }

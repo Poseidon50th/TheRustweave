@@ -1,0 +1,38 @@
+[
+    {
+        "enabled": true,
+        "code": "rustweaver",
+        "traits": [
+            "temporal-speed",
+            "rustwoven-armor",
+            "planar-satiety",
+            "rustplane-sapped"
+        ],
+        "gear": [
+            {
+                "type": "item",
+                "code": "game:clothes-foot-forgotten"
+            },
+            {
+                "type": "item",
+                "code": "game:clothes-hand-forgotten"
+            },
+            {
+                "type": "item",
+                "code": "game:clothes-lowerbody-forgotten"
+            },
+            {
+                "type": "item",
+                "code": "game:clothes-upperbody-forgotten"
+            },
+            {
+                "type": "item",
+                "code": "game:clothes-upperbodyover-forgotten"
+            },
+            {
+                "type": "item",
+                "code": "game:clothes-neck-gear-amulet-rusty"
+            }
+        ]
+    }
+]
