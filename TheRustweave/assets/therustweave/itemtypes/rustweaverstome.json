@@ -1,0 +1,27 @@
+{
+  "code": "rustweaverstome",
+  "creativeinventory": {
+    "general": [ "*" ],
+    "rustweaveitems": [ "*" ]
+  },
+  "maxstacksize": 1,
+  "shape": {
+    "base": "item/rustweaverstome"
+  },
+  "attributes": {
+    "rustweaveTags": [ "spellfocus" ]
+  },
+  "tpHandTransform": {
+    "rotation": {
+      "x": 180,
+      "y": 90,
+      "z": 90
+    },
+    "origin": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": 0.72
+    },
+    "scale": 0.4
+  }
+}

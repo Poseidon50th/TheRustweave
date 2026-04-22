@@ -4,21 +4,21 @@
         "type": "positive",
         "attributes": {
             "walkspeed": 0.1,
-            "armorWalkSpeedAffectedness": -0.2
+            "armorWalkSpeedAffectedness": -0.1
         }
     },
     {
         "code": "rustwoven-armor",
         "type": "positive",
         "attributes": {
-            "armorDurabilityLoss": -0.35
+            "armorDurabilityLoss": -0.20
         }
     },
     {
         "code": "planar-satiety",
         "type": "positive",
         "attributes": {
-            "hungerrate": -0.25
+            "hungerrate": -0.10
         }
     },
     {

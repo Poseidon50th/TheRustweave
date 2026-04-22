@@ -6,7 +6,7 @@
     "authors": [
         "ThePoseidon55"
     ],
-    "description": "To be added",
+    "description": "The Rustplane calls out to you, Rustweaver. Will you answer?",
     "version": "1.0.0",
     "dependencies": {
         "game": "1.22.0"
