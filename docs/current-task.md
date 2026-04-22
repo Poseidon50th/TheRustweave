@@ -1,50 +1,39 @@
-# Current Task: Rustweaver's Tome local texture paths
+# Current Task: Rustweaver's Tome placeholder interaction
 
 ## Objective
-Fix the Rustweaver's Tome asset setup so it uses local mod texture files that can be added by drag and drop.
+Make the Rustweaver's Tome usable as a Rustweaver-only placeholder item.
 
 ## Hard scope boundary
-This task must only change the Rustweaver's Tome texture pipeline and folder structure.
+This task must only add a minimal interaction for the Rustweaver's Tome.
 
 This task must not add:
-- gameplay behavior
-- spell systems
-- GUIs
-- book reading systems
-- HUD work
-- networking
+- HUD elements
+- spellcasting systems
+- corruption mechanics
+- spell learning
+- GUI screens
 - recipes
 - Harmony patches
 
+## Required behavior
+1. When a player right-clicks or otherwise uses the Rustweaver's Tome:
+   - if the player is the Rustweaver class, show a simple success message
+   - if the player is not the Rustweaver class, show a simple rejection message
+2. Keep the logic minimal and clean.
+3. Use the existing Rustweaver class identifier already added by the mod.
+4. Do not implement any real spells yet.
+
+## Messages
+- Rustweaver success: `The Rust answers your call.`
+- Non-Rustweaver rejection: `You do not understand the tome.`
+
 ## Files to inspect and update as needed
+- `TheRustweave source files`
 - `TheRustweave/assets/therustweave/itemtypes/rustweaverstome.json`
-- `TheRustweave/assets/therustweave/shapes/item/rustweaverstome.json`
-- `TheRustweave/assets/therustweave/lang/en.json`
-
-## Files/folders to create
-- `TheRustweave/assets/therustweave/textures/item/tome/`
-- `TheRustweave/assets/therustweave/textures/item/tome/.gitkeep`
-
-## Required texture paths
-The tome should resolve these local mod textures:
-- `therustweave:textures/item/tome/brown-front.png`
-- `therustweave:textures/item/tome/pages-aged.png`
-
-## Requirements
-- Keep the Rustweaver's Tome item code stable
-- Keep the current creative inventory setup intact
-- Keep custom Rustweave tag data intact
-- Preserve the current closed-book shape concept
-- Use the local texture paths in the shape/item setup, not vanilla book paths
-
-## Validation goal
-After the change, I should be able to place these files here:
-- `TheRustweave/assets/therustweave/textures/item/tome/brown-front.png`
-- `TheRustweave/assets/therustweave/textures/item/tome/pages-aged.png`
-
-and the item should render without missing-texture warnings for those paths.
+- Any registration code required for the tome's custom behavior/class
 
 ## Notes
-- Prefer pure JSON/content changes
-- Do not modify `modinfo.json` or `TheRustweave.csproj`
-- Do not add C# unless absolutely necessary
+- Keep the existing item code, textures, shape, transforms, creative tab placement, and attributes intact
+- Prefer a clean item class or behavior attachment approach consistent with Vintage Story modding
+- Do not add networking unless absolutely required
+- Do not add persistent save data yet unless absolutely required
