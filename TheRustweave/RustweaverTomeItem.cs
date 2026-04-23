@@ -1,4 +1,3 @@
-using System;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -21,25 +20,92 @@ namespace TheRustweave
                 return;
             }
 
-            var message = IsRustweaver(entityPlayer)
-                ? "The Rust answers your call."
-                : "You do not understand the tome.";
-
-            if (byEntity.World.Api is ICoreClientAPI capi)
+            if (byEntity.World.Api is not ICoreClientAPI clientApi)
             {
-                capi.ShowChatMessage(message);
+                return;
             }
+
+            if (!RustweaveStateService.IsRustweaver(clientApi.World.Player))
+            {
+                clientApi.ShowChatMessage(Lang.Get("game:rustweave-tome-reject"));
+                return;
+            }
+
+            clientApi.ShowChatMessage(Lang.Get("game:rustweave-tome-success"));
+
+            if (entityPlayer.Controls?.ShiftKey == true)
+            {
+                RustweaveRuntime.Client?.OpenPreparationGui();
+                return;
+            }
+
+            RustweaveRuntime.Client?.RequestStartCast();
         }
 
-        private static bool IsRustweaver(EntityPlayer entityPlayer)
+        public override bool OnHeldInteractStep(float secondsUsed, ItemSlot slot, EntityAgent byEntity, BlockSelection blockSel, EntitySelection entitySel)
         {
-            var classCode =
-                entityPlayer.WatchedAttributes?.GetString("characterClass", null) ??
-                entityPlayer.WatchedAttributes?.GetString("characterclass", null) ??
-                entityPlayer.WatchedAttributes?.GetString("class", null) ??
-                string.Empty;
+            if (byEntity.World.Api.Side != EnumAppSide.Client)
+            {
+                return true;
+            }
 
-            return string.Equals(classCode, "rustweaver", StringComparison.OrdinalIgnoreCase);
+            if (byEntity.World.Api is not ICoreClientAPI clientApi)
+            {
+                return true;
+            }
+
+            if (!RustweaveStateService.IsRustweaver(clientApi.World.Player))
+            {
+                return true;
+            }
+
+            if (!RustweaveStateService.IsHoldingTome(clientApi.World.Player))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        public override void OnHeldInteractStop(float secondsUsed, ItemSlot slot, EntityAgent byEntity, BlockSelection blockSel, EntitySelection entitySel)
+        {
+            if (byEntity.World.Api.Side != EnumAppSide.Client)
+            {
+                return;
+            }
+
+            if (byEntity.World.Api is not ICoreClientAPI clientApi)
+            {
+                return;
+            }
+
+            if (!RustweaveStateService.IsRustweaver(clientApi.World.Player))
+            {
+                return;
+            }
+
+            // Successful completion is server-driven; do not cancel here.
+        }
+
+        public override bool OnHeldInteractCancel(float secondsUsed, ItemSlot slot, EntityAgent byEntity, BlockSelection blockSel, EntitySelection entitySel, EnumItemUseCancelReason cancelReason)
+        {
+            if (byEntity.World.Api.Side != EnumAppSide.Client)
+            {
+                return true;
+            }
+
+            if (byEntity.World.Api is not ICoreClientAPI clientApi)
+            {
+                return true;
+            }
+
+            if (!RustweaveStateService.IsRustweaver(clientApi.World.Player))
+            {
+                return true;
+            }
+
+            RustweaveRuntime.Client?.RequestCancelCast();
+            return true;
         }
     }
 }

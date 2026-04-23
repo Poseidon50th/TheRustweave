@@ -1,0 +1,13 @@
+[
+    {
+        "code": "dummy-rustcall",
+        "name": "Dummy Rustcall",
+        "description": "A harmless placeholder spell used for scaffold testing.",
+        "castTimeSeconds": 2.5,
+        "corruptionCost": 25,
+        "enabled": true,
+        "school": "scaffold",
+        "targetType": "self",
+        "icon": "therustweave:spell/dummy-rustcall"
+    }
+]

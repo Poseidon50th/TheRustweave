@@ -12,16 +12,24 @@ namespace TheRustweave
         // Useful for registering block/entity classes on both sides
         public override void Start(ICoreAPI api)
         {
+            api.RegisterItemClass("ItemRustweaverTome", typeof(ItemRustweaverTome));
             Mod.Logger.Notification("Hello from template mod: " + api.Side);
+        }
+
+        public override void AssetsLoaded(ICoreAPI api)
+        {
+            RustweaveRuntime.LoadSpellRegistry(api);
         }
 
         public override void StartServerSide(ICoreServerAPI api)
         {
+            RustweaveRuntime.InitializeServer(api);
             Mod.Logger.Notification("Hello from template mod server side: " + Lang.Get("therustweave:hello"));
         }
 
         public override void StartClientSide(ICoreClientAPI api)
         {
+            RustweaveRuntime.InitializeClient(api);
             Mod.Logger.Notification("Hello from template mod client side: " + Lang.Get("therustweave:hello"));
         }
 

@@ -1,39 +1,30 @@
-# Current Task: Rustweaver's Tome placeholder interaction
+# Current Task: Rustweaver saved-state load and HUD sync audit
 
 ## Objective
-Make the Rustweaver's Tome usable as a Rustweaver-only placeholder item.
+Perform a focused audit and fix pass for all Rustweaver saved-state loading and synchronization, with special attention to loading on startup/join instead of only during casting.
 
 ## Hard scope boundary
-This task must only add a minimal interaction for the Rustweaver's Tome.
+This is an audit + correction pass for save-state loading and sync timing only.
 
-This task must not add:
-- HUD elements
-- spellcasting systems
-- corruption mechanics
-- spell learning
-- GUI screens
-- recipes
-- Harmony patches
+This task must not redesign:
+- HUD layout
+- corruption math
+- spell data
+- Tome UI
+- gameplay systems
 
-## Required behavior
-1. When a player right-clicks or otherwise uses the Rustweaver's Tome:
-   - if the player is the Rustweaver class, show a simple success message
-   - if the player is not the Rustweaver class, show a simple rejection message
-2. Keep the logic minimal and clean.
-3. Use the existing Rustweaver class identifier already added by the mod.
-4. Do not implement any real spells yet.
+This task must not add new features, recipes, particles, or Harmony patches.
 
-## Messages
-- Rustweaver success: `The Rust answers your call.`
-- Non-Rustweaver rejection: `You do not understand the tome.`
-
-## Files to inspect and update as needed
-- `TheRustweave source files`
-- `TheRustweave/assets/therustweave/itemtypes/rustweaverstome.json`
-- Any registration code required for the tome's custom behavior/class
+## Required outcome
+1. Brand new Rustweavers start at `0 / 200`.
+2. Existing Rustweavers preserve their saved corruption exactly across reconnect/load.
+3. The HUD visual and number show the correct saved value immediately after join/startup.
+4. The HUD must not wait for a spell cast to refresh from authoritative state.
+5. A player at `200 / 200` must visually show `200 / 200` immediately after join.
+6. Hard lock behavior must still work.
+7. No join/load path may overwrite existing current corruption with `0` or `200` incorrectly.
 
 ## Notes
-- Keep the existing item code, textures, shape, transforms, creative tab placement, and attributes intact
-- Prefer a clean item class or behavior attachment approach consistent with Vintage Story modding
-- Do not add networking unless absolutely required
-- Do not add persistent save data yet unless absolutely required
+- Separate default initialization from persisted-state loading
+- Hydrate the HUD from authoritative state on join/startup
+- Keep AGENTS.md unchanged
