@@ -478,7 +478,7 @@ namespace TheRustweave
                 CastSpeedMultiplier = 1f,
                 LearnedSpellCodes = learnedSpellCodes,
                 PreparedSpellCodes = new List<string>(RustweaveConstants.PreparedSlotCount),
-                SelectedPreparedSpellIndex = 0
+                SelectedPreparedSpellIndex = -1
             };
 
             while (state.PreparedSpellCodes.Count < RustweaveConstants.PreparedSlotCount)
@@ -590,12 +590,9 @@ namespace TheRustweave
             }
 
             state.PreparedSpellCodes = normalizedPrepared;
-            state.SelectedPreparedSpellIndex = NormalizeSelectedIndex(state.SelectedPreparedSpellIndex, state.PreparedSpellCodes);
-
-            if (state.SelectedPreparedSpellIndex < 0)
-            {
-                state.SelectedPreparedSpellIndex = GetFirstPreparedSlotIndex(state.PreparedSpellCodes);
-            }
+            state.SelectedPreparedSpellIndex = IsValidSlotIndex(state.SelectedPreparedSpellIndex)
+                ? state.SelectedPreparedSpellIndex
+                : -1;
 
             return state;
         }
@@ -623,7 +620,7 @@ namespace TheRustweave
             }
 
             var firstPrepared = GetFirstPreparedSlotIndex(preparedSpellCodes);
-            return firstPrepared >= 0 ? firstPrepared : 0;
+            return firstPrepared >= 0 ? firstPrepared : -1;
         }
 
         public static int GetFirstPreparedSlotIndex(IReadOnlyList<string> preparedSpellCodes)
@@ -706,10 +703,9 @@ namespace TheRustweave
                 return targetSlotIndex;
             }
 
-            var selectedSlot = NormalizeSelectedIndex(state.SelectedPreparedSpellIndex, state.PreparedSpellCodes);
-            if (IsValidSlotIndex(selectedSlot))
+            if (IsValidSlotIndex(state.SelectedPreparedSpellIndex))
             {
-                return selectedSlot;
+                return state.SelectedPreparedSpellIndex;
             }
 
             return GetFirstEmptyPreparedSlotIndex(state.PreparedSpellCodes);
@@ -737,12 +733,10 @@ namespace TheRustweave
 
             if (existingSlot == slotIndex && string.Equals(state.PreparedSpellCodes[slotIndex], spellCode, StringComparison.OrdinalIgnoreCase))
             {
-                state.SelectedPreparedSpellIndex = slotIndex;
                 return true;
             }
 
             state.PreparedSpellCodes[slotIndex] = spellCode;
-            state.SelectedPreparedSpellIndex = slotIndex;
             return true;
         }
 
@@ -759,11 +753,6 @@ namespace TheRustweave
             }
 
             state.PreparedSpellCodes[slotIndex] = string.Empty;
-
-            if (state.SelectedPreparedSpellIndex == slotIndex)
-            {
-                state.SelectedPreparedSpellIndex = NormalizeSelectedIndex(state.SelectedPreparedSpellIndex, state.PreparedSpellCodes);
-            }
 
             return true;
         }
@@ -1164,9 +1153,11 @@ namespace TheRustweave
                         break;
                     }
 
+                    var beforeValue = RustweaveStateService.GetPreparedSpellCode(state, chosenSlot);
                     if (RustweaveStateService.TryPrepareSpell(state, spell.Code, chosenSlot))
                     {
-                        sapi.Logger.Debug("[TheRustweave] Stored spell '{0}' in prepared slot {1} for player '{2}'.", spell.Code, chosenSlot, fromPlayer.PlayerUID);
+                        var afterValue = RustweaveStateService.GetPreparedSpellCode(state, chosenSlot);
+                        sapi.Logger.Debug("[TheRustweave] Stored spell '{0}' in prepared slot {1} for player '{2}' (before='{3}', after='{4}').", spell.Code, chosenSlot, fromPlayer.PlayerUID, beforeValue, afterValue);
                         SaveAndSyncState(fromPlayer, state);
                         fromPlayer.SendMessage(0, Lang.Get("game:rustweave-spell-prepared", RustweaveStateService.GetSpellDisplayName(spell.Code)), EnumChatType.Notification, null);
                     }
@@ -1847,7 +1838,7 @@ namespace TheRustweave
             }
 
             EnsurePrepDialog();
-            prepDialog!.SetState(currentState);
+            prepDialog!.SetState(currentState, false);
             prepDialog.OpenDialog();
         }
 
@@ -1860,6 +1851,7 @@ namespace TheRustweave
                 return;
             }
 
+            capi.Logger.Debug("[TheRustweave] Cast requested from active slot {0}.", currentState.SelectedPreparedSpellIndex);
             SendPacket(new RustweaveActionPacket
             {
                 Action = RustweaveActionType.RequestStartCast,
@@ -1883,6 +1875,7 @@ namespace TheRustweave
                 prepDialog?.SetState(currentState);
             }
 
+            capi.Logger.Debug("[TheRustweave] Client requested prepared slot selection: {0}.", slotIndex);
             SendPacket(new RustweaveActionPacket
             {
                 Action = RustweaveActionType.RequestSelectPrepared,
@@ -1892,6 +1885,7 @@ namespace TheRustweave
 
         public void RequestPrepareSpell(string spellCode, int targetSlotIndex)
         {
+            capi.Logger.Debug("[TheRustweave] Client requested prepare for spell '{0}' with target slot {1}.", spellCode, targetSlotIndex);
             SendPacket(new RustweaveActionPacket
             {
                 Action = RustweaveActionType.RequestPrepareSpell,
@@ -1905,10 +1899,10 @@ namespace TheRustweave
             if (RustweaveStateService.IsValidSlotIndex(slotIndex) && slotIndex < currentState.PreparedSpellCodes.Count)
             {
                 currentState.PreparedSpellCodes[slotIndex] = string.Empty;
-                currentState.SelectedPreparedSpellIndex = slotIndex;
                 prepDialog?.SetState(currentState);
             }
 
+            capi.Logger.Debug("[TheRustweave] Client requested clear for prepared slot {0}.", slotIndex);
             SendPacket(new RustweaveActionPacket
             {
                 Action = RustweaveActionType.RequestUnprepareSpell,
@@ -1957,6 +1951,7 @@ namespace TheRustweave
 
             lastStateJson = serialized;
             currentState = syncedState;
+            capi.Logger.Debug("[TheRustweave] Prepared slot state loaded: {0} slots, active slot {1}.", currentState.PreparedSpellCodes.Count, currentState.SelectedPreparedSpellIndex);
             corruptionHud?.SetState(currentState);
             prepDialog?.SetState(currentState);
             return true;

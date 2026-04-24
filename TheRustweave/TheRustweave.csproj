@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <OutputPath>bin\$(Configuration)\Mods\mod</OutputPath>
+    <IsTestOutputPath>$([System.String]::Copy('$(OutputPath)').Contains('mod_test'))</IsTestOutputPath>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
@@ -50,7 +51,7 @@
     </Reference>
   </ItemGroup>
 
-<ItemGroup>
+<ItemGroup Condition="'$(IsTestOutputPath)' != 'True'">
   <Content Include="modinfo.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
   </Content>

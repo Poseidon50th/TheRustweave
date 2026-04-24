@@ -1,4 +1,5 @@
-﻿using Vintagestory.API.Client;
+using System;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
@@ -7,14 +8,12 @@ namespace TheRustweave
 {
     public class TheRustweaveModSystem : ModSystem
     {
-
-        // Called on server and client
-        // Useful for registering block/entity classes on both sides
         public override void Start(ICoreAPI api)
         {
             api.RegisterItemClass("ItemRustweaverTome", typeof(ItemRustweaverTome));
             api.RegisterItemClass("ItemRustTablet", typeof(ItemRustTablet));
             Mod.Logger.Notification("Hello from template mod: " + api.Side);
+            Mod.Logger.Notification("[TheRustweave] Loaded mod origin: {0}", GetModOrigin());
         }
 
         public override void AssetsLoaded(ICoreAPI api)
@@ -34,5 +33,30 @@ namespace TheRustweave
             Mod.Logger.Notification("Hello from template mod client side: " + Lang.Get("therustweave:hello"));
         }
 
+        private string GetModOrigin()
+        {
+            var info = Mod?.Info;
+            if (info == null)
+            {
+                return "unknown";
+            }
+
+            foreach (var propertyName in new[] { "Origin", "SourcePath", "Path", "ModFolderPath" })
+            {
+                var property = info.GetType().GetProperty(propertyName);
+                if (property?.PropertyType != typeof(string))
+                {
+                    continue;
+                }
+
+                var value = property.GetValue(info) as string;
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    return value;
+                }
+            }
+
+            return info.GetType().GetProperty("Name")?.GetValue(info)?.ToString() ?? "unknown";
+        }
     }
 }
