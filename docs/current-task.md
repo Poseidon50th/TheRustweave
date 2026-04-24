@@ -1,49 +1,53 @@
-# Current Task: Rust Tablet decay pass
+# Current Task: Rust Tablet passive decay creative inventory crash fix
 
 ## Objective
-Implement passive Rust Tablet decay over world time, staged tablet state labels, and inert reuse behavior.
+Fix the server-side `NullReferenceException` thrown by passive Rust Tablet decay scanning creative inventories during join/startup and server ticks.
 
 ## Hard scope boundary
-This task is only for first-pass Rust Tablet decay.
+This task is only for passive Rust Tablet decay inventory scanning and startup timing.
 
 This task must not add:
-- attraction logic
-- entity luring
-- entity consumption
-- damage or health buffs
-- a recipe
-- a tablet vault block implementation
-- visual or icon changes
-- a new GUI panel
-- spell system changes
+- new gameplay systems
+- corruption or HUD redesigns
+- spellcasting changes
+- new recipes
+- particles, shaders, or Harmony patches
+- unrelated refactors
 
-## Required design rules
-1. Rust Tablet remains one item with per-item stored corruption state.
-2. Decay rate is 4 corruption per in-game day.
-3. Decay continues while carried.
-4. Valid implemented contexts for this task:
-   - player inventory
-   - vertical rack
-   - world-placed tablet
-5. Future tablet vault support may be left as a clean extension point if practical, but do not implement the block/container now.
-6. Offline time counts. Use world time timestamps so decay progresses sensibly even while unloaded.
-7. No visual difference between stages in first pass. Tooltip only.
-8. Inert condition: stored corruption reaches 0.
-9. Inert tablets can be used again for venting without needing conversion to a separate item.
+## Required behavior
+1. Passive Rust Tablet decay must no longer throw when scanning player inventories.
+2. Creative inventories must be skipped entirely.
+3. Null inventories must be skipped safely.
+4. Inventories whose `ClassName` or `InventoryID` indicates creative inventory must be skipped.
+5. A bad inventory must not crash the server tick.
+6. Join/startup tablet decay scanning must be deferred until inventories are ready.
+7. Login-time decay, if needed, must run after a short delay instead of immediately on `PlayerJoin`.
+8. Normal Rust Tablet decay must still work for valid survival inventories and valid containers.
 
-## Stage labels
-Use tooltip-only stage labels based on current stored corruption:
-- inert: 0
-- faded: 1 to 99
-- stabilized: 100 to 400
+## Audit targets
+Review the full passive tablet decay flow for:
+- `OnServerPlayerJoin`
+- `OnServerPlayerNowPlaying`
+- `ProcessPassiveTabletDecay`
+- `ProcessTabletDecayForInventories`
+- `ProcessTabletDecayForInventory`
 
-## Data rules
-- never let stored corruption go below 0
-- preserve per-tablet corruption through moves, relogs, saves, and context changes
-- update decay on access, load, or tick rather than requiring constant active ticking everywhere
-- do not duplicate truth sources
+For each path, verify:
+- creative inventories are excluded
+- null inventories are skipped
+- `inventory.Count` access is defensive
+- one bad inventory cannot crash the tick loop
+- join/startup decay is deferred until the player inventory is ready
 
-## Notes
-- The Rust Tablet already uses per-item stack attributes for stored corruption
-- Keep AGENTS.md unchanged
-- If direct rack integration is awkward, implement the cleanest compatible lookup possible and document the approach in code comments or the implementation summary
+## Implementation rules
+- Keep the changes minimal and robust.
+- Prefer explicit skip checks over broad catch-all handling.
+- Use a one-time log when an inventory is skipped, but do not spam every tick.
+- Preserve normal decay behavior for valid inventories and containers.
+
+## Validation requirements
+After the repair:
+1. Creative worlds no longer crash.
+2. Joining a creative-building save no longer throws `InventoryPlayerCreative.get_Count()`.
+3. Passive tablet decay still works for actual Rust Tablets in normal player inventory and container slots.
+4. The server tick cannot be killed by one bad inventory.

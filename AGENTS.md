@@ -61,3 +61,34 @@ When completing a task, prefer to:
 2. preserve buildability
 3. preserve clear localization entries
 4. note any required add/remove/replace actions if the user asked for a delta instead of full replacement
+
+## Current Implementation Priority: Data-Driven Spell Executor
+
+When modifying The Rustweave, prioritize the current spell-system architecture task:
+
+- Spell definitions should come from JSON, preferably `spells.json`.
+- C# should execute spell behavior through a server-authoritative spell effect executor.
+- Spells must support an `effects[]` list, not only one hardcoded effect.
+- Unknown `effectType` or `targetType` values should be rejected during spell validation/loading.
+- Gameplay effects must run server-side.
+- Client-side code may display HUD, cast bar, particles, and sounds, but must not apply gameplay effects.
+- Corruption cost is charged on successful cast completion only.
+- Failed casts should not add corruption and should not trigger cooldown.
+- Add basic per-player, per-spell cooldowns.
+- Initial target types are:
+  - `self`
+  - `heldItem`
+  - `lookEntity`
+- Initial effect types are:
+  - `none`
+  - `repairHeldItem`
+  - `addHealth`
+  - `damageEntity`
+  - `teleportForward`
+  - `ventCorruption`
+  - `spawnParticles`
+  - `playSound`
+
+Do not attempt unrelated polish fixes during this task unless required for the executor to work. Known deferred issues:
+- HUD does not immediately sync saved corruption when joining old worlds/servers.
+- Rustweaver's Tome GUI background is transparent.

@@ -931,6 +931,8 @@ namespace TheRustweave
         private readonly ICoreServerAPI sapi;
         private readonly Dictionary<string, RustweaveCastStateData> activeCasts = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, RustTabletVentingSession> activeTabletVents = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, long> pendingTabletDecayScans = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> skippedTabletDecayInventoryLogs = new(StringComparer.OrdinalIgnoreCase);
         private IServerNetworkChannel? channel;
         private long tickListenerId;
         private long nextTabletDecayScanMilliseconds;
@@ -966,7 +968,7 @@ namespace TheRustweave
             }
 
             GetState(player);
-            ProcessTabletDecayForInventories(player);
+            ScheduleTabletDecayScan(player, 1500);
         }
 
         private void OnServerPlayerNowPlaying(IServerPlayer player)
@@ -978,7 +980,7 @@ namespace TheRustweave
 
             var state = GetState(player);
             SaveAndSyncState(player, state);
-            ProcessTabletDecayForInventories(player);
+            ScheduleTabletDecayScan(player, 1500);
         }
 
         private void OnServerPlayerLeave(IServerPlayer player)
@@ -990,6 +992,7 @@ namespace TheRustweave
 
             activeCasts.Remove(player.PlayerUID);
             activeTabletVents.Remove(player.PlayerUID);
+            pendingTabletDecayScans.Remove(player.PlayerUID);
         }
 
         public bool TryStartTabletVenting(EntityPlayer entityPlayer)
@@ -1090,6 +1093,7 @@ namespace TheRustweave
 
         private void OnServerTick(float dt)
         {
+            ProcessPendingTabletDecayScans();
             ProcessPassiveTabletDecay();
 
             foreach (var onlinePlayer in sapi.World.AllOnlinePlayers)
@@ -1282,6 +1286,11 @@ namespace TheRustweave
 
             foreach (var inventory in player.InventoryManager.InventoriesOrdered)
             {
+                if (!CanProcessTabletDecayInventory(inventory))
+                {
+                    continue;
+                }
+
                 ProcessTabletDecayForInventory(inventory, player.Entity?.World ?? sapi.World);
             }
         }
@@ -1294,9 +1303,15 @@ namespace TheRustweave
             }
 
             nextTabletDecayScanMilliseconds = sapi.World.ElapsedMilliseconds + 1000;
+            var processedPendingPlayers = ProcessPendingTabletDecayScans();
 
             foreach (var onlinePlayer in sapi.World.AllOnlinePlayers.OfType<IServerPlayer>())
             {
+                if (processedPendingPlayers.Contains(onlinePlayer.PlayerUID) || ShouldDeferTabletDecayScan(onlinePlayer.PlayerUID))
+                {
+                    continue;
+                }
+
                 ProcessTabletDecayForInventories(onlinePlayer);
             }
 
@@ -1322,12 +1337,17 @@ namespace TheRustweave
 
         private void ProcessTabletDecayForInventory(IInventory? inventory, IWorldAccessor? world)
         {
-            if (inventory == null || world?.Calendar == null)
+            if (inventory == null || world?.Calendar == null || !CanProcessTabletDecayInventory(inventory))
             {
                 return;
             }
 
-            for (var slotIndex = 0; slotIndex < inventory.Count; slotIndex++)
+            if (!TryGetInventoryCount(inventory, out var inventoryCount))
+            {
+                return;
+            }
+
+            for (var slotIndex = 0; slotIndex < inventoryCount; slotIndex++)
             {
                 var slot = inventory[slotIndex];
                 if (slot?.Itemstack == null)
@@ -1340,6 +1360,125 @@ namespace TheRustweave
                     inventory.MarkSlotDirty(slotIndex);
                 }
             }
+        }
+
+        private void ScheduleTabletDecayScan(IServerPlayer player, int delayMilliseconds)
+        {
+            if (player == null)
+            {
+                return;
+            }
+
+            pendingTabletDecayScans[player.PlayerUID] = sapi.World.ElapsedMilliseconds + Math.Max(1000, delayMilliseconds);
+        }
+
+        private HashSet<string> ProcessPendingTabletDecayScans()
+        {
+            var processedPlayers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var nowMilliseconds = sapi.World.ElapsedMilliseconds;
+
+            foreach (var entry in pendingTabletDecayScans.ToArray())
+            {
+                if (nowMilliseconds < entry.Value)
+                {
+                    continue;
+                }
+
+                pendingTabletDecayScans.Remove(entry.Key);
+
+                var player = GetOnlineServerPlayer(entry.Key);
+                if (player == null || player.Entity == null || !player.Entity.Alive || !RustweaveStateService.IsRustweaver(player))
+                {
+                    continue;
+                }
+
+                ProcessTabletDecayForInventories(player);
+                processedPlayers.Add(entry.Key);
+            }
+
+            return processedPlayers;
+        }
+
+        private bool ShouldDeferTabletDecayScan(string playerUid)
+        {
+            return pendingTabletDecayScans.TryGetValue(playerUid, out var dueMilliseconds)
+                && sapi.World.ElapsedMilliseconds < dueMilliseconds;
+        }
+
+        private bool TryGetInventoryCount(IInventory inventory, out int count)
+        {
+            try
+            {
+                count = inventory.Count;
+                return true;
+            }
+            catch (Exception exception)
+            {
+                count = 0;
+                LogSkippedTabletDecayInventory(inventory, $"count access failed: {exception.GetType().Name}");
+                return false;
+            }
+        }
+
+        private bool CanProcessTabletDecayInventory(IInventory? inventory)
+        {
+            if (inventory == null)
+            {
+                return false;
+            }
+
+            if (IsCreativeInventory(inventory))
+            {
+                LogSkippedTabletDecayInventory(inventory, "creative inventory");
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool IsCreativeInventory(IInventory inventory)
+        {
+            var typeName = inventory.GetType().Name;
+            if (typeName.IndexOf("Creative", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            var inventoryId = GetInventoryMetadataValue(inventory, "InventoryID");
+            if (!string.IsNullOrWhiteSpace(inventoryId) && inventoryId.IndexOf("creative", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            var className = GetInventoryMetadataValue(inventory, "ClassName");
+            if (!string.IsNullOrWhiteSpace(className) && className.IndexOf("creative", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private static string? GetInventoryMetadataValue(IInventory inventory, string memberName)
+        {
+            var property = inventory.GetType().GetProperty(memberName);
+            if (property?.PropertyType == typeof(string))
+            {
+                return property.GetValue(inventory) as string;
+            }
+
+            return null;
+        }
+
+        private void LogSkippedTabletDecayInventory(IInventory inventory, string reason)
+        {
+            var inventoryKey = $"{inventory.GetType().FullName}|{GetInventoryMetadataValue(inventory, "InventoryID") ?? string.Empty}|{GetInventoryMetadataValue(inventory, "ClassName") ?? string.Empty}|{reason}";
+            if (!skippedTabletDecayInventoryLogs.Add(inventoryKey))
+            {
+                return;
+            }
+
+            sapi.Logger.Warning($"[TheRustweave] Skipping tablet decay inventory {inventoryKey}");
         }
 
         private IServerPlayer? GetOnlineServerPlayer(string playerUid)
