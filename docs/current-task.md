@@ -1,53 +1,105 @@
-# Current Task: Rust Tablet passive decay creative inventory crash fix
+# Current Task: Rustweaver Tome tabbed UI and prepared-slot fix
 
 ## Objective
-Fix the server-side `NullReferenceException` thrown by passive Rust Tablet decay scanning creative inventories during join/startup and server ticks.
+Rebuild the Rustweaver's Tome UI into a tabbed interface and fix spell preparation so prepared spells are stored in prepared slots instead of becoming directly castable.
 
 ## Hard scope boundary
-This task is only for passive Rust Tablet decay inventory scanning and startup timing.
+This task is only for the Tome UI, learned spell display, prepared spell slot handling, and the direct prepare/cast flow.
 
 This task must not add:
-- new gameplay systems
-- corruption or HUD redesigns
-- spellcasting changes
-- new recipes
-- particles, shaders, or Harmony patches
+- new spells
+- glyphs or rituals
+- corruption redesigns
+- HUD sync redesigns
+- GUI redesigns outside the Tome dialog
 - unrelated refactors
 
 ## Required behavior
-1. Passive Rust Tablet decay must no longer throw when scanning player inventories.
-2. Creative inventories must be skipped entirely.
-3. Null inventories must be skipped safely.
-4. Inventories whose `ClassName` or `InventoryID` indicates creative inventory must be skipped.
-5. A bad inventory must not crash the server tick.
-6. Join/startup tablet decay scanning must be deferred until inventories are ready.
-7. Login-time decay, if needed, must run after a short delay instead of immediately on `PlayerJoin`.
-8. Normal Rust Tablet decay must still work for valid survival inventories and valid containers.
+1. The Tome must use tabs/pages.
+2. The Tome must have at least:
+   - Learned Spells
+   - Prepared Spells
+3. Learned spells must be shown from `SpellRegistry` and sorted by:
+   - school
+   - tier
+   - name
+4. Only learned/default-learned enabled spells should be shown.
+5. Clicking a learned spell name must show spell details.
+6. Clicking Prepare must store the spell code into a prepared spell slot.
+7. Casting must use the currently selected prepared slot, not the last prepared spell.
+8. The Tome background must be visible and non-transparent.
+9. Invalid/missing prepared spell codes must not crash the Tome.
+10. Prepared slots must remain 9.
+11. The active prepared slot should be saved if the existing save system supports it.
 
-## Audit targets
-Review the full passive tablet decay flow for:
-- `OnServerPlayerJoin`
-- `OnServerPlayerNowPlaying`
-- `ProcessPassiveTabletDecay`
-- `ProcessTabletDecayForInventories`
-- `ProcessTabletDecayForInventory`
+## Prepare flow rules
+1. If a prepared slot is selected, Prepare must use that slot.
+2. If no prepared slot is selected, Prepare must use the first empty slot.
+3. The same spell cannot be prepared in multiple slots.
+4. If all slots are full and no slot is selected, show `No empty spell slots.`
+5. Preparing a spell must not cast it.
+6. Prepared spells must be stored by registry code, not display name.
 
-For each path, verify:
-- creative inventories are excluded
-- null inventories are skipped
-- `inventory.Count` access is defensive
-- one bad inventory cannot crash the tick loop
-- join/startup decay is deferred until the player inventory is ready
+## Cast flow rules
+1. Cast must resolve the active prepared slot only.
+2. An empty active slot must fail cleanly with a clear message.
+3. The last spell clicked in Learned Spells must not determine what casts.
+4. The server must remain authoritative for cast validation and gameplay execution.
 
-## Implementation rules
-- Keep the changes minimal and robust.
-- Prefer explicit skip checks over broad catch-all handling.
-- Use a one-time log when an inventory is skipped, but do not spam every tick.
-- Preserve normal decay behavior for valid inventories and containers.
+## UI requirements
+### Learned Spells tab
+- Show only learned/default-learned enabled spells.
+- Display spell names in a scrollable list.
+- Each row should have:
+  - spell name
+  - Prepare button
+- Selecting a spell name should update a details panel.
+- The details panel should show:
+  - name
+  - description
+  - school
+  - tier
+  - corruption cost
+  - cast time
+  - cooldown
+  - target type
+  - effect summary if easy
+
+### Prepared Spells tab
+- Show all 9 prepared slots.
+- Each slot should show:
+  - slot number
+  - prepared spell name or `Empty`
+  - selected/active state
+  - Clear button
+- Clicking a slot should select it and make it active.
+- Clearing the active slot should keep the slot selected but empty if possible.
+
+## Logging requirements
+Add clear logs for:
+- Tome opened
+- learned spell count exposed to the Tome
+- prepare request received
+- target slot chosen
+- spell stored in slot
+- duplicate prepare rejected
+- slot cleared
+- active slot changed
+- cast attempted from active slot
 
 ## Validation requirements
 After the repair:
-1. Creative worlds no longer crash.
-2. Joining a creative-building save no longer throws `InventoryPlayerCreative.get_Count()`.
-3. Passive tablet decay still works for actual Rust Tablets in normal player inventory and container slots.
-4. The server tick cannot be killed by one bad inventory.
+1. The Tome has a visible background.
+2. The Tome has tabs/pages.
+3. Learned Spells lists all enabled learned/default-learned spells.
+4. Clicking a spell name shows full details.
+5. Clicking Prepare places the spell into the selected prepared slot if one is selected.
+6. If no slot is selected, Prepare places it into the first empty slot.
+7. Preparing the same spell twice is rejected.
+8. Prepared Spells shows 9 slots.
+9. Clicking a prepared slot makes it active.
+10. Clear clears that slot.
+11. Casting uses the active prepared slot.
+12. Empty active slot cannot cast.
+13. Invalid saved spell codes do not crash the Tome.
+14. Prepared slots persist if the existing prepared-spell persistence supports it.
