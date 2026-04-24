@@ -20,15 +20,23 @@ namespace TheRustweave
         public const string NetworkChannelName = "therustweave";
         public const string TomeItemCode = "rustweaverstome";
         public const string TomeItemClass = "ItemRustweaverTome";
+        public const string TabletItemCode = "rusttablet";
+        public const string TabletItemClass = "ItemRustTablet";
         public const string SpellRegistryAsset = "therustweave:config/spells.json";
         public const string PlayerStateModDataKey = "therustweave:playerstate";
         public const string CastStateModDataKey = "therustweave:caststate";
         public const string WatchedPlayerStateKey = "therustweave:playerstate";
         public const string WatchedCastStateKey = "therustweave:caststate";
+        public const string TabletStoredCorruptionKey = "therustweave:tabletcorruption";
+        public const string TabletLastDecayTotalDaysKey = "therustweave:tabletdecaydays";
         public const string DummySpellCode = "dummy-rustcall";
         public const int DefaultCorruption = 0;
         public const int DefaultThreshold = 200;
         public const int DefaultCap = 1000;
+        public const int TabletCapacity = 400;
+        public const int TabletVentingRatePerSecond = 10;
+        public const int TabletDecayPerDay = 4;
+        public const long OverloadDurationMilliseconds = 120000;
         public const int PreparedSlotCount = 9;
     }
 
@@ -83,6 +91,8 @@ namespace TheRustweave
 
         public int SelectedPreparedSpellIndex { get; set; } = -1;
 
+        public long TemporalOverloadStartedAtMilliseconds { get; set; }
+
         [JsonIgnore]
         public string SelectedPreparedSpellCode => RustweaveStateService.GetPreparedSpellCode(this, SelectedPreparedSpellIndex);
 
@@ -96,7 +106,8 @@ namespace TheRustweave
                 CastSpeedMultiplier = CastSpeedMultiplier,
                 LearnedSpellCodes = LearnedSpellCodes.ToList(),
                 PreparedSpellCodes = PreparedSpellCodes.ToList(),
-                SelectedPreparedSpellIndex = SelectedPreparedSpellIndex
+                SelectedPreparedSpellIndex = SelectedPreparedSpellIndex,
+                TemporalOverloadStartedAtMilliseconds = TemporalOverloadStartedAtMilliseconds
             };
         }
     }
@@ -233,6 +244,214 @@ namespace TheRustweave
             return collectible is ItemRustweaverTome || string.Equals(collectible.Code?.Path, RustweaveConstants.TomeItemCode, StringComparison.OrdinalIgnoreCase);
         }
 
+        public static bool IsHoldingTablet(IPlayer? player)
+        {
+            var collectible = player?.InventoryManager?.ActiveHotbarSlot?.Itemstack?.Collectible;
+            if (collectible == null)
+            {
+                return false;
+            }
+
+            return collectible is ItemRustTablet || string.Equals(collectible.Code?.Path, RustweaveConstants.TabletItemCode, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsTabletStack(ItemStack? stack)
+        {
+            var collectible = stack?.Collectible;
+            if (collectible == null)
+            {
+                return false;
+            }
+
+            return collectible is ItemRustTablet || string.Equals(collectible.Code?.Path, RustweaveConstants.TabletItemCode, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static int GetTabletStoredCorruption(ItemStack? stack)
+        {
+            if (!IsTabletStack(stack) || stack?.Attributes == null)
+            {
+                return 0;
+            }
+
+            return Math.Max(0, Math.Min(RustweaveConstants.TabletCapacity, stack.Attributes.GetInt(RustweaveConstants.TabletStoredCorruptionKey, 0)));
+        }
+
+        public static void SetTabletStoredCorruption(ItemStack? stack, int storedCorruption)
+        {
+            SetTabletStoredCorruption(stack, storedCorruption, null);
+        }
+
+        public static void SetTabletStoredCorruption(ItemStack? stack, int storedCorruption, IWorldAccessor? world)
+        {
+            if (!IsTabletStack(stack) || stack?.Attributes == null)
+            {
+                return;
+            }
+
+            var clamped = Math.Max(0, Math.Min(RustweaveConstants.TabletCapacity, storedCorruption));
+            stack.Attributes.SetInt(RustweaveConstants.TabletStoredCorruptionKey, clamped);
+            if (clamped > 0 && world?.Calendar != null)
+            {
+                TouchTabletDecayTimestamp(stack, world);
+            }
+        }
+
+        public static double GetTabletLastDecayTotalDays(ItemStack? stack)
+        {
+            if (!IsTabletStack(stack) || stack?.Attributes == null)
+            {
+                return 0d;
+            }
+
+            return Math.Max(0d, stack.Attributes.GetDouble(RustweaveConstants.TabletLastDecayTotalDaysKey, 0d));
+        }
+
+        public static void TouchTabletDecayTimestamp(ItemStack? stack, IWorldAccessor? world)
+        {
+            if (!IsTabletStack(stack) || stack?.Attributes == null || world?.Calendar == null)
+            {
+                return;
+            }
+
+            stack.Attributes.SetDouble(RustweaveConstants.TabletLastDecayTotalDaysKey, Math.Max(0d, world.Calendar.TotalDays));
+        }
+
+        public static int GetTabletDisplayedCorruption(IWorldAccessor? world, ItemStack? stack)
+        {
+            if (!IsTabletStack(stack))
+            {
+                return 0;
+            }
+
+            var storedCorruption = GetTabletStoredCorruption(stack);
+            if (storedCorruption <= 0 || world?.Calendar == null)
+            {
+                return storedCorruption;
+            }
+
+            var lastDecayTotalDays = GetTabletLastDecayTotalDays(stack);
+            if (lastDecayTotalDays <= 0d)
+            {
+                return storedCorruption;
+            }
+
+            var elapsedDays = world.Calendar.TotalDays - lastDecayTotalDays;
+            if (elapsedDays <= 0d)
+            {
+                return storedCorruption;
+            }
+
+            var decayAmount = (int)Math.Floor(elapsedDays * RustweaveConstants.TabletDecayPerDay);
+            return Math.Max(0, storedCorruption - decayAmount);
+        }
+
+        public static string GetTabletStageLabel(IWorldAccessor? world, ItemStack? stack)
+        {
+            return GetTabletStageLabel(GetTabletDisplayedCorruption(world, stack));
+        }
+
+        public static string GetTabletStageLabel(int storedCorruption)
+        {
+            if (storedCorruption <= 0)
+            {
+                return Lang.Get("game:rusttablet-stage-inert");
+            }
+
+            if (storedCorruption < 100)
+            {
+                return Lang.Get("game:rusttablet-stage-faded");
+            }
+
+            return Lang.Get("game:rusttablet-stage-stabilized");
+        }
+
+        public static bool ApplyTabletPassiveDecay(IWorldAccessor? world, ItemSlot? slot)
+        {
+            if (slot?.Itemstack == null)
+            {
+                return false;
+            }
+
+            var changed = ApplyTabletPassiveDecay(world, slot.Itemstack);
+            if (changed)
+            {
+                slot.MarkDirty();
+            }
+
+            return changed;
+        }
+
+        public static bool ApplyTabletPassiveDecay(IWorldAccessor? world, ItemStack? stack)
+        {
+            if (!IsTabletStack(stack) || stack?.Attributes == null || world?.Calendar == null)
+            {
+                return false;
+            }
+
+            var currentDays = Math.Max(0d, world.Calendar.TotalDays);
+            var storedCorruption = GetTabletStoredCorruption(stack);
+            var lastDecayTotalDays = GetTabletLastDecayTotalDays(stack);
+
+            if (storedCorruption <= 0)
+            {
+                if (lastDecayTotalDays <= 0d)
+                {
+                    stack.Attributes.SetDouble(RustweaveConstants.TabletLastDecayTotalDaysKey, currentDays);
+                    return true;
+                }
+
+                return false;
+            }
+
+            if (lastDecayTotalDays <= 0d || currentDays <= lastDecayTotalDays)
+            {
+                stack.Attributes.SetDouble(RustweaveConstants.TabletLastDecayTotalDaysKey, currentDays);
+                return true;
+            }
+
+            var elapsedDays = currentDays - lastDecayTotalDays;
+            var decayAmount = (int)Math.Floor(elapsedDays * RustweaveConstants.TabletDecayPerDay);
+            if (decayAmount <= 0)
+            {
+                return false;
+            }
+
+            var newStoredCorruption = Math.Max(0, storedCorruption - decayAmount);
+            if (newStoredCorruption == storedCorruption)
+            {
+                return false;
+            }
+
+            stack.Attributes.SetInt(RustweaveConstants.TabletStoredCorruptionKey, newStoredCorruption);
+            stack.Attributes.SetDouble(
+                RustweaveConstants.TabletLastDecayTotalDaysKey,
+                newStoredCorruption <= 0
+                    ? currentDays
+                    : lastDecayTotalDays + (decayAmount / (double)RustweaveConstants.TabletDecayPerDay));
+            return true;
+        }
+
+        public static void UpdateOverloadState(RustweavePlayerStateData state, long nowMilliseconds)
+        {
+            if (state.CurrentTemporalCorruption >= state.EffectiveTemporalCorruptionThreshold)
+            {
+                if (state.TemporalOverloadStartedAtMilliseconds <= 0)
+                {
+                    state.TemporalOverloadStartedAtMilliseconds = nowMilliseconds;
+                }
+
+                return;
+            }
+
+            state.TemporalOverloadStartedAtMilliseconds = 0;
+        }
+
+        public static bool IsOverloadExpired(RustweavePlayerStateData state, long nowMilliseconds)
+        {
+            return state.TemporalOverloadStartedAtMilliseconds > 0
+                && nowMilliseconds - state.TemporalOverloadStartedAtMilliseconds >= RustweaveConstants.OverloadDurationMilliseconds;
+        }
+
         public static RustweavePlayerStateData CreateFreshState()
         {
             var starterSpellCode = RustweaveRuntime.SpellRegistry.StarterSpellCode;
@@ -272,6 +491,10 @@ namespace TheRustweave
             state.AbsoluteTemporalCorruptionCap = Math.Max(state.EffectiveTemporalCorruptionThreshold, state.AbsoluteTemporalCorruptionCap);
             state.CurrentTemporalCorruption = Math.Min(state.CurrentTemporalCorruption, state.AbsoluteTemporalCorruptionCap);
             state.CastSpeedMultiplier = state.CastSpeedMultiplier <= 0 ? 1f : state.CastSpeedMultiplier;
+            if (state.CurrentTemporalCorruption < state.EffectiveTemporalCorruptionThreshold)
+            {
+                state.TemporalOverloadStartedAtMilliseconds = 0;
+            }
 
             state.LearnedSpellCodes ??= new List<string>();
             state.PreparedSpellCodes ??= new List<string>();
@@ -707,8 +930,10 @@ namespace TheRustweave
     {
         private readonly ICoreServerAPI sapi;
         private readonly Dictionary<string, RustweaveCastStateData> activeCasts = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, RustTabletVentingSession> activeTabletVents = new(StringComparer.OrdinalIgnoreCase);
         private IServerNetworkChannel? channel;
         private long tickListenerId;
+        private long nextTabletDecayScanMilliseconds;
 
         public RustweaveServerController(ICoreServerAPI sapi)
         {
@@ -722,7 +947,15 @@ namespace TheRustweave
             channel.SetMessageHandler<RustweaveActionPacket>(OnClientPacket);
             sapi.Event.PlayerJoin += OnServerPlayerJoin;
             sapi.Event.PlayerNowPlaying += OnServerPlayerNowPlaying;
+            sapi.Event.PlayerLeave += OnServerPlayerLeave;
             tickListenerId = sapi.Event.RegisterGameTickListener(OnServerTick, 50, 50);
+        }
+
+        private sealed class RustTabletVentingSession
+        {
+            public long StartedAtMilliseconds { get; set; }
+
+            public int TransferredCorruption { get; set; }
         }
 
         private void OnServerPlayerJoin(IServerPlayer player)
@@ -733,6 +966,7 @@ namespace TheRustweave
             }
 
             GetState(player);
+            ProcessTabletDecayForInventories(player);
         }
 
         private void OnServerPlayerNowPlaying(IServerPlayer player)
@@ -744,6 +978,69 @@ namespace TheRustweave
 
             var state = GetState(player);
             SaveAndSyncState(player, state);
+            ProcessTabletDecayForInventories(player);
+        }
+
+        private void OnServerPlayerLeave(IServerPlayer player)
+        {
+            if (player == null)
+            {
+                return;
+            }
+
+            activeCasts.Remove(player.PlayerUID);
+            activeTabletVents.Remove(player.PlayerUID);
+        }
+
+        public bool TryStartTabletVenting(EntityPlayer entityPlayer)
+        {
+            if (entityPlayer == null)
+            {
+                return false;
+            }
+
+            var player = GetOnlineServerPlayer(entityPlayer.PlayerUID);
+            if (player == null || player.Entity == null || !player.Entity.Alive || !RustweaveStateService.IsRustweaver(player))
+            {
+                return false;
+            }
+
+            var state = GetState(player);
+            if (state.CurrentTemporalCorruption > state.EffectiveTemporalCorruptionThreshold)
+            {
+                return false;
+            }
+
+            var tablet = player.InventoryManager?.ActiveHotbarSlot?.Itemstack;
+            if (tablet == null || !RustweaveStateService.IsHoldingTablet(player))
+            {
+                return false;
+            }
+
+            RustweaveStateService.ApplyTabletPassiveDecay(player.Entity?.World ?? sapi.World, player.InventoryManager?.ActiveHotbarSlot);
+
+            if (RustweaveStateService.GetTabletStoredCorruption(tablet) >= RustweaveConstants.TabletCapacity)
+            {
+                return false;
+            }
+
+            activeTabletVents[player.PlayerUID] = new RustTabletVentingSession
+            {
+                StartedAtMilliseconds = sapi.World.ElapsedMilliseconds,
+                TransferredCorruption = 0
+            };
+
+            return true;
+        }
+
+        public void StopTabletVenting(EntityPlayer entityPlayer)
+        {
+            if (entityPlayer == null)
+            {
+                return;
+            }
+
+            activeTabletVents.Remove(entityPlayer.PlayerUID);
         }
 
         private void OnClientPacket(IServerPlayer fromPlayer, RustweaveActionPacket packet)
@@ -793,6 +1090,8 @@ namespace TheRustweave
 
         private void OnServerTick(float dt)
         {
+            ProcessPassiveTabletDecay();
+
             foreach (var onlinePlayer in sapi.World.AllOnlinePlayers)
             {
                 if (onlinePlayer is not IServerPlayer serverPlayer)
@@ -808,10 +1107,27 @@ namespace TheRustweave
                         CancelCast(serverPlayer, staleState, Lang.Get("game:rustweave-cast-cancel"), true, true);
                     }
 
+                    activeTabletVents.Remove(serverPlayer.PlayerUID);
+
+                    continue;
+                }
+
+                if (serverPlayer.Entity == null || !serverPlayer.Entity.Alive)
+                {
+                    activeCasts.Remove(serverPlayer.PlayerUID);
+                    activeTabletVents.Remove(serverPlayer.PlayerUID);
                     continue;
                 }
 
                 var state = GetState(serverPlayer);
+                ProcessTabletVenting(serverPlayer, state);
+                RustweaveStateService.UpdateOverloadState(state, sapi.World.ElapsedMilliseconds);
+
+                if (RustweaveStateService.IsOverloadExpired(state, sapi.World.ElapsedMilliseconds))
+                {
+                    TriggerOverloadExplosion(serverPlayer);
+                    continue;
+                }
 
                 if (!activeCasts.TryGetValue(serverPlayer.PlayerUID, out var castState))
                 {
@@ -855,10 +1171,96 @@ namespace TheRustweave
             }
         }
 
+        private void ProcessTabletVenting(IServerPlayer serverPlayer, RustweavePlayerStateData state)
+        {
+            if (!activeTabletVents.TryGetValue(serverPlayer.PlayerUID, out var ventSession))
+            {
+                return;
+            }
+
+            if (!RustweaveStateService.IsHoldingTablet(serverPlayer))
+            {
+                activeTabletVents.Remove(serverPlayer.PlayerUID);
+                return;
+            }
+
+            var tablet = serverPlayer.InventoryManager?.ActiveHotbarSlot?.Itemstack;
+            if (tablet == null)
+            {
+                activeTabletVents.Remove(serverPlayer.PlayerUID);
+                return;
+            }
+
+            RustweaveStateService.ApplyTabletPassiveDecay(serverPlayer.Entity?.World ?? sapi.World, serverPlayer.InventoryManager?.ActiveHotbarSlot);
+
+            if (state.CurrentTemporalCorruption > state.EffectiveTemporalCorruptionThreshold || state.CurrentTemporalCorruption <= 0)
+            {
+                activeTabletVents.Remove(serverPlayer.PlayerUID);
+                return;
+            }
+
+            var storedCorruption = RustweaveStateService.GetTabletStoredCorruption(tablet);
+            if (storedCorruption >= RustweaveConstants.TabletCapacity)
+            {
+                activeTabletVents.Remove(serverPlayer.PlayerUID);
+                return;
+            }
+
+            var elapsedMilliseconds = sapi.World.ElapsedMilliseconds - ventSession.StartedAtMilliseconds;
+            var desiredTransfer = (int)Math.Floor((elapsedMilliseconds / 1000d) * RustweaveConstants.TabletVentingRatePerSecond);
+            var transfer = Math.Min(
+                desiredTransfer - ventSession.TransferredCorruption,
+                Math.Min(state.CurrentTemporalCorruption, RustweaveConstants.TabletCapacity - storedCorruption));
+
+            if (transfer > 0)
+            {
+                state.CurrentTemporalCorruption -= transfer;
+                storedCorruption += transfer;
+                ventSession.TransferredCorruption += transfer;
+                RustweaveStateService.SetTabletStoredCorruption(tablet, storedCorruption, serverPlayer.Entity?.World ?? sapi.World);
+                serverPlayer.InventoryManager?.ActiveHotbarSlot?.MarkDirty();
+                SaveAndSyncState(serverPlayer, state);
+            }
+
+            if (state.CurrentTemporalCorruption <= 0 || storedCorruption >= RustweaveConstants.TabletCapacity)
+            {
+                activeTabletVents.Remove(serverPlayer.PlayerUID);
+                return;
+            }
+        }
+
+        private void TriggerOverloadExplosion(IServerPlayer serverPlayer)
+        {
+            activeCasts.Remove(serverPlayer.PlayerUID);
+            activeTabletVents.Remove(serverPlayer.PlayerUID);
+
+            if (serverPlayer.Entity == null || !serverPlayer.Entity.Alive)
+            {
+                return;
+            }
+
+            var explosionPos = serverPlayer.Entity.Pos.AsBlockPos;
+            sapi.World.CreateExplosion(explosionPos, EnumBlastType.EntityBlast, 0, 5, 0f, serverPlayer.PlayerUID);
+            serverPlayer.SendMessage(0, Lang.Get("game:rustweave-overload-detonated"), EnumChatType.Notification, null);
+
+            var damageSource = new DamageSource
+            {
+                Source = EnumDamageSource.Explosion,
+                Type = EnumDamageType.Crushing,
+                SourceEntity = serverPlayer.Entity,
+                CauseEntity = serverPlayer.Entity,
+                DamageTier = 3,
+                KnockbackStrength = 2f
+            };
+
+            serverPlayer.Entity.Die(EnumDespawnReason.Death, damageSource);
+        }
+
         private RustweavePlayerStateData GetState(IServerPlayer player)
         {
             var state = RustweaveStateService.LoadServerState(player);
             state = RustweaveStateService.NormalizeState(state);
+            RustweaveStateService.UpdateOverloadState(state, sapi.World.ElapsedMilliseconds);
             RustweaveStateService.CacheServerState(player, state);
             return state;
         }
@@ -866,8 +1268,83 @@ namespace TheRustweave
         private void SaveAndSyncState(IServerPlayer player, RustweavePlayerStateData state)
         {
             state = RustweaveStateService.NormalizeState(state);
+            RustweaveStateService.UpdateOverloadState(state, sapi.World.ElapsedMilliseconds);
             RustweaveStateService.CacheServerState(player, state);
             RustweaveStateService.SaveServerState(player, state);
+        }
+
+        private void ProcessTabletDecayForInventories(IServerPlayer player)
+        {
+            if (player?.InventoryManager?.InventoriesOrdered == null)
+            {
+                return;
+            }
+
+            foreach (var inventory in player.InventoryManager.InventoriesOrdered)
+            {
+                ProcessTabletDecayForInventory(inventory, player.Entity?.World ?? sapi.World);
+            }
+        }
+
+        private void ProcessPassiveTabletDecay()
+        {
+            if (sapi.World.ElapsedMilliseconds < nextTabletDecayScanMilliseconds)
+            {
+                return;
+            }
+
+            nextTabletDecayScanMilliseconds = sapi.World.ElapsedMilliseconds + 1000;
+
+            foreach (var onlinePlayer in sapi.World.AllOnlinePlayers.OfType<IServerPlayer>())
+            {
+                ProcessTabletDecayForInventories(onlinePlayer);
+            }
+
+            foreach (var chunkIndex in sapi.World.LoadedChunkIndices)
+            {
+                var chunk = sapi.World.BlockAccessor.GetChunk(chunkIndex);
+                if (chunk?.BlockEntities == null)
+                {
+                    continue;
+                }
+
+                foreach (var blockEntity in chunk.BlockEntities.Values)
+                {
+                    if (blockEntity is not IBlockEntityContainer container || container.Inventory == null)
+                    {
+                        continue;
+                    }
+
+                    ProcessTabletDecayForInventory(container.Inventory, sapi.World);
+                }
+            }
+        }
+
+        private void ProcessTabletDecayForInventory(IInventory? inventory, IWorldAccessor? world)
+        {
+            if (inventory == null || world?.Calendar == null)
+            {
+                return;
+            }
+
+            for (var slotIndex = 0; slotIndex < inventory.Count; slotIndex++)
+            {
+                var slot = inventory[slotIndex];
+                if (slot?.Itemstack == null)
+                {
+                    continue;
+                }
+
+                if (RustweaveStateService.ApplyTabletPassiveDecay(world, slot))
+                {
+                    inventory.MarkSlotDirty(slotIndex);
+                }
+            }
+        }
+
+        private IServerPlayer? GetOnlineServerPlayer(string playerUid)
+        {
+            return sapi.World.AllOnlinePlayers.OfType<IServerPlayer>().FirstOrDefault(player => string.Equals(player.PlayerUID, playerUid, StringComparison.OrdinalIgnoreCase));
         }
 
         private void StartCast(IServerPlayer player, RustweavePlayerStateData state, int slotIndex)

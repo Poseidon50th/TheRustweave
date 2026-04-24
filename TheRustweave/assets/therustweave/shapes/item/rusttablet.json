@@ -1,0 +1,30 @@
+{
+	"editor": {
+		"allAngles": false,
+		"entityTextureMode": false
+	},
+	"textureWidth": 16,
+	"textureHeight": 16,
+	"textureSizes": {
+	},
+	"textures": {
+		"tablet-front": "item/tome/brown-front",
+		"tablet-face": "item/tome/pages-aged"
+	},
+	"elements": [
+		{
+			"name": "tablet",
+			"from": [ 2.0, 0.0, 2.0 ],
+			"to": [ 14.0, 2.0, 14.0 ],
+			"rotationOrigin": [ 8.0, 1.0, 8.0 ],
+			"faces": {
+				"north": { "texture": "#tablet-front", "uv": [ 0.0, 0.0, 12.0, 2.0 ] },
+				"east": { "texture": "#tablet-front", "uv": [ 0.0, 0.0, 12.0, 2.0 ] },
+				"south": { "texture": "#tablet-front", "uv": [ 0.0, 0.0, 12.0, 2.0 ] },
+				"west": { "texture": "#tablet-front", "uv": [ 0.0, 0.0, 12.0, 2.0 ] },
+				"up": { "texture": "#tablet-face", "uv": [ 0.0, 0.0, 12.0, 12.0 ] },
+				"down": { "texture": "#tablet-face", "uv": [ 0.0, 0.0, 12.0, 12.0 ] }
+			}
+		}
+	]
+}

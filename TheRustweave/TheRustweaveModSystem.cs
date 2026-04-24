@@ -13,6 +13,7 @@ namespace TheRustweave
         public override void Start(ICoreAPI api)
         {
             api.RegisterItemClass("ItemRustweaverTome", typeof(ItemRustweaverTome));
+            api.RegisterItemClass("ItemRustTablet", typeof(ItemRustTablet));
             Mod.Logger.Notification("Hello from template mod: " + api.Side);
         }
 

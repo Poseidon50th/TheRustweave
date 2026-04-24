@@ -51,6 +51,17 @@
     "game:rustweave-hud-offset-y": "Offset Y",
     "game:rustweave-hud-reset": "Reset",
     "game:rustweave-hud-close": "Close",
+    "item-rusttablet": "Rust Tablet",
+    "itemdesc-rusttablet": "A venting tablet that stores corruption drawn from a Rustweaver and slowly decays over time.",
+    "game:rusttablet-tooltip": "Stored corruption: {0}/{1}",
+    "game:rusttablet-tooltip-stage": "State: {0}",
+    "game:rusttablet-stage-stabilized": "stabilized",
+    "game:rusttablet-stage-faded": "faded",
+    "game:rusttablet-stage-inert": "inert",
+    "game:rustweave-rusttablet-reject": "Only a Rustweaver can vent into the tablet.",
+    "game:rustweave-rusttablet-full": "The tablet is already full.",
+    "game:rustweave-rusttablet-overloaded": "The Rust surges too violently to vent.",
+    "game:rustweave-overload-detonated": "The overload consumes you.",
     "game:spellname-dummy-rustcall": "Dummy Rustcall",
     "game:spelldesc-dummy-rustcall": "A harmless placeholder spell used for scaffold testing."
 }
