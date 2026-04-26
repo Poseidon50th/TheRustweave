@@ -6,25 +6,38 @@
     "rustweaveitems": [ "*" ]
   },
   "maxstacksize": 1,
-  "shape": {
-    "base": "item/discovery/rustplane-prism"
+  "shapeByType": {
+    "*": {
+      "base": "therustweave:item/rustplaneprism"
+    }
+  },
+  "texturesByType": {
+    "*": {
+      "inner": { "base": "therustweave:item/rustplaneprism" }
+    }
   },
   "guiTransform": {
-    "translation": { "x": 0, "y": 2.6, "z": 0 },
-    "rotation": { "x": -68, "y": 180, "z": 0 },
-    "origin": { "x": 0.5, "y": 0.2, "z": 0.5 },
-    "scaleXyz": { "x": -1.45, "y": 1.45, "z": 1.45 }
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": 151, "y": -48, "z": 0 },
+    "origin": { "x": 0.525, "y": 0.1, "z": 0.55 },
+    "scale": 3
+  },
+  "fpHandTransform": {
+    "translation": { "x": 0.18, "y": 0, "z": 0 },
+    "rotation": { "x": 5, "y": 100, "z": 0 },
+    "origin": { "x": 0.5, "y": -0.13, "z": 0.5 },
+    "scale": 2.5
   },
   "tpHandTransform": {
-    "translation": { "x": -1, "y": -0.5, "z": -1 },
-    "rotation": { "x": 2, "y": -95, "z": -90 },
-    "origin": { "x": 0.5, "y": 0.1, "z": 0.5 },
-    "scale": 0.5
+    "translation": { "x": -0.7799, "y": -0.12, "z": -0.66 },
+    "rotation": { "x": -41, "y": -29, "z": -60 },
+    "origin": { "x": 0.5, "y": 0.09, "z": 0.5 },
+    "scale": 0.75
   },
   "groundTransform": {
-    "translation": { "x": 0.12, "y": 0, "z": -0.04 },
-    "rotation": { "x": 0, "y": 35, "z": 90 },
-    "origin": { "x": 0.5, "y": 0.05, "z": 0.5 },
-    "scale": 1.45
+    "translation": { "x": 0, "y": 0, "z": 0 },
+    "rotation": { "x": 0, "y": 0, "z": 0 },
+    "origin": { "x": 0.5, "y": 0, "z": 0.5 },
+    "scale": 4.5
   }
 }

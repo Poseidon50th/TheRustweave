@@ -1,37 +1,37 @@
-# Current Task: Rustweaver discovery items and loot generation
+# Current Task: Rustplane Sage mentor learning backend
 
 ## Objective
-Add lootable Rustweave discovery items that can teach random spells from configured school/tier pools.
+Implement backend support for Rustplane Sage mentor learning, including persistent studies, configurable payment, study completion, and admin/debug commands.
 
 ## Scope
-This pass covers discovery-item backend, item assets, loot generation hooks, and localization.
+This task is limited to mentor backend/config/commands.
 
 Do not add:
-- mentors
+- Tome UI work
 - rituals
-- crafted scrolls
-- practice unlocks
-- spell executor rewrites
-- unrelated UI systems
+- player-made scrolls
+- Rustbound Magic dependencies
+- hostile/corrupted mentors
+- school specialization
+- prerequisite chains
 
 ## Required behavior
-1. Add the discovery items:
-   - Forgotten Book
-   - Arcane Notes
-   - Rustplane Prism
-   - Ancient Codex
-   - Scroll from the Rust
-2. Each item must have matching model, texture, itemtype, and localization assets.
-3. Discovery items must unlock random eligible spells from configured pools.
-4. Discovery items must not unlock Loreweave spells.
-5. Discovery items must not unlock hidden, disabled, invalid, or already learned spells unless fallback research behavior applies.
-6. Forgotten Book and Rustplane Prism must be single-use per player and not consumed.
-7. Arcane Notes, Ancient Codex, and Scroll from the Rust must be consumed on successful use.
-8. Loot hooks should add discovery items to ruins, chests, bookshelves, traders, and dungeon loot where feasible.
+1. Rustplane Sage mentor studies must be stored per player and persist across logout/world reload.
+2. Mentors must offer only enabled, non-hidden, non-Loreweave spells.
+3. Locked/learned validation must happen before study starts.
+4. Study timers must continue using world/calendar time when possible.
+5. Payment must be configurable by tier.
+6. Completing a study must call `LearnSpell(player, spellCode, "mentor:rustplane-sage")`.
+7. Admin/debug commands must exist for listing, starting, checking, and completing mentor studies.
 
-## Validation
-- No missing texture or model errors for the new items.
-- All five discovery items appear in creative inventory with correct names.
-- Items teach eligible spells and update the Tome learned tab.
-- Invalid or empty pools fail cleanly.
-- Loot patches apply without crashing.
+## Validation requirements
+After the repair:
+1. Game starts without errors.
+2. Mentor config loads.
+3. `/rustweave mentor list` shows teachable spells.
+4. `/rustweave mentor study <spellcode>` starts a paid study.
+5. `/rustweave mentor status` reports active studies.
+6. Due studies complete on login/tick and unlock the spell.
+7. Studying persists across logout/world reload.
+8. Invalid spell codes fail cleanly.
+9. Loreweave spells are never taught.

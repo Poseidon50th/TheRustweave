@@ -21,6 +21,7 @@ namespace TheRustweave
         public const string ModId = "therustweave";
         public const string NetworkChannelName = "therustweave";
         public const string ProgressionConfigFileName = "therustweave-progression.json";
+        public const string MentorConfigFileName = "therustweave-mentor.json";
         public const string DiscoveryConfigFileName = "therustweave-discovery.json";
         public const string DiscoveryConfigAsset = "therustweave:config/therustweave-discovery.json";
         public const string TomeItemCode = "rustweaverstome";
@@ -50,6 +51,7 @@ namespace TheRustweave
         public const long OverloadDurationMilliseconds = 120000;
         public const int PreparedSlotCount = 9;
         public const string RustMendSpellCode = "rust-mend";
+        public const string MentorStudySource = RustweaveMentorTypes.RustplaneSageStudySource;
 
         // Change this list when adding or removing starter spells.
         public static readonly string[] StarterSpellCodes = { RustMendSpellCode };
@@ -182,6 +184,8 @@ namespace TheRustweave
 
         public Dictionary<string, int> DiscoveryItemUseCounts { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
+        public List<RustweaveMentorStudyData> MentorStudies { get; set; } = new();
+
         [JsonIgnore]
         public string SelectedPreparedSpellCode => RustweaveStateService.GetPreparedSpellCode(this, SelectedPreparedSpellIndex);
 
@@ -201,7 +205,8 @@ namespace TheRustweave
                 SelectedPreparedSpellIndex = SelectedPreparedSpellIndex,
                 TemporalOverloadStartedAtMilliseconds = TemporalOverloadStartedAtMilliseconds,
                 DiscoveryResearchProgress = DiscoveryResearchProgress?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
-                DiscoveryItemUseCounts = DiscoveryItemUseCounts?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+                DiscoveryItemUseCounts = DiscoveryItemUseCounts?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+                MentorStudies = MentorStudies?.Select(study => study?.Clone()).Where(study => study != null).Cast<RustweaveMentorStudyData>().ToList() ?? new List<RustweaveMentorStudyData>()
             };
         }
     }
@@ -259,6 +264,8 @@ namespace TheRustweave
 
         public static RustweaveProgressionConfig ProgressionConfig { get; private set; } = new();
 
+        public static RustweaveMentorConfig MentorConfig { get; private set; } = new();
+
         public static RustweaveDiscoveryConfig DiscoveryConfig { get; private set; } = new();
 
         public static SpellRegistryType SpellRegistry { get; private set; } = SpellRegistryType.CreateFallback();
@@ -271,6 +278,7 @@ namespace TheRustweave
         {
             CommonApi = api;
             LoadProgressionConfig(api);
+            LoadMentorConfig(api);
             SpellRegistry = SpellRegistryType.Load(api);
             LoadDiscoveryConfig(api);
 
@@ -310,6 +318,62 @@ namespace TheRustweave
             }
 
             api.Logger.Notification("[TheRustweave] Progression config loaded: AllSpellsLearnedByDefaultForTesting={0}", ProgressionConfig.AllSpellsLearnedByDefaultForTesting);
+        }
+
+        private static void LoadMentorConfig(ICoreAPI api)
+        {
+            try
+            {
+                MentorConfig = api.LoadModConfig<RustweaveMentorConfig>(RustweaveConstants.MentorConfigFileName) ?? new RustweaveMentorConfig();
+            }
+            catch (Exception exception)
+            {
+                MentorConfig = new RustweaveMentorConfig();
+                api.Logger.Warning("[TheRustweave] Failed to load mentor config, using defaults: {0}", exception.Message);
+            }
+
+            MentorConfig.DefaultStudyHoursByTier ??= new Dictionary<int, double>();
+            MentorConfig.CostsByTier ??= new Dictionary<int, RustweaveMentorTierCostConfig>();
+
+            foreach (var tier in Enumerable.Range(1, 6))
+            {
+                if (!MentorConfig.DefaultStudyHoursByTier.ContainsKey(tier))
+                {
+                    MentorConfig.DefaultStudyHoursByTier[tier] = tier switch
+                    {
+                        1 => 6d,
+                        2 => 12d,
+                        3 => 24d,
+                        4 => 48d,
+                        5 => 72d,
+                        6 => 120d,
+                        _ => 24d
+                    };
+                }
+
+                if (!MentorConfig.CostsByTier.ContainsKey(tier))
+                {
+                    MentorConfig.CostsByTier[tier] = new RustweaveMentorTierCostConfig
+                    {
+                        ItemCode = "game:gear-temporal",
+                        Quantity = Math.Max(1, tier)
+                    };
+                }
+            }
+
+            try
+            {
+                api.StoreModConfig(MentorConfig, RustweaveConstants.MentorConfigFileName);
+            }
+            catch (Exception exception)
+            {
+                api.Logger.Warning("[TheRustweave] Failed to store mentor config defaults: {0}", exception.Message);
+            }
+
+            api.Logger.Notification(
+                "[TheRustweave] Mentor config loaded: enableRustplaneSageMentors={0}, allowMentorsToBypassLootRarity={1}",
+                MentorConfig.EnableRustplaneSageMentors,
+                MentorConfig.AllowMentorsToBypassLootRarity);
         }
 
         private static void LoadDiscoveryConfig(ICoreAPI api)
@@ -789,6 +853,7 @@ namespace TheRustweave
             state.PreparedSpellCodes ??= new List<string>();
             state.DiscoveryResearchProgress ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             state.DiscoveryItemUseCounts ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            state.MentorStudies ??= new List<RustweaveMentorStudyData>();
 
             if (state.SpellProgressionVersion < CurrentProgressionVersion)
             {
@@ -846,6 +911,8 @@ namespace TheRustweave
                 .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value > 0)
                 .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.Max(pair => pair.Value), StringComparer.OrdinalIgnoreCase);
+
+            RustweaveMentorService.NormalizeMentorStudies(state);
 
             return state;
         }
@@ -1481,6 +1548,7 @@ namespace TheRustweave
             state.SpellCastCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             state.DiscoveryResearchProgress = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             state.DiscoveryItemUseCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            state.MentorStudies = new List<RustweaveMentorStudyData>();
             state.SpellProgressionVersion = CurrentProgressionVersion;
             state.KnowledgeRankIndex = GetKnowledgeRankIndex(state);
             return true;
@@ -1790,6 +1858,33 @@ namespace TheRustweave
                 .WithArgs(sapi.ChatCommands.Parsers.Word("spellcode"))
                 .HandleWith(args => HandleCastsCommand(args))
                 .EndSubCommand();
+
+            var mentor = root.BeginSubCommand("mentor")
+                .WithDescription("Rustplane Sage mentor study commands");
+
+            mentor.BeginSubCommand("list")
+                .WithDescription("List teachable Rustplane Sage spells")
+                .HandleWith(args => HandleMentorListCommand(args))
+                .EndSubCommand();
+
+            mentor.BeginSubCommand("study")
+                .WithDescription("Start a Rustplane Sage study for a spell code")
+                .WithArgs(sapi.ChatCommands.Parsers.Word("spellcode"))
+                .HandleWith(args => HandleMentorStudyCommand(args))
+                .EndSubCommand();
+
+            mentor.BeginSubCommand("status")
+                .WithDescription("Show active Rustplane Sage studies")
+                .HandleWith(args => HandleMentorStatusCommand(args))
+                .EndSubCommand();
+
+            mentor.BeginSubCommand("complete")
+                .WithDescription("Force-complete a Rustplane Sage study")
+                .WithArgs(sapi.ChatCommands.Parsers.Word("spellcode"))
+                .HandleWith(args => HandleMentorCompleteCommand(args))
+                .EndSubCommand();
+
+            mentor.EndSubCommand();
         }
 
         private TextCommandResult HandleLearnCommand(TextCommandCallingArgs args)
@@ -1913,6 +2008,258 @@ namespace TheRustweave
             return TextCommandResult.Success($"{spellCode}: {count} successful cast(s).");
         }
 
+        private TextCommandResult HandleMentorListCommand(TextCommandCallingArgs args)
+        {
+            if (args.Caller?.Player is not IServerPlayer player)
+            {
+                return TextCommandResult.Error("A player caller is required for this command.");
+            }
+
+            if (!RustweaveMentorService.IsEnabled())
+            {
+                return TextCommandResult.Error(Lang.Get("game:rustweave-mentor-disabled"));
+            }
+
+            var teachables = RustweaveMentorService.GetTeachableSpells(player);
+            if (teachables.Count == 0)
+            {
+                return TextCommandResult.Success(Lang.Get("game:rustweave-mentor-no-spells"));
+            }
+
+            var lines = teachables
+                .Select(spell =>
+                {
+                    var studyHours = RustweaveMentorService.GetStudyHoursForTier(spell.Tier);
+                    var costEntries = RustweaveMentorService.BuildCostEntries(spell.Tier);
+                    return $"{spell.Code} - {RustweaveStateService.GetSpellDisplayName(spell.Code)} (tier {spell.Tier}, {spell.School}, study {RustweaveMentorService.FormatStudyTime(studyHours)}h, cost {RustweaveMentorService.FormatCostEntries(costEntries)})";
+                })
+                .ToList();
+
+            return TextCommandResult.Success($"Teachable spell(s):\n{string.Join("\n", lines)}");
+        }
+
+        private TextCommandResult HandleMentorStudyCommand(TextCommandCallingArgs args)
+        {
+            if (args.Caller?.Player is not IServerPlayer player)
+            {
+                return TextCommandResult.Error("A player caller is required for this command.");
+            }
+
+            var spellCode = args[0] as string ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(spellCode))
+            {
+                return TextCommandResult.Error("Usage: /rustweave mentor study <spellcode>");
+            }
+
+            if (!RustweaveMentorService.TryValidateMentorSpell(player, spellCode, out var spell, out var failureReason) || spell == null)
+            {
+                if (string.Equals(failureReason, "You already know this spell.", StringComparison.OrdinalIgnoreCase))
+                {
+                    return TextCommandResult.Error(Lang.Get("game:rustweave-mentor-already-known"));
+                }
+
+                return TextCommandResult.Error(string.IsNullOrWhiteSpace(failureReason) ? "Unable to begin study." : failureReason);
+            }
+
+            var state = GetState(player);
+            RustweaveMentorService.NormalizeMentorStudies(state);
+
+            if (state.MentorStudies.Any(study => string.Equals(study.SpellCode, spell.Code, StringComparison.OrdinalIgnoreCase)))
+            {
+                return TextCommandResult.Error("You are already studying that working.");
+            }
+
+            var costEntries = RustweaveMentorService.BuildCostEntries(spell.Tier);
+            if (!RustweaveMentorService.HasCost(player, costEntries))
+            {
+                sapi.Logger.Debug("[TheRustweave] Mentor study rejected for player '{0}' because they could not pay {1}.", player.PlayerUID, RustweaveMentorService.FormatCostEntries(costEntries));
+                player.SendMessage(0, Lang.Get("game:rustweave-mentor-insufficient-payment"), EnumChatType.Notification, null);
+                return TextCommandResult.Error("You lack the required offering.");
+            }
+
+            if (!RustweaveMentorService.ConsumeCost(player, costEntries))
+            {
+                sapi.Logger.Warning("[TheRustweave] Mentor cost consumption failed for player '{0}' and spell '{1}'.", player.PlayerUID, spell.Code);
+                return TextCommandResult.Error("You lack the required offering.");
+            }
+
+            var nowHours = GetWorldHours(player);
+            var studyHours = RustweaveMentorService.GetStudyHoursForTier(spell.Tier);
+            state.MentorStudies.Add(new RustweaveMentorStudyData
+            {
+                SpellCode = spell.Code,
+                MentorType = RustweaveMentorTypes.RustplaneSage,
+                StartTime = nowHours,
+                FinishTime = nowHours + studyHours,
+                PaidCost = costEntries.Select(entry => entry.Clone()).ToList()
+            });
+
+            SaveAndSyncState(player, state);
+            sapi.Logger.Debug("[TheRustweave] Mentor study started for player '{0}' on spell '{1}' (finish at {2:0.0}h).", player.PlayerUID, spell.Code, nowHours + studyHours);
+            player.SendMessage(0, Lang.Get("game:rustweave-mentor-started", RustweaveStateService.GetSpellDisplayName(spell.Code)), EnumChatType.Notification, null);
+            return TextCommandResult.Success($"The Rustplane Sage begins your study of {spell.Code}.");
+        }
+
+        private TextCommandResult HandleMentorStatusCommand(TextCommandCallingArgs args)
+        {
+            if (args.Caller?.Player is not IServerPlayer player)
+            {
+                return TextCommandResult.Error("A player caller is required for this command.");
+            }
+
+            ProcessMentorStudies(player);
+
+            var state = GetState(player);
+            RustweaveMentorService.NormalizeMentorStudies(state);
+            var studies = RustweaveMentorService.GetActiveStudies(state);
+            if (studies.Count == 0)
+            {
+                return TextCommandResult.Success("No active mentor studies.");
+            }
+
+            var nowHours = GetWorldHours(player);
+            var lines = studies
+                .OrderBy(study => study.FinishTime)
+                .ThenBy(study => study.SpellCode, StringComparer.OrdinalIgnoreCase)
+                .Select(study =>
+                {
+                    var displayName = RustweaveStateService.GetSpellDisplayName(study.SpellCode);
+                    var remainingHours = Math.Max(0d, study.FinishTime - nowHours);
+                    return $"{study.SpellCode} - {displayName} ({RustweaveMentorService.FormatStudyTime(remainingHours)}h remaining, paid {RustweaveMentorService.FormatCostEntries(study.PaidCost)})";
+                })
+                .ToList();
+
+            return TextCommandResult.Success($"Active mentor studies:\n{string.Join("\n", lines)}");
+        }
+
+        private TextCommandResult HandleMentorCompleteCommand(TextCommandCallingArgs args)
+        {
+            if (args.Caller?.Player is not IServerPlayer player)
+            {
+                return TextCommandResult.Error("A player caller is required for this command.");
+            }
+
+            var spellCode = args[0] as string ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(spellCode))
+            {
+                return TextCommandResult.Error("Usage: /rustweave mentor complete <spellcode>");
+            }
+
+            if (TryCompleteMentorStudy(player, spellCode, true, out var message))
+            {
+                if (string.Equals(message, "invalid", StringComparison.OrdinalIgnoreCase))
+                {
+                    return TextCommandResult.Error("The Sage cannot teach that working.");
+                }
+
+                return TextCommandResult.Success(string.IsNullOrWhiteSpace(message) ? $"Completed study for {spellCode}." : message);
+            }
+
+            return TextCommandResult.Error(string.IsNullOrWhiteSpace(message) ? "Unable to complete mentor study." : message);
+        }
+
+        private bool TryCompleteMentorStudy(IServerPlayer player, string spellCode, bool force, out string message)
+        {
+            message = string.Empty;
+            if (player == null || string.IsNullOrWhiteSpace(spellCode))
+            {
+                message = "Invalid spell code.";
+                return false;
+            }
+
+            var state = GetState(player);
+            RustweaveMentorService.NormalizeMentorStudies(state);
+            var study = state.MentorStudies.FirstOrDefault(entry => string.Equals(entry.SpellCode, spellCode, StringComparison.OrdinalIgnoreCase));
+            if (study == null)
+            {
+                message = "No active mentor study found for that spell.";
+                return false;
+            }
+
+            var changed = TryFinalizeMentorStudy(player, state, study, force, out var learnedNow, out var statusMessage);
+            if (!changed)
+            {
+                message = "The study is not complete yet.";
+                return false;
+            }
+
+            SaveAndSyncState(player, state);
+
+            if (learnedNow)
+            {
+                message = string.IsNullOrWhiteSpace(statusMessage)
+                    ? $"Your study is complete. You learned {RustweaveStateService.GetSpellDisplayName(spellCode)}."
+                    : statusMessage;
+            }
+            else if (string.Equals(statusMessage, "already learned", StringComparison.OrdinalIgnoreCase))
+            {
+                message = "You already know this spell.";
+            }
+            else if (!string.IsNullOrWhiteSpace(statusMessage))
+            {
+                message = statusMessage;
+            }
+
+            return true;
+        }
+
+        private bool TryFinalizeMentorStudy(IServerPlayer player, RustweavePlayerStateData state, RustweaveMentorStudyData study, bool force, out bool learnedNow, out string statusMessage)
+        {
+            learnedNow = false;
+            statusMessage = string.Empty;
+
+            if (player == null || state == null || study == null)
+            {
+                statusMessage = "Invalid mentor study.";
+                return false;
+            }
+
+            if (!RustweaveRuntime.SpellRegistry.TryGetEnabledSpell(study.SpellCode, out var spell) || spell == null || RustweaveStateService.IsHiddenSpell(spell) || RustweaveStateService.IsLoreweaveSpell(spell))
+            {
+                state.MentorStudies.Remove(study);
+                sapi.Logger.Warning("[TheRustweave] Mentor study for player '{0}' removed because spell '{1}' is invalid.", player.PlayerUID, study.SpellCode);
+                player.SendMessage(0, Lang.Get("game:rustweave-mentor-invalid"), EnumChatType.Notification, null);
+                statusMessage = "invalid";
+                return true;
+            }
+
+            var nowHours = GetWorldHours(player);
+            if (!force && nowHours < study.FinishTime)
+            {
+                return false;
+            }
+
+            if (RustweaveStateService.IsSpellLearned(player, study.SpellCode))
+            {
+                state.MentorStudies.Remove(study);
+                sapi.Logger.Debug("[TheRustweave] Mentor study for player '{0}' removed because spell '{1}' was already learned.", player.PlayerUID, study.SpellCode);
+                statusMessage = "already learned";
+                return true;
+            }
+
+            if (RustweaveStateService.LearnSpell(state, study.SpellCode, RustweaveMentorTypes.RustplaneSageStudySource, out var failureReason))
+            {
+                state.MentorStudies.Remove(study);
+                learnedNow = true;
+                sapi.Logger.Debug("[TheRustweave] Mentor study for player '{0}' completed spell '{1}'.", player.PlayerUID, study.SpellCode);
+                player.SendMessage(0, Lang.Get("game:rustweave-mentor-complete", RustweaveStateService.GetSpellDisplayName(study.SpellCode)), EnumChatType.Notification, null);
+                statusMessage = $"Your study is complete. You learned {RustweaveStateService.GetSpellDisplayName(study.SpellCode)}.";
+                return true;
+            }
+
+            state.MentorStudies.Remove(study);
+            sapi.Logger.Warning("[TheRustweave] Mentor study for player '{0}' failed for spell '{1}': {2}", player.PlayerUID, study.SpellCode, failureReason);
+            statusMessage = string.IsNullOrWhiteSpace(failureReason) ? "Unable to complete mentor study." : failureReason;
+            return true;
+        }
+
+        private double GetWorldHours(IServerPlayer player)
+        {
+            return player?.Entity?.World?.Calendar?.TotalHours
+                ?? sapi.World?.Calendar?.TotalHours
+                ?? 0d;
+        }
+
         private sealed class RustTabletVentingSession
         {
             public long StartedAtMilliseconds { get; set; }
@@ -1978,6 +2325,7 @@ namespace TheRustweave
 
             var state = GetState(player);
             SaveAndSyncState(player, state);
+            ProcessMentorStudies(player, state);
             ScheduleTabletDecayScan(player, 1500);
         }
 
@@ -2243,6 +2591,7 @@ namespace TheRustweave
                 }
 
                 var state = GetState(serverPlayer);
+                ProcessMentorStudies(serverPlayer, state);
                 ProcessTabletVenting(serverPlayer, state);
                 RustweaveStateService.UpdateOverloadState(state, sapi.World.ElapsedMilliseconds);
 
@@ -2335,6 +2684,82 @@ namespace TheRustweave
             {
                 activeTabletVents.Remove(serverPlayer.PlayerUID);
                 return;
+            }
+        }
+
+        private void ProcessMentorStudies(IServerPlayer serverPlayer)
+        {
+            var state = GetState(serverPlayer);
+            ProcessMentorStudies(serverPlayer, state);
+        }
+
+        private void ProcessMentorStudies(IServerPlayer serverPlayer, RustweavePlayerStateData state)
+        {
+            if (serverPlayer == null || state == null || !RustweaveStateService.IsRustweaver(serverPlayer))
+            {
+                return;
+            }
+
+            RustweaveMentorService.NormalizeMentorStudies(state);
+            if (state.MentorStudies.Count == 0)
+            {
+                return;
+            }
+
+            var changed = false;
+            foreach (var study in state.MentorStudies.ToList())
+            {
+                if (study == null || string.IsNullOrWhiteSpace(study.SpellCode))
+                {
+                    state.MentorStudies.Remove(study!);
+                    changed = true;
+                    continue;
+                }
+
+                if (!RustweaveRuntime.SpellRegistry.TryGetEnabledSpell(study.SpellCode, out var spell) || spell == null || RustweaveStateService.IsHiddenSpell(spell) || RustweaveStateService.IsLoreweaveSpell(spell))
+                {
+                    state.MentorStudies.Remove(study!);
+                    changed = true;
+                    sapi.Logger.Warning("[TheRustweave] Mentor study for player '{0}' was cleared because spell '{1}' became invalid.", serverPlayer.PlayerUID, study.SpellCode);
+                    serverPlayer.SendMessage(0, Lang.Get("game:rustweave-mentor-invalid"), EnumChatType.Notification, null);
+                    continue;
+                }
+
+                if (RustweaveStateService.IsSpellLearned(serverPlayer, study.SpellCode))
+                {
+                    state.MentorStudies.Remove(study!);
+                    changed = true;
+                    sapi.Logger.Debug("[TheRustweave] Mentor study for player '{0}' was cleared because spell '{1}' was already learned from another source.", serverPlayer.PlayerUID, study.SpellCode);
+                    continue;
+                }
+
+                var currentHours = GetWorldHours(serverPlayer);
+                if (currentHours < study.FinishTime)
+                {
+                    continue;
+                }
+
+                if (RustweaveStateService.LearnSpell(state, study.SpellCode, RustweaveMentorTypes.RustplaneSageStudySource, out var failureReason))
+                {
+                    state.MentorStudies.Remove(study!);
+                    changed = true;
+                    sapi.Logger.Debug("[TheRustweave] Mentor study completed for player '{0}' on spell '{1}'.", serverPlayer.PlayerUID, study.SpellCode);
+                    serverPlayer.SendMessage(0, Lang.Get("game:rustweave-mentor-complete", RustweaveStateService.GetSpellDisplayName(study.SpellCode)), EnumChatType.Notification, null);
+                    continue;
+                }
+
+                state.MentorStudies.Remove(study!);
+                changed = true;
+                sapi.Logger.Warning("[TheRustweave] Mentor study for player '{0}' failed to complete spell '{1}': {2}", serverPlayer.PlayerUID, study.SpellCode, failureReason);
+                if (!string.IsNullOrWhiteSpace(failureReason))
+                {
+                    serverPlayer.SendMessage(0, Lang.Get("game:rustweave-mentor-invalid"), EnumChatType.Notification, null);
+                }
+            }
+
+            if (changed)
+            {
+                SaveAndSyncState(serverPlayer, state);
             }
         }
 

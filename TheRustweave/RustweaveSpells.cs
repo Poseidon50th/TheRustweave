@@ -99,6 +99,7 @@ namespace TheRustweave
             None,
             HealSelf,
             RepairHeldItem,
+            RepairInventoryItem,
             DamageRayEntity,
             DamageArea,
             SlowTarget,
