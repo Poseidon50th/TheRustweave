@@ -1,0 +1,41 @@
+[
+  {
+    "op": "add",
+    "path": "/selling/list/-",
+    "value": {
+      "code": "forgotten-book",
+      "type": "item",
+      "stacksize": 1,
+      "stock": { "avg": 1, "var": 0 },
+      "price": { "avg": 24, "var": 6 }
+    },
+    "file": "game:config/tradelists/trader-treasurehunter.json",
+    "side": "Server"
+  },
+  {
+    "op": "add",
+    "path": "/selling/list/-",
+    "value": {
+      "code": "rustplane-prism",
+      "type": "item",
+      "stacksize": 1,
+      "stock": { "avg": 1, "var": 0 },
+      "price": { "avg": 36, "var": 8 }
+    },
+    "file": "game:config/tradelists/trader-treasurehunter.json",
+    "side": "Server"
+  },
+  {
+    "op": "add",
+    "path": "/selling/list/-",
+    "value": {
+      "code": "ancient-codex",
+      "type": "item",
+      "stacksize": 1,
+      "stock": { "avg": 1, "var": 0 },
+      "price": { "avg": 48, "var": 12 }
+    },
+    "file": "game:config/tradelists/trader-treasurehunter.json",
+    "side": "Server"
+  }
+]

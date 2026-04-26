@@ -62,33 +62,16 @@ When completing a task, prefer to:
 3. preserve clear localization entries
 4. note any required add/remove/replace actions if the user asked for a delta instead of full replacement
 
-## Current Implementation Priority: Data-Driven Spell Executor
+## Vintage Story GUI Rule
 
-When modifying The Rustweave, prioritize the current spell-system architecture task:
+For Rustweaver Tome work, do not use `SingleComposer = composer` inside rebuild, refresh, tab-switch, or button-callback flows.
 
-- Spell definitions should come from JSON, preferably `spells.json`.
-- C# should execute spell behavior through a server-authoritative spell effect executor.
-- Spells must support an `effects[]` list, not only one hardcoded effect.
-- Unknown `effectType` or `targetType` values should be rejected during spell validation/loading.
-- Gameplay effects must run server-side.
-- Client-side code may display HUD, cast bar, particles, and sounds, but must not apply gameplay effects.
-- Corruption cost is charged on successful cast completion only.
-- Failed casts should not add corruption and should not trigger cooldown.
-- Add basic per-player, per-spell cooldowns.
-- Initial target types are:
-  - `self`
-  - `heldItem`
-  - `lookEntity`
-- Initial effect types are:
-  - `none`
-  - `repairHeldItem`
-  - `addHealth`
-  - `damageEntity`
-  - `teleportForward`
-  - `ventCorruption`
-  - `spawnParticles`
-  - `playSound`
+The current crash path is caused by assigning `SingleComposer` while `GuiDialog` internal composer storage is null or unsafe.
 
-Do not attempt unrelated polish fixes during this task unless required for the executor to work. Known deferred issues:
-- HUD does not immediately sync saved corruption when joining old worlds/servers.
-- Rustweaver's Tome GUI background is transparent.
+Use a stable `GuiDialog` lifecycle:
+- constructor must call `base(capi)`
+- build composer once on open where possible
+- use `Composers["main"]` or a known-safe Vintage Story GUI pattern
+- do not reassign composers from active mouse callbacks
+- prefer updating text/state elements over full recomposition
+- if rebuild is unavoidable, close/dispose/recreate the dialog safely outside the callback

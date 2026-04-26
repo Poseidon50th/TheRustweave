@@ -1,0 +1,37 @@
+[
+  {
+    "op": "add",
+    "path": "/attributes/lootListByType/*-food/-",
+    "value": { "type": "item", "chance": 0.24, "minQuantity": 1, "maxQuantity": 1, "codes": [ "arcane-notes" ] },
+    "file": "game:blocktypes/clay/lootvessel.json",
+    "side": "Server"
+  },
+  {
+    "op": "add",
+    "path": "/attributes/lootListByType/*-forage/-",
+    "value": { "type": "item", "chance": 0.18, "minQuantity": 1, "maxQuantity": 1, "codes": [ "forgotten-book" ] },
+    "file": "game:blocktypes/clay/lootvessel.json",
+    "side": "Server"
+  },
+  {
+    "op": "add",
+    "path": "/attributes/lootListByType/*-tool/-",
+    "value": { "type": "item", "chance": 0.08, "minQuantity": 1, "maxQuantity": 1, "codes": [ "scroll-from-the-rust" ] },
+    "file": "game:blocktypes/clay/lootvessel.json",
+    "side": "Server"
+  },
+  {
+    "op": "add",
+    "path": "/attributes/lootListByType/*-ore/-",
+    "value": { "type": "item", "chance": 0.07, "minQuantity": 1, "maxQuantity": 1, "codes": [ "rustplane-prism" ] },
+    "file": "game:blocktypes/clay/lootvessel.json",
+    "side": "Server"
+  },
+  {
+    "op": "add",
+    "path": "/attributes/lootListByType/*-food/-",
+    "value": { "type": "item", "chance": 0.03, "minQuantity": 1, "maxQuantity": 1, "codes": [ "ancient-codex" ] },
+    "file": "game:blocktypes/clay/lootvessel.json",
+    "side": "Server"
+  }
+]

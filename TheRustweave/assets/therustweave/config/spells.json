@@ -4,7 +4,9 @@
     "name": "Dummy Rustcall",
     "description": "A harmless placeholder spell used for scaffold testing.",
     "enabled": true,
+    "hidden": true,
     "school": "scaffold",
+    "category": "Debug",
     "tier": 1,
     "castTimeSeconds": 2.5,
     "cooldownSeconds": 0,
@@ -15,6 +17,7 @@
     "requiresLineOfSight": false,
     "requiresTome": true,
     "requiresHeldFocus": false,
+    "unlockHint": "Discovery required.",
     "requiredGlyphs": [],
     "allowedGlyphs": [],
     "glyphSlots": 0,
@@ -28,14 +31,14 @@
   {
     "code": "rust-mend",
     "name": "Rust Mend",
-    "description": "Repairs the held item slightly.",
+    "description": "Repairs the most damaged item in your inventory slightly.",
     "enabled": true,
     "school": "restoration",
     "tier": 1,
     "castTimeSeconds": 2.5,
     "cooldownSeconds": 8,
     "corruptionCost": 30,
-    "targetType": "heldItem",
+    "targetType": "inventory",
     "range": 0,
     "radius": 0,
     "requiresLineOfSight": false,
@@ -46,7 +49,7 @@
     "glyphSlots": 0,
     "effects": [
       {
-        "type": "repairHeldItem",
+        "type": "repairInventoryItem",
         "durabilityAmount": 25,
         "allowBrokenItems": false
       },
@@ -68,6 +71,7 @@
     "description": "Steps the caster forward through a short fold in space.",
     "enabled": true,
     "school": "mobility",
+    "unlockHint": "Learned from Warping spells.",
     "tier": 1,
     "castTimeSeconds": 1.5,
     "cooldownSeconds": 12,
@@ -140,6 +144,7 @@
     "description": "Rips at the entity you are looking at.",
     "enabled": true,
     "school": "destruction",
+    "unlockHint": "Discovery required.",
     "tier": 2,
     "castTimeSeconds": 2.75,
     "cooldownSeconds": 10,
@@ -155,7 +160,7 @@
     "glyphSlots": 0,
     "effects": [
       {
-        "type": "damageEntity",
+        "type": "damageRayEntity",
         "damageAmount": 8
       },
       {
@@ -205,5 +210,33 @@
       }
     ],
     "icon": "therustweave:spell/venting-whisper"
+  },
+  {
+    "code": "loreweave-glimmer",
+    "name": "Loreweave Glimmer",
+    "description": "A purely cosmetic shimmer of the Loreweave.",
+    "enabled": true,
+    "school": "Loreweave",
+    "category": "Lore",
+    "isLoreSpell": true,
+    "tier": 1,
+    "castTimeSeconds": 0.75,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "self",
+    "range": 0,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "none"
+      }
+    ],
+    "icon": "therustweave:spell/loreweave-glimmer"
   }
 ]

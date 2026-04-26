@@ -1,0 +1,80 @@
+{
+  "editor": {
+    "allAngles": false,
+    "entityTextureMode": false
+  },
+  "textureWidth": 32,
+  "textureHeight": 32,
+  "textures": {
+    "pages": "item/discovery/forgotten-book",
+    "binding": "item/discovery/forgotten-book",
+    "runes": "item/discovery/forgotten-book"
+  },
+  "elements": [
+    {
+      "name": "page-a",
+      "from": [ 4, 5, 5 ],
+      "to": [ 28, 8, 27 ],
+      "faces": {
+        "north": { "texture": "#pages", "uv": [ 0, 0, 24, 3 ] },
+        "south": { "texture": "#pages", "uv": [ 0, 0, 24, 3 ] },
+        "east": { "texture": "#pages", "uv": [ 0, 0, 22, 3 ] },
+        "west": { "texture": "#pages", "uv": [ 0, 0, 22, 3 ] },
+        "up": { "texture": "#pages", "uv": [ 0, 0, 24, 22 ] },
+        "down": { "texture": "#pages", "uv": [ 0, 0, 24, 22 ] }
+      }
+    },
+    {
+      "name": "page-b",
+      "from": [ 5, 8, 4 ],
+      "to": [ 27, 11, 26 ],
+      "faces": {
+        "north": { "texture": "#pages", "uv": [ 0, 0, 22, 3 ] },
+        "south": { "texture": "#pages", "uv": [ 0, 0, 22, 3 ] },
+        "east": { "texture": "#pages", "uv": [ 0, 0, 22, 3 ] },
+        "west": { "texture": "#pages", "uv": [ 0, 0, 22, 3 ] },
+        "up": { "texture": "#pages", "uv": [ 0, 0, 22, 22 ] },
+        "down": { "texture": "#pages", "uv": [ 0, 0, 22, 22 ] }
+      }
+    },
+    {
+      "name": "page-c",
+      "from": [ 6, 11, 5 ],
+      "to": [ 26, 14, 27 ],
+      "faces": {
+        "north": { "texture": "#pages", "uv": [ 0, 0, 20, 3 ] },
+        "south": { "texture": "#pages", "uv": [ 0, 0, 20, 3 ] },
+        "east": { "texture": "#pages", "uv": [ 0, 0, 22, 3 ] },
+        "west": { "texture": "#pages", "uv": [ 0, 0, 22, 3 ] },
+        "up": { "texture": "#pages", "uv": [ 0, 0, 20, 22 ] },
+        "down": { "texture": "#pages", "uv": [ 0, 0, 20, 22 ] }
+      }
+    },
+    {
+      "name": "page-d",
+      "from": [ 7, 14, 6 ],
+      "to": [ 25, 17, 26 ],
+      "faces": {
+        "north": { "texture": "#pages", "uv": [ 0, 0, 18, 3 ] },
+        "south": { "texture": "#pages", "uv": [ 0, 0, 18, 3 ] },
+        "east": { "texture": "#pages", "uv": [ 0, 0, 20, 3 ] },
+        "west": { "texture": "#pages", "uv": [ 0, 0, 20, 3 ] },
+        "up": { "texture": "#pages", "uv": [ 0, 0, 18, 20 ] },
+        "down": { "texture": "#pages", "uv": [ 0, 0, 18, 20 ] }
+      }
+    },
+    {
+      "name": "binding",
+      "from": [ 14, 4, 4 ],
+      "to": [ 18, 18, 28 ],
+      "faces": {
+        "north": { "texture": "#binding", "uv": [ 0, 0, 4, 14 ] },
+        "south": { "texture": "#binding", "uv": [ 0, 0, 4, 14 ] },
+        "east": { "texture": "#binding", "uv": [ 0, 0, 24, 14 ] },
+        "west": { "texture": "#binding", "uv": [ 0, 0, 24, 14 ] },
+        "up": { "texture": "#binding", "uv": [ 0, 0, 4, 24 ] },
+        "down": { "texture": "#binding", "uv": [ 0, 0, 4, 24 ] }
+      }
+    }
+  ]
+}

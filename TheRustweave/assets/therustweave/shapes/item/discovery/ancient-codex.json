@@ -1,0 +1,80 @@
+{
+  "editor": {
+    "allAngles": false,
+    "entityTextureMode": false
+  },
+  "textureWidth": 32,
+  "textureHeight": 32,
+  "textures": {
+    "cover": "item/discovery/ancient-codex",
+    "pages": "item/discovery/ancient-codex",
+    "chain": "item/discovery/ancient-codex"
+  },
+  "elements": [
+    {
+      "name": "cover-back",
+      "from": [ 4, 4, 5 ],
+      "to": [ 28, 28, 27 ],
+      "faces": {
+        "north": { "texture": "#cover", "uv": [ 0, 0, 24, 24 ] },
+        "south": { "texture": "#cover", "uv": [ 0, 0, 24, 24 ] },
+        "east": { "texture": "#cover", "uv": [ 0, 0, 22, 24 ] },
+        "west": { "texture": "#cover", "uv": [ 0, 0, 22, 24 ] },
+        "up": { "texture": "#cover", "uv": [ 0, 0, 24, 22 ] },
+        "down": { "texture": "#cover", "uv": [ 0, 0, 24, 22 ] }
+      }
+    },
+    {
+      "name": "pages",
+      "from": [ 6, 6, 7 ],
+      "to": [ 26, 26, 25 ],
+      "faces": {
+        "north": { "texture": "#pages", "uv": [ 0, 0, 20, 20 ] },
+        "south": { "texture": "#pages", "uv": [ 0, 0, 20, 20 ] },
+        "east": { "texture": "#pages", "uv": [ 0, 0, 18, 20 ] },
+        "west": { "texture": "#pages", "uv": [ 0, 0, 18, 20 ] },
+        "up": { "texture": "#pages", "uv": [ 0, 0, 20, 18 ] },
+        "down": { "texture": "#pages", "uv": [ 0, 0, 20, 18 ] }
+      }
+    },
+    {
+      "name": "chain-a",
+      "from": [ 12, 3, 11 ],
+      "to": [ 14, 29, 19 ],
+      "faces": {
+        "north": { "texture": "#chain", "uv": [ 0, 0, 2, 26 ] },
+        "south": { "texture": "#chain", "uv": [ 0, 0, 2, 26 ] },
+        "east": { "texture": "#chain", "uv": [ 0, 0, 8, 26 ] },
+        "west": { "texture": "#chain", "uv": [ 0, 0, 8, 26 ] },
+        "up": { "texture": "#chain", "uv": [ 0, 0, 2, 8 ] },
+        "down": { "texture": "#chain", "uv": [ 0, 0, 2, 8 ] }
+      }
+    },
+    {
+      "name": "chain-b",
+      "from": [ 18, 3, 11 ],
+      "to": [ 20, 29, 19 ],
+      "faces": {
+        "north": { "texture": "#chain", "uv": [ 0, 0, 2, 26 ] },
+        "south": { "texture": "#chain", "uv": [ 0, 0, 2, 26 ] },
+        "east": { "texture": "#chain", "uv": [ 0, 0, 8, 26 ] },
+        "west": { "texture": "#chain", "uv": [ 0, 0, 8, 26 ] },
+        "up": { "texture": "#chain", "uv": [ 0, 0, 2, 8 ] },
+        "down": { "texture": "#chain", "uv": [ 0, 0, 2, 8 ] }
+      }
+    },
+    {
+      "name": "clasp",
+      "from": [ 11, 12, 4 ],
+      "to": [ 21, 16, 7 ],
+      "faces": {
+        "north": { "texture": "#chain", "uv": [ 0, 0, 10, 4 ] },
+        "south": { "texture": "#chain", "uv": [ 0, 0, 10, 4 ] },
+        "east": { "texture": "#chain", "uv": [ 0, 0, 3, 4 ] },
+        "west": { "texture": "#chain", "uv": [ 0, 0, 3, 4 ] },
+        "up": { "texture": "#chain", "uv": [ 0, 0, 10, 3 ] },
+        "down": { "texture": "#chain", "uv": [ 0, 0, 10, 3 ] }
+      }
+    }
+  ]
+}

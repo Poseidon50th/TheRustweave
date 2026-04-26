@@ -8,6 +8,7 @@ using ProtoBuf;
 using Cairo;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
@@ -19,10 +20,14 @@ namespace TheRustweave
     {
         public const string ModId = "therustweave";
         public const string NetworkChannelName = "therustweave";
+        public const string ProgressionConfigFileName = "therustweave-progression.json";
+        public const string DiscoveryConfigFileName = "therustweave-discovery.json";
+        public const string DiscoveryConfigAsset = "therustweave:config/therustweave-discovery.json";
         public const string TomeItemCode = "rustweaverstome";
         public const string TomeItemClass = "ItemRustweaverTome";
         public const string TabletItemCode = "rusttablet";
         public const string TabletItemClass = "ItemRustTablet";
+        public const string DiscoveryItemClass = "ItemRustweaveDiscoveryItem";
         public const string SpellRegistryAsset = "therustweave:config/spells.json";
         public const string PlayerStateModDataKey = "therustweave:playerstate";
         public const string CastStateModDataKey = "therustweave:caststate";
@@ -31,6 +36,11 @@ namespace TheRustweave
         public const string TabletStoredCorruptionKey = "therustweave:tabletcorruption";
         public const string TabletLastDecayTotalDaysKey = "therustweave:tabletdecaydays";
         public const string DummySpellCode = "dummy-rustcall";
+        public const string ForgottenBookItemCode = "forgotten-book";
+        public const string ArcaneNotesItemCode = "arcane-notes";
+        public const string RustplanePrismItemCode = "rustplane-prism";
+        public const string AncientCodexItemCode = "ancient-codex";
+        public const string ScrollFromTheRustItemCode = "scroll-from-the-rust";
         public const int DefaultCorruption = 0;
         public const int DefaultThreshold = 200;
         public const int DefaultCap = 1000;
@@ -39,7 +49,74 @@ namespace TheRustweave
         public const int TabletDecayPerDay = 4;
         public const long OverloadDurationMilliseconds = 120000;
         public const int PreparedSlotCount = 9;
-        public static readonly bool AllSpellsLearnedByDefaultForTesting = true; // TODO: replace with real learning/progression later.
+        public const string RustMendSpellCode = "rust-mend";
+
+        // Change this list when adding or removing starter spells.
+        public static readonly string[] StarterSpellCodes = { RustMendSpellCode };
+
+        public static readonly string[] DiscoveryItemCodes =
+        {
+            ForgottenBookItemCode,
+            ArcaneNotesItemCode,
+            RustplanePrismItemCode,
+            AncientCodexItemCode,
+            ScrollFromTheRustItemCode
+        };
+
+        public static bool AllSpellsLearnedByDefaultForTesting => RustweaveRuntime.ProgressionConfig?.AllSpellsLearnedByDefaultForTesting ?? false;
+    }
+
+    internal sealed class RustweaveProgressionConfig
+    {
+        /// <summary>
+        /// Set true only while testing spell effects and Tome slot behavior.
+        /// Set false for survival progression testing.
+        /// </summary>
+        public bool AllSpellsLearnedByDefaultForTesting { get; set; } = false;
+    }
+
+    internal sealed class RustweaveDiscoveryConfig
+    {
+        [JsonProperty("discoveryItems")]
+        public Dictionary<string, RustweaveDiscoveryItemDefinition> DiscoveryItems { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    internal sealed class RustweaveDiscoveryItemDefinition
+    {
+        [JsonProperty("allowedSchools")]
+        public List<string> AllowedSchools { get; set; } = new();
+
+        [JsonProperty("allowedTiers")]
+        public List<int> AllowedTiers { get; set; } = new();
+
+        [JsonProperty("consumeOnSuccess")]
+        public bool ConsumeOnSuccess { get; set; }
+
+        [JsonProperty("singleUsePerPlayer")]
+        public bool SingleUsePerPlayer { get; set; }
+    }
+
+    internal static class RustweaveKnowledgeRanks
+    {
+        private static readonly string[] Names =
+        {
+            "Rustweave Initiate",
+            "Rustweave Practitioner",
+            "Adept Rustweaver",
+            "Rustweave Scholar",
+            "Master Rustweaver",
+            "Ascendant Rustweaver"
+        };
+
+        public static string GetName(int index)
+        {
+            if (index < 0)
+            {
+                return Names[0];
+            }
+
+            return index >= Names.Length ? Names[Names.Length - 1] : Names[index];
+        }
     }
 
     [ProtoContract]
@@ -79,6 +156,8 @@ namespace TheRustweave
 
     internal sealed class RustweavePlayerStateData
     {
+        public int SpellProgressionVersion { get; set; }
+
         public int CurrentTemporalCorruption { get; set; } = RustweaveConstants.DefaultCorruption;
 
         public int EffectiveTemporalCorruptionThreshold { get; set; } = RustweaveConstants.DefaultThreshold;
@@ -89,11 +168,19 @@ namespace TheRustweave
 
         public List<string> LearnedSpellCodes { get; set; } = new();
 
+        public Dictionary<string, int> SpellCastCounts { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public int KnowledgeRankIndex { get; set; }
+
         public List<string> PreparedSpellCodes { get; set; } = new();
 
         public int SelectedPreparedSpellIndex { get; set; } = -1;
 
         public long TemporalOverloadStartedAtMilliseconds { get; set; }
+
+        public Dictionary<string, int> DiscoveryResearchProgress { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public Dictionary<string, int> DiscoveryItemUseCounts { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
         [JsonIgnore]
         public string SelectedPreparedSpellCode => RustweaveStateService.GetPreparedSpellCode(this, SelectedPreparedSpellIndex);
@@ -106,10 +193,15 @@ namespace TheRustweave
                 EffectiveTemporalCorruptionThreshold = EffectiveTemporalCorruptionThreshold,
                 AbsoluteTemporalCorruptionCap = AbsoluteTemporalCorruptionCap,
                 CastSpeedMultiplier = CastSpeedMultiplier,
+                SpellProgressionVersion = SpellProgressionVersion,
                 LearnedSpellCodes = LearnedSpellCodes.ToList(),
+                SpellCastCounts = SpellCastCounts?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+                KnowledgeRankIndex = KnowledgeRankIndex,
                 PreparedSpellCodes = PreparedSpellCodes.ToList(),
                 SelectedPreparedSpellIndex = SelectedPreparedSpellIndex,
-                TemporalOverloadStartedAtMilliseconds = TemporalOverloadStartedAtMilliseconds
+                TemporalOverloadStartedAtMilliseconds = TemporalOverloadStartedAtMilliseconds,
+                DiscoveryResearchProgress = DiscoveryResearchProgress?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+                DiscoveryItemUseCounts = DiscoveryItemUseCounts?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
             };
         }
     }
@@ -165,6 +257,10 @@ namespace TheRustweave
 
         public static ICoreClientAPI? ClientApi { get; private set; }
 
+        public static RustweaveProgressionConfig ProgressionConfig { get; private set; } = new();
+
+        public static RustweaveDiscoveryConfig DiscoveryConfig { get; private set; } = new();
+
         public static SpellRegistryType SpellRegistry { get; private set; } = SpellRegistryType.CreateFallback();
 
         public static RustweaveServerController? Server { get; private set; }
@@ -174,7 +270,9 @@ namespace TheRustweave
         public static void LoadSpellRegistry(ICoreAPI api)
         {
             CommonApi = api;
+            LoadProgressionConfig(api);
             SpellRegistry = SpellRegistryType.Load(api);
+            LoadDiscoveryConfig(api);
 
             if (RustweaveConstants.AllSpellsLearnedByDefaultForTesting)
             {
@@ -188,6 +286,151 @@ namespace TheRustweave
                     api.Logger.Notification("TheRustweave is exposing {0} spell(s) to the Tome as learned-by-default for testing: {1}", enabledSpells.Count, string.Join(", ", enabledSpells.Select(spell => spell.Code)));
                 }
             }
+        }
+
+        private static void LoadProgressionConfig(ICoreAPI api)
+        {
+            try
+            {
+                ProgressionConfig = api.LoadModConfig<RustweaveProgressionConfig>(RustweaveConstants.ProgressionConfigFileName) ?? new RustweaveProgressionConfig();
+            }
+            catch (Exception exception)
+            {
+                ProgressionConfig = new RustweaveProgressionConfig();
+                api.Logger.Warning("[TheRustweave] Failed to load progression config, using defaults: {0}", exception.Message);
+            }
+
+            try
+            {
+                api.StoreModConfig(ProgressionConfig, RustweaveConstants.ProgressionConfigFileName);
+            }
+            catch (Exception exception)
+            {
+                api.Logger.Warning("[TheRustweave] Failed to store progression config defaults: {0}", exception.Message);
+            }
+
+            api.Logger.Notification("[TheRustweave] Progression config loaded: AllSpellsLearnedByDefaultForTesting={0}", ProgressionConfig.AllSpellsLearnedByDefaultForTesting);
+        }
+
+        private static void LoadDiscoveryConfig(ICoreAPI api)
+        {
+            RustweaveDiscoveryConfig? loadedConfig = null;
+            try
+            {
+                loadedConfig = api.LoadModConfig<RustweaveDiscoveryConfig>(RustweaveConstants.DiscoveryConfigFileName);
+            }
+            catch (Exception exception)
+            {
+                api.Logger.Warning("[TheRustweave] Failed to load discovery config, using defaults: {0}", exception.Message);
+            }
+
+            if (loadedConfig == null || loadedConfig.DiscoveryItems == null || loadedConfig.DiscoveryItems.Count == 0)
+            {
+                try
+                {
+                    var asset = api.Assets.TryGet(new AssetLocation(RustweaveConstants.DiscoveryConfigAsset));
+                    loadedConfig = asset?.ToObject<RustweaveDiscoveryConfig>();
+                    if (loadedConfig != null)
+                    {
+                        api.Logger.Notification("[TheRustweave] Discovery config loaded from asset defaults.");
+                    }
+                }
+                catch (Exception exception)
+                {
+                    api.Logger.Warning("[TheRustweave] Failed to load asset discovery config, using defaults: {0}", exception.Message);
+                }
+            }
+
+            DiscoveryConfig = loadedConfig ?? new RustweaveDiscoveryConfig();
+            DiscoveryConfig.DiscoveryItems ??= new Dictionary<string, RustweaveDiscoveryItemDefinition>(StringComparer.OrdinalIgnoreCase);
+            EnsureDefaultDiscoveryConfig();
+
+            try
+            {
+                api.StoreModConfig(DiscoveryConfig, RustweaveConstants.DiscoveryConfigFileName);
+            }
+            catch (Exception exception)
+            {
+                api.Logger.Warning("[TheRustweave] Failed to store discovery config defaults: {0}", exception.Message);
+            }
+
+            api.Logger.Notification("[TheRustweave] Discovery config loaded with {0} item definition(s).", DiscoveryConfig.DiscoveryItems.Count);
+        }
+
+        public static bool TryGetDiscoveryItemDefinition(string itemCode, out RustweaveDiscoveryItemDefinition? definition)
+        {
+            definition = null;
+
+            if (string.IsNullOrWhiteSpace(itemCode))
+            {
+                return false;
+            }
+
+            if (DiscoveryConfig?.DiscoveryItems == null)
+            {
+                return false;
+            }
+
+            return DiscoveryConfig.DiscoveryItems.TryGetValue(itemCode, out definition);
+        }
+
+        private static void EnsureDefaultDiscoveryConfig()
+        {
+            var defaults = CreateDefaultDiscoveryConfig();
+            foreach (var pair in defaults.DiscoveryItems)
+            {
+                if (!DiscoveryConfig.DiscoveryItems.ContainsKey(pair.Key))
+                {
+                    DiscoveryConfig.DiscoveryItems[pair.Key] = pair.Value;
+                }
+            }
+        }
+
+        private static RustweaveDiscoveryConfig CreateDefaultDiscoveryConfig()
+        {
+            var allTiers = new[] { 1, 2, 3, 4, 5, 6 }.ToList();
+
+            return new RustweaveDiscoveryConfig
+            {
+                DiscoveryItems = new Dictionary<string, RustweaveDiscoveryItemDefinition>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [RustweaveConstants.ForgottenBookItemCode] = new RustweaveDiscoveryItemDefinition
+                    {
+                        AllowedSchools = new List<string> { SpellSchoolTypes.Tabby, SpellSchoolTypes.Warping, SpellSchoolTypes.Wefting },
+                        AllowedTiers = new List<int> { 1, 2 },
+                        ConsumeOnSuccess = false,
+                        SingleUsePerPlayer = true
+                    },
+                    [RustweaveConstants.ArcaneNotesItemCode] = new RustweaveDiscoveryItemDefinition
+                    {
+                        AllowedSchools = new List<string> { SpellSchoolTypes.Darning, SpellSchoolTypes.Backstitching, SpellSchoolTypes.Hemming },
+                        AllowedTiers = new List<int> { 1, 2, 3 },
+                        ConsumeOnSuccess = true,
+                        SingleUsePerPlayer = false
+                    },
+                    [RustweaveConstants.RustplanePrismItemCode] = new RustweaveDiscoveryItemDefinition
+                    {
+                        AllowedSchools = new List<string> { SpellSchoolTypes.Tensioning, SpellSchoolTypes.Spinning, SpellSchoolTypes.Grafting },
+                        AllowedTiers = new List<int> { 2, 3, 4 },
+                        ConsumeOnSuccess = false,
+                        SingleUsePerPlayer = true
+                    },
+                    [RustweaveConstants.AncientCodexItemCode] = new RustweaveDiscoveryItemDefinition
+                    {
+                        AllowedSchools = new List<string> { SpellSchoolTypes.Scutching, SpellSchoolTypes.Fulling, SpellSchoolTypes.Scouring, SpellSchoolTypes.Carding },
+                        AllowedTiers = new List<int> { 3, 4, 5 },
+                        ConsumeOnSuccess = true,
+                        SingleUsePerPlayer = false
+                    },
+                    [RustweaveConstants.ScrollFromTheRustItemCode] = new RustweaveDiscoveryItemDefinition
+                    {
+                        AllowedSchools = new List<string>(),
+                        AllowedTiers = allTiers,
+                        ConsumeOnSuccess = true,
+                        SingleUsePerPlayer = false
+                    }
+                }
+            };
         }
 
         public static void InitializeServer(ICoreServerAPI api)
@@ -207,6 +450,8 @@ namespace TheRustweave
 
     internal static class RustweaveStateService
     {
+        private const int CurrentProgressionVersion = 1;
+
         private static readonly JsonSerializerSettings JsonSettings = new()
         {
             NullValueHandling = NullValueHandling.Ignore
@@ -279,6 +524,35 @@ namespace TheRustweave
             }
 
             return collectible is ItemRustTablet || string.Equals(collectible.Code?.Path, RustweaveConstants.TabletItemCode, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsLoreweaveSpell(SpellDefinition? spell)
+        {
+            return spell != null && (
+                spell.IsLoreSpell
+                || string.Equals(spell.Category, "Lore", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(spell.School, SpellSchoolTypes.Loreweave, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static bool IsHiddenSpell(SpellDefinition? spell)
+        {
+            return spell?.Hidden == true;
+        }
+
+        public static bool ShouldIncludeHiddenSpellsInTome()
+        {
+            return RustweaveConstants.AllSpellsLearnedByDefaultForTesting;
+        }
+
+        public static bool IsStarterSpell(string? spellCode)
+        {
+            return !string.IsNullOrWhiteSpace(spellCode)
+                && RustweaveConstants.StarterSpellCodes.Any(code => string.Equals(code, spellCode, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static bool IsIntrinsicLearnedSpell(SpellDefinition? spell)
+        {
+            return IsLoreweaveSpell(spell) || IsStarterSpell(spell?.Code);
         }
 
         public static int GetTabletStoredCorruption(ItemStack? stack)
@@ -469,14 +743,16 @@ namespace TheRustweave
 
         public static RustweavePlayerStateData CreateFreshState()
         {
-            var learnedSpellCodes = GetDefaultLearnedSpellCodes();
             var state = new RustweavePlayerStateData
             {
                 CurrentTemporalCorruption = RustweaveConstants.DefaultCorruption,
                 EffectiveTemporalCorruptionThreshold = RustweaveConstants.DefaultThreshold,
                 AbsoluteTemporalCorruptionCap = RustweaveConstants.DefaultCap,
                 CastSpeedMultiplier = 1f,
-                LearnedSpellCodes = learnedSpellCodes,
+                SpellProgressionVersion = CurrentProgressionVersion,
+                LearnedSpellCodes = new List<string>(),
+                SpellCastCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+                KnowledgeRankIndex = 0,
                 PreparedSpellCodes = new List<string>(RustweaveConstants.PreparedSlotCount),
                 SelectedPreparedSpellIndex = -1
             };
@@ -509,53 +785,20 @@ namespace TheRustweave
             }
 
             state.LearnedSpellCodes ??= new List<string>();
+            state.SpellCastCounts ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             state.PreparedSpellCodes ??= new List<string>();
+            state.DiscoveryResearchProgress ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            state.DiscoveryItemUseCounts ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-            var normalizedLearned = new List<string>();
-            var learnedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var defaultLearnedCodes = GetDefaultLearnedSpellCodes();
-
-            if (RustweaveConstants.AllSpellsLearnedByDefaultForTesting)
+            if (state.SpellProgressionVersion < CurrentProgressionVersion)
             {
-                foreach (var code in defaultLearnedCodes)
-                {
-                    if (string.IsNullOrWhiteSpace(code) || !learnedCodes.Add(code))
-                    {
-                        continue;
-                    }
-
-                    normalizedLearned.Add(code);
-                }
-            }
-            else
-            {
-                foreach (var code in state.LearnedSpellCodes)
-                {
-                    if (string.IsNullOrWhiteSpace(code))
-                    {
-                        continue;
-                    }
-
-                    if (!RustweaveRuntime.SpellRegistry.TryGetSpell(code, out var spell) || spell == null)
-                    {
-                        continue;
-                    }
-
-                    if (!learnedCodes.Add(code))
-                    {
-                        continue;
-                    }
-
-                    normalizedLearned.Add(code);
-                }
-
-                if (normalizedLearned.Count == 0)
-                {
-                    normalizedLearned.AddRange(defaultLearnedCodes);
-                }
+                state.LearnedSpellCodes.Clear();
+                state.SpellCastCounts.Clear();
+                state.SpellProgressionVersion = CurrentProgressionVersion;
             }
 
-            state.LearnedSpellCodes = normalizedLearned;
+            CleanInvalidLearnedSpells(state);
+            state.KnowledgeRankIndex = GetKnowledgeRankIndex(state);
 
             var normalizedPrepared = new List<string>(RustweaveConstants.PreparedSlotCount);
             var usedSpellCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -569,7 +812,7 @@ namespace TheRustweave
                     continue;
                 }
 
-                if (!state.LearnedSpellCodes.Any(learned => string.Equals(learned, code, StringComparison.OrdinalIgnoreCase)) || !usedSpellCodes.Add(code))
+                if (!IsSpellLearned(code, state) || !usedSpellCodes.Add(code))
                 {
                     normalizedPrepared.Add(string.Empty);
                     continue;
@@ -594,6 +837,16 @@ namespace TheRustweave
                 ? state.SelectedPreparedSpellIndex
                 : -1;
 
+            state.DiscoveryResearchProgress = state.DiscoveryResearchProgress
+                .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value > 0)
+                .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.Max(pair => pair.Value), StringComparer.OrdinalIgnoreCase);
+
+            state.DiscoveryItemUseCounts = state.DiscoveryItemUseCounts
+                .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value > 0)
+                .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.Max(pair => pair.Value), StringComparer.OrdinalIgnoreCase);
+
             return state;
         }
 
@@ -609,7 +862,32 @@ namespace TheRustweave
                 return RustweaveRuntime.SpellRegistry.TryGetEnabledSpell(spellCode, out _);
             }
 
+            if (!RustweaveRuntime.SpellRegistry.TryGetSpell(spellCode, out var spell) || spell == null)
+            {
+                return false;
+            }
+
+            if (IsIntrinsicLearnedSpell(spell))
+            {
+                return true;
+            }
+
             return state.LearnedSpellCodes.Any(code => string.Equals(code, spellCode, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static bool IsSpellLearned(IPlayer? player, string spellCode)
+        {
+            if (player is IServerPlayer serverPlayer)
+            {
+                return IsSpellLearned(spellCode, LoadServerState(serverPlayer));
+            }
+
+            if (player is IClientPlayer clientPlayer && TryGetClientState(clientPlayer, out var state))
+            {
+                return IsSpellLearned(spellCode, state);
+            }
+
+            return false;
         }
 
         public static int NormalizeSelectedIndex(int selectedIndex, IReadOnlyList<string> preparedSpellCodes)
@@ -786,11 +1064,481 @@ namespace TheRustweave
             return -1;
         }
 
-        private static List<string> GetDefaultLearnedSpellCodes()
+        public static IReadOnlyList<string> GetLearnedSpellCodes(RustweavePlayerStateData state)
         {
-            return RustweaveConstants.AllSpellsLearnedByDefaultForTesting
-                ? RustweaveRuntime.SpellRegistry.GetEnabledSpells().Select(spell => spell.Code).Where(code => !string.IsNullOrWhiteSpace(code)).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
-                : new List<string>();
+            return state.LearnedSpellCodes
+                .Where(code => !string.IsNullOrWhiteSpace(code))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        public static IReadOnlyList<SpellDefinition> GetLearnedSpells(IPlayer? player)
+        {
+            var includeHidden = ShouldIncludeHiddenSpellsInTome();
+            var spells = RustweaveRuntime.SpellRegistry.GetEnabledSpells();
+            if (player == null)
+            {
+                return Array.Empty<SpellDefinition>();
+            }
+
+            return spells
+                .Where(spell => spell != null && !string.IsNullOrWhiteSpace(spell.Code) && (includeHidden || !IsHiddenSpell(spell)) && !IsLoreweaveSpell(spell) && IsSpellLearned(player, spell.Code))
+                .OrderBy(spell => spell.School ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(spell => spell.Tier)
+                .ThenBy(spell => spell.Name ?? spell.Code ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        public static IReadOnlyList<SpellDefinition> GetLockedSpells(IPlayer? player)
+        {
+            if (player == null)
+            {
+                return Array.Empty<SpellDefinition>();
+            }
+
+            var includeHidden = ShouldIncludeHiddenSpellsInTome();
+            return RustweaveRuntime.SpellRegistry.GetEnabledSpells()
+                .Where(spell => spell != null && !string.IsNullOrWhiteSpace(spell.Code) && (includeHidden || !IsHiddenSpell(spell)) && !IsLoreweaveSpell(spell) && !IsSpellLearned(player, spell.Code))
+                .OrderBy(spell => spell.School ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(spell => spell.Tier)
+                .ThenBy(spell => spell.Name ?? spell.Code ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        public static IReadOnlyList<SpellDefinition> GetLoreweaveSpells(IPlayer? player)
+        {
+            if (player == null)
+            {
+                return Array.Empty<SpellDefinition>();
+            }
+
+            var includeHidden = ShouldIncludeHiddenSpellsInTome();
+            return RustweaveRuntime.SpellRegistry.GetEnabledSpells()
+                .Where(spell => spell != null && !string.IsNullOrWhiteSpace(spell.Code) && (includeHidden || !IsHiddenSpell(spell)) && IsLoreweaveSpell(spell))
+                .OrderBy(spell => spell.School ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(spell => spell.Tier)
+                .ThenBy(spell => spell.Name ?? spell.Code ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        public static IReadOnlyList<SpellDefinition> GetAllVisibleSpells(IPlayer? player)
+        {
+            if (player == null)
+            {
+                return Array.Empty<SpellDefinition>();
+            }
+
+            var includeHidden = ShouldIncludeHiddenSpellsInTome();
+            return RustweaveRuntime.SpellRegistry.GetEnabledSpells()
+                .Where(spell => spell != null && !string.IsNullOrWhiteSpace(spell.Code) && (includeHidden || !IsHiddenSpell(spell)))
+                .OrderBy(spell => spell.School ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(spell => spell.Tier)
+                .ThenBy(spell => spell.Name ?? spell.Code ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        public static IReadOnlyList<SpellDefinition> GetDiscoveryPoolCandidates(IPlayer? player, string discoveryItemCode)
+        {
+            if (player == null || string.IsNullOrWhiteSpace(discoveryItemCode))
+            {
+                return Array.Empty<SpellDefinition>();
+            }
+
+            if (!RustweaveRuntime.TryGetDiscoveryItemDefinition(discoveryItemCode, out var definition) || definition == null)
+            {
+                return Array.Empty<SpellDefinition>();
+            }
+
+            var includeHidden = ShouldIncludeHiddenSpellsInTome();
+            return RustweaveRuntime.SpellRegistry.GetEnabledSpells()
+                .Where(spell => IsEligibleDiscoverySpell(spell, definition, includeHidden))
+                .OrderBy(spell => spell.School ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(spell => spell.Tier)
+                .ThenBy(spell => spell.Name ?? spell.Code ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        public static IReadOnlyList<SpellDefinition> GetDiscoveryEligibleSpells(IPlayer? player, string discoveryItemCode)
+        {
+            if (player == null || string.IsNullOrWhiteSpace(discoveryItemCode))
+            {
+                return Array.Empty<SpellDefinition>();
+            }
+
+            if (!RustweaveRuntime.TryGetDiscoveryItemDefinition(discoveryItemCode, out var definition) || definition == null)
+            {
+                return Array.Empty<SpellDefinition>();
+            }
+
+            return GetDiscoveryPoolCandidates(player, discoveryItemCode)
+                .Where(spell => !IsSpellLearned(player, spell.Code))
+                .ToList();
+        }
+
+        public static bool IsEligibleDiscoverySpell(SpellDefinition? spell, RustweaveDiscoveryItemDefinition? definition, bool includeHidden)
+        {
+            if (spell == null || definition == null || string.IsNullOrWhiteSpace(spell.Code) || !spell.Enabled)
+            {
+                return false;
+            }
+
+            if (!includeHidden && IsHiddenSpell(spell))
+            {
+                return false;
+            }
+
+            if (IsLoreweaveSpell(spell))
+            {
+                return false;
+            }
+
+            if (definition.AllowedSchools != null && definition.AllowedSchools.Count > 0)
+            {
+                var school = spell.School ?? string.Empty;
+                if (!definition.AllowedSchools.Any(allowed => string.Equals(allowed, school, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+            }
+
+            if (definition.AllowedTiers != null && definition.AllowedTiers.Count > 0 && !definition.AllowedTiers.Contains(spell.Tier))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        public static int GetDiscoveryItemUseCount(RustweavePlayerStateData state, string discoveryItemCode)
+        {
+            if (state?.DiscoveryItemUseCounts == null || string.IsNullOrWhiteSpace(discoveryItemCode))
+            {
+                return 0;
+            }
+
+            return state.DiscoveryItemUseCounts.TryGetValue(discoveryItemCode, out var count) ? count : 0;
+        }
+
+        public static bool HasUsedDiscoveryItem(RustweavePlayerStateData state, string discoveryItemCode)
+        {
+            return GetDiscoveryItemUseCount(state, discoveryItemCode) > 0;
+        }
+
+        public static bool MarkDiscoveryItemUsed(RustweavePlayerStateData state, string discoveryItemCode)
+        {
+            if (state == null || string.IsNullOrWhiteSpace(discoveryItemCode))
+            {
+                return false;
+            }
+
+            state.DiscoveryItemUseCounts ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            state.DiscoveryItemUseCounts[discoveryItemCode] = Math.Max(1, GetDiscoveryItemUseCount(state, discoveryItemCode) + 1);
+            return true;
+        }
+
+        public static int GetDiscoveryResearchProgress(RustweavePlayerStateData? state, string discoveryItemCode)
+        {
+            if (state?.DiscoveryResearchProgress == null || string.IsNullOrWhiteSpace(discoveryItemCode))
+            {
+                return 0;
+            }
+
+            return state.DiscoveryResearchProgress.TryGetValue(discoveryItemCode, out var progress) ? progress : 0;
+        }
+
+        public static int IncrementDiscoveryResearchProgress(RustweavePlayerStateData state, string discoveryItemCode, int delta = 1)
+        {
+            if (state == null || string.IsNullOrWhiteSpace(discoveryItemCode) || delta <= 0)
+            {
+                return GetDiscoveryResearchProgress(state, discoveryItemCode);
+            }
+
+            state.DiscoveryResearchProgress ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            state.DiscoveryResearchProgress[discoveryItemCode] = Math.Max(0, GetDiscoveryResearchProgress(state, discoveryItemCode) + delta);
+            return state.DiscoveryResearchProgress[discoveryItemCode];
+        }
+
+        public static int GetKnowledgeRankIndex(RustweavePlayerStateData state)
+        {
+            if (state == null)
+            {
+                return 0;
+            }
+
+            var learnedCount = RustweaveRuntime.SpellRegistry.GetEnabledSpells()
+                .Where(spell => spell != null && !string.IsNullOrWhiteSpace(spell.Code) && !IsLoreweaveSpell(spell) && IsSpellLearned(spell.Code, state))
+                .Count();
+
+            return Math.Min(5, learnedCount / 2);
+        }
+
+        public static string GetKnowledgeRankName(RustweavePlayerStateData state)
+        {
+            return RustweaveKnowledgeRanks.GetName(GetKnowledgeRankIndex(state));
+        }
+
+        public static string GetKnowledgeRankName(IPlayer? player)
+        {
+            return player is IServerPlayer serverPlayer
+                ? GetKnowledgeRankName(LoadServerState(serverPlayer))
+                : player is IClientPlayer clientPlayer && TryGetClientState(clientPlayer, out var state)
+                    ? GetKnowledgeRankName(state)
+                    : RustweaveKnowledgeRanks.GetName(0);
+        }
+
+        public static int GetKnowledgeRank(IPlayer? player)
+        {
+            return player is IServerPlayer serverPlayer
+                ? GetKnowledgeRankIndex(LoadServerState(serverPlayer))
+                : player is IClientPlayer clientPlayer && TryGetClientState(clientPlayer, out var state)
+                    ? GetKnowledgeRankIndex(state)
+                    : 0;
+        }
+
+        public static bool IncrementSpellCastCount(RustweavePlayerStateData state, string spellCode)
+        {
+            if (state == null || string.IsNullOrWhiteSpace(spellCode))
+            {
+                return false;
+            }
+
+            state.SpellCastCounts ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            state.SpellCastCounts.TryGetValue(spellCode, out var current);
+            state.SpellCastCounts[spellCode] = current + 1;
+            return true;
+        }
+
+        public static int GetSpellCastCount(RustweavePlayerStateData state, string spellCode)
+        {
+            if (state?.SpellCastCounts == null || string.IsNullOrWhiteSpace(spellCode))
+            {
+                return 0;
+            }
+
+            return state.SpellCastCounts.TryGetValue(spellCode, out var count) ? count : 0;
+        }
+
+        public static bool CleanInvalidLearnedSpells(RustweavePlayerStateData state)
+        {
+            if (state == null)
+            {
+                return false;
+            }
+
+            var learnedSpellCodes = state.LearnedSpellCodes ?? new List<string>();
+            var cleaned = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var changed = false;
+
+            foreach (var spellCode in learnedSpellCodes)
+            {
+                if (string.IsNullOrWhiteSpace(spellCode))
+                {
+                    changed = true;
+                    continue;
+                }
+
+                if (!RustweaveRuntime.SpellRegistry.TryGetEnabledSpell(spellCode, out var spell) || spell == null)
+                {
+                    changed = true;
+                    continue;
+                }
+
+                if (IsIntrinsicLearnedSpell(spell))
+                {
+                    changed = true;
+                    continue;
+                }
+
+                if (!seen.Add(spell.Code))
+                {
+                    changed = true;
+                    continue;
+                }
+
+                cleaned.Add(spell.Code);
+            }
+
+            if (changed || cleaned.Count != learnedSpellCodes.Count)
+            {
+                state.LearnedSpellCodes = cleaned;
+                return true;
+            }
+
+            state.LearnedSpellCodes = cleaned;
+            return false;
+        }
+
+        public static bool LearnSpell(RustweavePlayerStateData state, string spellCode, string source, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (state == null || string.IsNullOrWhiteSpace(spellCode))
+            {
+                failureReason = "Invalid spell code.";
+                return false;
+            }
+
+            if (!RustweaveRuntime.SpellRegistry.TryGetEnabledSpell(spellCode, out var spell) || spell == null)
+            {
+                failureReason = "Spell is missing or disabled.";
+                return false;
+            }
+
+            if (IsIntrinsicLearnedSpell(spell) || IsSpellLearned(spellCode, state))
+            {
+                failureReason = "Spell is already learned.";
+                return false;
+            }
+
+            state.LearnedSpellCodes ??= new List<string>();
+            if (!state.LearnedSpellCodes.Any(code => string.Equals(code, spellCode, StringComparison.OrdinalIgnoreCase)))
+            {
+                state.LearnedSpellCodes.Add(spell.Code);
+            }
+
+            state.KnowledgeRankIndex = GetKnowledgeRankIndex(state);
+            return true;
+        }
+
+        public static bool LearnSpell(IServerPlayer player, string spellCode, string source, out string failureReason)
+        {
+            var state = LoadServerState(player);
+            var changed = LearnSpell(state, spellCode, source, out failureReason);
+            if (changed)
+            {
+                SaveServerState(player, NormalizeState(state));
+            }
+
+            return changed;
+        }
+
+        public static bool ForgetSpell(RustweavePlayerStateData state, string spellCode, string source, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (state == null || string.IsNullOrWhiteSpace(spellCode))
+            {
+                failureReason = "Invalid spell code.";
+                return false;
+            }
+
+            if (!RustweaveRuntime.SpellRegistry.TryGetSpell(spellCode, out var spell) || spell == null)
+            {
+                failureReason = "Spell is missing or disabled.";
+                return false;
+            }
+
+            if (IsIntrinsicLearnedSpell(spell))
+            {
+                failureReason = "Starter and Loreweave spells cannot be forgotten.";
+                return false;
+            }
+
+            var removed = false;
+            for (var index = state.LearnedSpellCodes.Count - 1; index >= 0; index--)
+            {
+                if (!string.Equals(state.LearnedSpellCodes[index], spell.Code, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                state.LearnedSpellCodes.RemoveAt(index);
+                removed = true;
+            }
+
+            if (!removed)
+            {
+                failureReason = "Spell was not learned.";
+                return false;
+            }
+
+            state.KnowledgeRankIndex = GetKnowledgeRankIndex(state);
+            return true;
+        }
+
+        public static bool ForgetSpell(IServerPlayer player, string spellCode, string source, out string failureReason)
+        {
+            var state = LoadServerState(player);
+            var changed = ForgetSpell(state, spellCode, source, out failureReason);
+            if (changed)
+            {
+                NormalizeState(state);
+                SaveServerState(player, state);
+            }
+
+            return changed;
+        }
+
+        public static bool ResetSpellProgression(RustweavePlayerStateData state, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (state == null)
+            {
+                failureReason = "Player state was unavailable.";
+                return false;
+            }
+
+            state.LearnedSpellCodes = new List<string>();
+            state.SpellCastCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            state.DiscoveryResearchProgress = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            state.DiscoveryItemUseCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            state.SpellProgressionVersion = CurrentProgressionVersion;
+            state.KnowledgeRankIndex = GetKnowledgeRankIndex(state);
+            return true;
+        }
+
+        public static bool ResetSpellProgression(IServerPlayer player, out string failureReason)
+        {
+            var state = LoadServerState(player);
+            if (!ResetSpellProgression(state, out failureReason))
+            {
+                return false;
+            }
+
+            SaveServerState(player, NormalizeState(state));
+            return true;
+        }
+
+        public static bool LearnAllEnabledSpells(RustweavePlayerStateData state, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (state == null)
+            {
+                failureReason = "Player state was unavailable.";
+                return false;
+            }
+
+            state.LearnedSpellCodes ??= new List<string>();
+            var changed = false;
+            foreach (var spell in RustweaveRuntime.SpellRegistry.GetEnabledSpells())
+            {
+                if (spell == null || string.IsNullOrWhiteSpace(spell.Code) || IsIntrinsicLearnedSpell(spell))
+                {
+                    continue;
+                }
+
+                if (state.LearnedSpellCodes.Any(code => string.Equals(code, spell.Code, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                state.LearnedSpellCodes.Add(spell.Code);
+                changed = true;
+            }
+
+            state.KnowledgeRankIndex = GetKnowledgeRankIndex(state);
+            return changed;
+        }
+
+        public static bool LearnAllEnabledSpells(IServerPlayer player, out string failureReason)
+        {
+            var state = LoadServerState(player);
+            var changed = LearnAllEnabledSpells(state, out failureReason);
+            if (changed)
+            {
+                SaveServerState(player, NormalizeState(state));
+            }
+
+            return changed;
         }
 
         public static string SerializePlayerState(RustweavePlayerStateData state)
@@ -979,6 +1727,8 @@ namespace TheRustweave
         private readonly Dictionary<string, RustTabletVentingSession> activeTabletVents = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, long> pendingTabletDecayScans = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> skippedTabletDecayInventoryLogs = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, RustweaveTimedStatModifier> activeTimedStatModifiers = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, RustweaveTimedDamageOverTime> activeDamageOverTimeEffects = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, Dictionary<string, long>> spellCooldowns = new(StringComparer.OrdinalIgnoreCase);
         private IServerNetworkChannel? channel;
         private long tickListenerId;
@@ -998,7 +1748,169 @@ namespace TheRustweave
             sapi.Event.PlayerJoin += OnServerPlayerJoin;
             sapi.Event.PlayerNowPlaying += OnServerPlayerNowPlaying;
             sapi.Event.PlayerLeave += OnServerPlayerLeave;
+            RegisterCommands();
             tickListenerId = sapi.Event.RegisterGameTickListener(OnServerTick, 50, 50);
+        }
+
+        private void RegisterCommands()
+        {
+            var root = sapi.ChatCommands.Create("rustweave")
+                .WithDescription("Rustweave admin spell progression commands")
+                .RequiresPrivilege("controlserver");
+
+            root.BeginSubCommand("learn")
+                .WithDescription("Learn a spell code for the target player")
+                .WithArgs(sapi.ChatCommands.Parsers.Word("spellcode"))
+                .HandleWith(args => HandleLearnCommand(args))
+                .EndSubCommand();
+
+            root.BeginSubCommand("forget")
+                .WithDescription("Forget a learned spell code for the target player")
+                .WithArgs(sapi.ChatCommands.Parsers.Word("spellcode"))
+                .HandleWith(args => HandleForgetCommand(args))
+                .EndSubCommand();
+
+            root.BeginSubCommand("learnall")
+                .WithDescription("Learn every enabled spell for the target player")
+                .HandleWith(args => HandleLearnAllCommand(args))
+                .EndSubCommand();
+
+            root.BeginSubCommand("resetspells")
+                .WithDescription("Reset spell progression to starter spells")
+                .HandleWith(args => HandleResetSpellsCommand(args))
+                .EndSubCommand();
+
+            root.BeginSubCommand("rank")
+                .WithDescription("Show the target player's knowledge rank")
+                .HandleWith(args => HandleRankCommand(args))
+                .EndSubCommand();
+
+            root.BeginSubCommand("casts")
+                .WithDescription("Show successful cast count for a spell code")
+                .WithArgs(sapi.ChatCommands.Parsers.Word("spellcode"))
+                .HandleWith(args => HandleCastsCommand(args))
+                .EndSubCommand();
+        }
+
+        private TextCommandResult HandleLearnCommand(TextCommandCallingArgs args)
+        {
+            if (args.Caller?.Player is not IServerPlayer player)
+            {
+                return TextCommandResult.Error("A player caller is required for this command.");
+            }
+
+            var spellCode = args[0] as string ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(spellCode))
+            {
+                return TextCommandResult.Error("Usage: /rustweave learn <spellcode>");
+            }
+
+            if (RustweaveStateService.LearnSpell(player, spellCode, "admin-command", out var failureReason))
+            {
+                sapi.Logger.Debug("[TheRustweave] Admin learned spell '{0}' for player '{1}'.", spellCode, player.PlayerUID);
+                return TextCommandResult.Success($"Learned {spellCode}.");
+            }
+
+            return failureReason.IndexOf("already learned", StringComparison.OrdinalIgnoreCase) >= 0
+                ? TextCommandResult.Success(failureReason)
+                : TextCommandResult.Error(string.IsNullOrWhiteSpace(failureReason) ? "Unable to learn spell." : failureReason);
+        }
+
+        private TextCommandResult HandleForgetCommand(TextCommandCallingArgs args)
+        {
+            if (args.Caller?.Player is not IServerPlayer player)
+            {
+                return TextCommandResult.Error("A player caller is required for this command.");
+            }
+
+            var spellCode = args[0] as string ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(spellCode))
+            {
+                return TextCommandResult.Error("Usage: /rustweave forget <spellcode>");
+            }
+
+            if (RustweaveStateService.ForgetSpell(player, spellCode, "admin-command", out var failureReason))
+            {
+                sapi.Logger.Debug("[TheRustweave] Admin forgot spell '{0}' for player '{1}'.", spellCode, player.PlayerUID);
+                return TextCommandResult.Success($"Forgot {spellCode}.");
+            }
+
+            return failureReason.IndexOf("was not learned", StringComparison.OrdinalIgnoreCase) >= 0
+                ? TextCommandResult.Success(failureReason)
+                : TextCommandResult.Error(string.IsNullOrWhiteSpace(failureReason) ? "Unable to forget spell." : failureReason);
+        }
+
+        private TextCommandResult HandleLearnAllCommand(TextCommandCallingArgs args)
+        {
+            if (args.Caller?.Player is not IServerPlayer player)
+            {
+                return TextCommandResult.Error("A player caller is required for this command.");
+            }
+
+            if (RustweaveStateService.LearnAllEnabledSpells(player, out var failureReason))
+            {
+                sapi.Logger.Debug("[TheRustweave] Admin learned all enabled spells for player '{0}'.", player.PlayerUID);
+                return TextCommandResult.Success("All enabled spells are now learned.");
+            }
+
+            return string.IsNullOrWhiteSpace(failureReason)
+                ? TextCommandResult.Success("No changes made.")
+                : TextCommandResult.Error(failureReason);
+        }
+
+        private TextCommandResult HandleResetSpellsCommand(TextCommandCallingArgs args)
+        {
+            if (args.Caller?.Player is not IServerPlayer player)
+            {
+                return TextCommandResult.Error("A player caller is required for this command.");
+            }
+
+            if (RustweaveStateService.ResetSpellProgression(player, out var failureReason))
+            {
+                sapi.Logger.Debug("[TheRustweave] Admin reset spell progression for player '{0}'.", player.PlayerUID);
+                return TextCommandResult.Success("Spell progression reset to starter spells.");
+            }
+
+            return TextCommandResult.Error(string.IsNullOrWhiteSpace(failureReason) ? "Unable to reset spell progression." : failureReason);
+        }
+
+        private TextCommandResult HandleRankCommand(TextCommandCallingArgs args)
+        {
+            if (args.Caller?.Player is not IServerPlayer player)
+            {
+                return TextCommandResult.Error("A player caller is required for this command.");
+            }
+
+            var state = GetState(player);
+            var rankName = RustweaveStateService.GetKnowledgeRankName(state);
+            var rankIndex = RustweaveStateService.GetKnowledgeRankIndex(state);
+            var learnedCount = RustweaveRuntime.SpellRegistry.GetEnabledSpells()
+                .Count(spell => spell != null && !string.IsNullOrWhiteSpace(spell.Code) && !RustweaveStateService.IsLoreweaveSpell(spell) && RustweaveStateService.IsSpellLearned(spell.Code, state));
+
+            return TextCommandResult.Success($"{rankName} (rank {rankIndex + 1}) with {learnedCount} learned non-Loreweave spell(s).");
+        }
+
+        private TextCommandResult HandleCastsCommand(TextCommandCallingArgs args)
+        {
+            if (args.Caller?.Player is not IServerPlayer player)
+            {
+                return TextCommandResult.Error("A player caller is required for this command.");
+            }
+
+            var spellCode = args[0] as string ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(spellCode))
+            {
+                return TextCommandResult.Error("Usage: /rustweave casts <spellcode>");
+            }
+
+            if (!RustweaveRuntime.SpellRegistry.TryGetSpell(spellCode, out var spell) || spell == null || !spell.Enabled)
+            {
+                return TextCommandResult.Error($"Unknown or disabled spell: {spellCode}");
+            }
+
+            var state = GetState(player);
+            var count = RustweaveStateService.GetSpellCastCount(state, spellCode);
+            return TextCommandResult.Success($"{spellCode}: {count} successful cast(s).");
         }
 
         private sealed class RustTabletVentingSession
@@ -1006,6 +1918,44 @@ namespace TheRustweave
             public long StartedAtMilliseconds { get; set; }
 
             public int TransferredCorruption { get; set; }
+        }
+
+        private sealed class RustweaveTimedStatModifier
+        {
+            public long TargetEntityId { get; set; }
+
+            public string StatCategory { get; set; } = string.Empty;
+
+            public string ModifierCode { get; set; } = string.Empty;
+
+            public float Delta { get; set; }
+
+            public long ExpiresAtMilliseconds { get; set; }
+
+            public string SpellCode { get; set; } = string.Empty;
+
+            public string EffectType { get; set; } = string.Empty;
+        }
+
+        private sealed class RustweaveTimedDamageOverTime
+        {
+            public long TargetEntityId { get; set; }
+
+            public long SourceEntityId { get; set; }
+
+            public string EffectCode { get; set; } = string.Empty;
+
+            public float DamagePerTick { get; set; }
+
+            public long TickIntervalMilliseconds { get; set; }
+
+            public long NextTickAtMilliseconds { get; set; }
+
+            public long ExpiresAtMilliseconds { get; set; }
+
+            public string SpellCode { get; set; } = string.Empty;
+
+            public string EffectType { get; set; } = string.Empty;
         }
 
         private void OnServerPlayerJoin(IServerPlayer player)
@@ -1095,6 +2045,88 @@ namespace TheRustweave
             activeTabletVents.Remove(entityPlayer.PlayerUID);
         }
 
+        public bool TryUseDiscoveryItem(EntityPlayer entityPlayer, ItemSlot? slot)
+        {
+            if (entityPlayer == null || slot?.Itemstack?.Collectible?.Code == null)
+            {
+                return false;
+            }
+
+            var player = GetOnlineServerPlayer(entityPlayer.PlayerUID);
+            if (player == null || player.Entity == null || !player.Entity.Alive || !RustweaveStateService.IsRustweaver(player))
+            {
+                player?.SendMessage(0, Lang.Get("game:rustweave-discovery-reject"), EnumChatType.Notification, null);
+                return false;
+            }
+
+            var itemCode = slot.Itemstack.Collectible.Code.Path ?? string.Empty;
+            if (!RustweaveRuntime.TryGetDiscoveryItemDefinition(itemCode, out var definition) || definition == null)
+            {
+                sapi.Logger.Warning("[TheRustweave] Discovery item '{0}' has no configured spell pool.", itemCode);
+                player.SendMessage(0, Lang.Get("game:rustweave-no-new-spell-from-this"), EnumChatType.Notification, null);
+                return false;
+            }
+
+            var state = GetState(player);
+            sapi.Logger.Debug("[TheRustweave] Discovery item used by player '{0}': {1}", player.PlayerUID, itemCode);
+
+            if (definition.SingleUsePerPlayer && RustweaveStateService.HasUsedDiscoveryItem(state, itemCode))
+            {
+                sapi.Logger.Debug("[TheRustweave] Discovery item '{0}' was rejected for player '{1}' because it was already used once.", itemCode, player.PlayerUID);
+                player.SendMessage(0, Lang.Get("game:rustweave-no-new-spell-from-this"), EnumChatType.Notification, null);
+                return false;
+            }
+
+            var eligibleSpells = RustweaveStateService.GetDiscoveryEligibleSpells(player, itemCode);
+            sapi.Logger.Debug("[TheRustweave] Discovery item '{0}' resolved {1} eligible spell(s) for player '{2}'.", itemCode, eligibleSpells.Count, player.PlayerUID);
+
+            if (eligibleSpells.Count == 0)
+            {
+                var poolSpells = RustweaveStateService.GetDiscoveryPoolCandidates(player, itemCode);
+                if (poolSpells.Count == 0)
+                {
+                    sapi.Logger.Warning("[TheRustweave] Discovery item '{0}' found no eligible spells for player '{1}'.", itemCode, player.PlayerUID);
+                    player.SendMessage(0, Lang.Get("game:rustweave-no-new-spell-from-this"), EnumChatType.Notification, null);
+                    return false;
+                }
+
+                var researchProgress = RustweaveStateService.IncrementDiscoveryResearchProgress(state, itemCode, 1);
+                SaveAndSyncState(player, state);
+                sapi.Logger.Debug("[TheRustweave] Discovery item '{0}' granted research progress {1} for player '{2}'.", itemCode, researchProgress, player.PlayerUID);
+                player.SendMessage(0, Lang.Get("game:rustweave-discovery-fragments"), EnumChatType.Notification, null);
+                return true;
+            }
+
+            var selectedSpell = eligibleSpells[sapi.World.Rand.Next(eligibleSpells.Count)];
+            if (!RustweaveStateService.LearnSpell(player, selectedSpell.Code, $"discovery:{itemCode}", out var failureReason))
+            {
+                sapi.Logger.Warning("[TheRustweave] Discovery item '{0}' failed to learn spell '{1}' for player '{2}': {3}", itemCode, selectedSpell.Code, player.PlayerUID, failureReason);
+                player.SendMessage(0, Lang.Get("game:rustweave-no-new-spell-from-this"), EnumChatType.Notification, null);
+                return false;
+            }
+
+            if (definition.SingleUsePerPlayer)
+            {
+                RustweaveStateService.MarkDiscoveryItemUsed(state, itemCode);
+            }
+
+            if (definition.ConsumeOnSuccess)
+            {
+                slot.Itemstack.StackSize = Math.Max(0, slot.Itemstack.StackSize - 1);
+                if (slot.Itemstack.StackSize <= 0)
+                {
+                    slot.Itemstack = null;
+                }
+
+                slot.MarkDirty();
+            }
+
+            SaveAndSyncState(player, state);
+            sapi.Logger.Debug("[TheRustweave] Discovery item '{0}' taught spell '{1}' to player '{2}' (consumed={3}).", itemCode, selectedSpell.Code, player.PlayerUID, definition.ConsumeOnSuccess);
+            player.SendMessage(0, Lang.Get("game:rustweave-spell-learned-from-discovery", RustweaveStateService.GetSpellDisplayName(selectedSpell.Code)), EnumChatType.Notification, null);
+            return true;
+        }
+
         private void OnClientPacket(IServerPlayer fromPlayer, RustweaveActionPacket packet)
         {
             if (fromPlayer == null || packet == null)
@@ -1130,8 +2162,8 @@ namespace TheRustweave
 
                     if (string.IsNullOrWhiteSpace(packet.SpellCode) || !RustweaveRuntime.SpellRegistry.TryGetEnabledSpell(packet.SpellCode, out var spell) || spell == null || !RustweaveStateService.IsSpellLearned(spell.Code, state))
                     {
-                        sapi.Logger.Warning("[TheRustweave] Prepare request rejected for player '{0}' because spell '{1}' is unavailable or not learned.", fromPlayer.PlayerUID, packet.SpellCode);
-                        fromPlayer.SendMessage(0, Lang.Get("game:rustweave-spell-invalid"), EnumChatType.Notification, null);
+                        sapi.Logger.Warning("[TheRustweave] Prepare request rejected for player '{0}' because spell '{1}' is unavailable or locked.", fromPlayer.PlayerUID, packet.SpellCode);
+                        fromPlayer.SendMessage(0, Lang.Get("game:rustweave-spell-unlearned"), EnumChatType.Notification, null);
                         break;
                     }
 
@@ -1181,6 +2213,7 @@ namespace TheRustweave
         {
             ProcessPendingTabletDecayScans();
             ProcessPassiveTabletDecay();
+            ProcessTimedSpellEffects();
 
             foreach (var onlinePlayer in sapi.World.AllOnlinePlayers)
             {
@@ -1434,6 +2467,125 @@ namespace TheRustweave
             }
         }
 
+        public bool TryRegisterTimedStatModifier(Entity targetEntity, string statCategory, string modifierCode, float delta, long durationMilliseconds, string spellCode, string effectType)
+        {
+            if (targetEntity == null || !targetEntity.Alive || string.IsNullOrWhiteSpace(statCategory) || string.IsNullOrWhiteSpace(modifierCode) || durationMilliseconds <= 0)
+            {
+                return false;
+            }
+
+            if (targetEntity.Stats == null)
+            {
+                sapi.Logger.Warning("[TheRustweave] Timed stat modifier '{0}' failed because entity '{1}' has no stats.", effectType, targetEntity.EntityId);
+                return false;
+            }
+
+            var expiresAtMilliseconds = sapi.World.ElapsedMilliseconds + durationMilliseconds;
+            targetEntity.Stats.Set(statCategory, modifierCode, delta, false);
+            activeTimedStatModifiers[modifierCode] = new RustweaveTimedStatModifier
+            {
+                TargetEntityId = targetEntity.EntityId,
+                StatCategory = statCategory,
+                ModifierCode = modifierCode,
+                Delta = delta,
+                ExpiresAtMilliseconds = expiresAtMilliseconds,
+                SpellCode = spellCode,
+                EffectType = effectType
+            };
+
+            sapi.Logger.Debug("[TheRustweave] Timed stat modifier '{0}' applied to entity '{1}' for {2} ms.", effectType, targetEntity.EntityId, durationMilliseconds);
+            return true;
+        }
+
+        public bool TryRegisterDamageOverTime(Entity targetEntity, Entity? sourceEntity, string effectCode, float damagePerTick, long tickIntervalMilliseconds, long durationMilliseconds, string spellCode, string effectType)
+        {
+            if (targetEntity == null || !targetEntity.Alive || string.IsNullOrWhiteSpace(effectCode) || damagePerTick <= 0 || tickIntervalMilliseconds <= 0 || durationMilliseconds <= 0)
+            {
+                return false;
+            }
+
+            var nowMilliseconds = sapi.World.ElapsedMilliseconds;
+            activeDamageOverTimeEffects[effectCode] = new RustweaveTimedDamageOverTime
+            {
+                TargetEntityId = targetEntity.EntityId,
+                SourceEntityId = sourceEntity?.EntityId ?? 0,
+                EffectCode = effectCode,
+                DamagePerTick = damagePerTick,
+                TickIntervalMilliseconds = tickIntervalMilliseconds,
+                NextTickAtMilliseconds = nowMilliseconds + tickIntervalMilliseconds,
+                ExpiresAtMilliseconds = nowMilliseconds + durationMilliseconds,
+                SpellCode = spellCode,
+                EffectType = effectType
+            };
+
+            sapi.Logger.Debug("[TheRustweave] Damage-over-time '{0}' applied to entity '{1}' for {2} ms.", effectType, targetEntity.EntityId, durationMilliseconds);
+            return true;
+        }
+
+        private void ProcessTimedSpellEffects()
+        {
+            var nowMilliseconds = sapi.World.ElapsedMilliseconds;
+
+            foreach (var entry in activeTimedStatModifiers.ToArray())
+            {
+                var effect = entry.Value;
+                var entity = sapi.World.GetEntityById(effect.TargetEntityId);
+                if (entity == null || !entity.Alive || nowMilliseconds >= effect.ExpiresAtMilliseconds)
+                {
+                    if (entity?.Stats != null)
+                    {
+                        entity.Stats.Remove(effect.StatCategory, effect.ModifierCode);
+                    }
+
+                    activeTimedStatModifiers.Remove(entry.Key);
+                    sapi.Logger.Debug("[TheRustweave] Timed stat modifier '{0}' expired for entity '{1}'.", effect.EffectType, effect.TargetEntityId);
+                    continue;
+                }
+            }
+
+            foreach (var entry in activeDamageOverTimeEffects.ToArray())
+            {
+                var effect = entry.Value;
+                var entity = sapi.World.GetEntityById(effect.TargetEntityId);
+                if (entity == null || !entity.Alive)
+                {
+                    activeDamageOverTimeEffects.Remove(entry.Key);
+                    sapi.Logger.Debug("[TheRustweave] Damage-over-time '{0}' ended because entity '{1}' is unavailable.", effect.EffectType, effect.TargetEntityId);
+                    continue;
+                }
+
+                if (nowMilliseconds >= effect.ExpiresAtMilliseconds)
+                {
+                    activeDamageOverTimeEffects.Remove(entry.Key);
+                    sapi.Logger.Debug("[TheRustweave] Damage-over-time '{0}' expired for entity '{1}'.", effect.EffectType, effect.TargetEntityId);
+                    continue;
+                }
+
+                while (nowMilliseconds >= effect.NextTickAtMilliseconds && effect.NextTickAtMilliseconds < effect.ExpiresAtMilliseconds)
+                {
+                    var sourceEntity = effect.SourceEntityId > 0 ? sapi.World.GetEntityById(effect.SourceEntityId) : null;
+                    var damageSource = new DamageSource
+                    {
+                        Source = EnumDamageSource.Internal,
+                        SourceEntity = sourceEntity ?? entity,
+                        CauseEntity = sourceEntity ?? entity,
+                        KnockbackStrength = 0f
+                    };
+
+                    if (!entity.ShouldReceiveDamage(damageSource, effect.DamagePerTick))
+                    {
+                        break;
+                    }
+
+                    entity.ReceiveDamage(damageSource, effect.DamagePerTick);
+                    effect.NextTickAtMilliseconds += effect.TickIntervalMilliseconds;
+                    sapi.Logger.Debug("[TheRustweave] Damage-over-time '{0}' ticked entity '{1}' for {2} damage.", effect.EffectType, effect.TargetEntityId, effect.DamagePerTick);
+                }
+
+                activeDamageOverTimeEffects[entry.Key] = effect;
+            }
+        }
+
         private void ScheduleTabletDecayScan(IServerPlayer player, int delayMilliseconds)
         {
             if (player == null)
@@ -1604,6 +2756,23 @@ namespace TheRustweave
             cooldowns[spell.Code] = expiresAtMilliseconds;
         }
 
+        private void SendSpellTargetFailure(IServerPlayer player, string failureReason)
+        {
+            if (string.Equals(failureReason, "No damaged item to mend.", StringComparison.Ordinal))
+            {
+                player.SendMessage(0, Lang.Get("game:rustweave-no-damaged-item-to-mend"), EnumChatType.Notification, null);
+                return;
+            }
+
+            if (string.Equals(failureReason, "No target struck.", StringComparison.Ordinal))
+            {
+                player.SendMessage(0, Lang.Get("game:rustweave-no-target-struck"), EnumChatType.Notification, null);
+                return;
+            }
+
+            player.SendMessage(0, Lang.Get("game:rustweave-spell-target-fail"), EnumChatType.Notification, null);
+        }
+
         private bool TryCanContinueCast(IServerPlayer player, RustweaveCastStateData castState, out string cancelMessage)
         {
             cancelMessage = Lang.Get("game:rustweave-cast-cancel");
@@ -1652,6 +2821,15 @@ namespace TheRustweave
                 return;
             }
 
+            if (!RustweaveStateService.IsSpellLearned(spell.Code, state))
+            {
+                sapi.Logger.Warning("[TheRustweave] Cast rejected for player '{0}' because spell '{1}' is no longer learned.", player.PlayerUID, spell.Code);
+                RustweaveStateService.TryUnprepareSpell(state, slotIndex);
+                SaveAndSyncState(player, state);
+                player.SendMessage(0, Lang.Get("game:rustweave-spell-unlearned"), EnumChatType.Notification, null);
+                return;
+            }
+
             if (TryGetCooldownRemaining(player.PlayerUID, spell.Code, out var remainingMilliseconds))
             {
                 sapi.Logger.Warning("[TheRustweave] Spell '{0}' was rejected for player '{1}' because it is on cooldown for {2} ms.", spell.Code, player.PlayerUID, remainingMilliseconds);
@@ -1662,7 +2840,7 @@ namespace TheRustweave
             if (!spellExecutor.TryBuildPlan(player, state, spell, out var previewPlan, out var previewFailureReason))
             {
                 sapi.Logger.Warning("[TheRustweave] Spell '{0}' could not start for player '{1}': {2}", spell.Code, player.PlayerUID, previewFailureReason);
-                player.SendMessage(0, Lang.Get("game:rustweave-spell-target-fail"), EnumChatType.Notification, null);
+                SendSpellTargetFailure(player, previewFailureReason);
                 return;
             }
 
@@ -1729,7 +2907,7 @@ namespace TheRustweave
             if (!spellExecutor.TryBuildPlan(player, state, spell, out var executionPlan, out var failureReason))
             {
                 sapi.Logger.Warning("[TheRustweave] Spell '{0}' failed at completion for player '{1}': {2}", spell.Code, player.PlayerUID, failureReason);
-                player.SendMessage(0, Lang.Get("game:rustweave-spell-target-fail"), EnumChatType.Notification, null);
+                SendSpellTargetFailure(player, failureReason);
                 ClearCastState(player);
                 return;
             }
@@ -1751,6 +2929,7 @@ namespace TheRustweave
                 return;
             }
 
+            RustweaveStateService.IncrementSpellCastCount(state, spell.Code);
             state.CurrentTemporalCorruption = Math.Min(state.EffectiveTemporalCorruptionThreshold, state.CurrentTemporalCorruption + spell.CorruptionCost);
             SaveAndSyncState(player, state);
             SetSpellCooldown(player.PlayerUID, spell);

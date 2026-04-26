@@ -12,6 +12,7 @@ namespace TheRustweave
         {
             api.RegisterItemClass("ItemRustweaverTome", typeof(ItemRustweaverTome));
             api.RegisterItemClass("ItemRustTablet", typeof(ItemRustTablet));
+            api.RegisterItemClass("ItemRustweaveDiscoveryItem", typeof(ItemRustweaveDiscoveryItem));
             Mod.Logger.Notification("Hello from template mod: " + api.Side);
             Mod.Logger.Notification("[TheRustweave] Loaded mod origin: {0}", GetModOrigin());
         }
