@@ -15,6 +15,8 @@ namespace TheRustweave
         public const float CorruptionHudHeight = 40f;
         public const float CastHudWidth = 260f;
         public const float CastHudHeight = 40f;
+        public const float TargetLockHudWidth = 360f;
+        public const float TargetLockHudHeight = 56f;
         public const float CastHudSpacing = 4f;
 
         public const float CorruptionOffsetX = 525f;
@@ -23,6 +25,8 @@ namespace TheRustweave
         public static Vec2d CorruptionOffset => new(CorruptionOffsetX, CorruptionOffsetY);
 
         public static Vec2d CastOffset => new(CorruptionOffsetX, CorruptionOffsetY - CorruptionHudHeight - CastHudSpacing);
+
+        public static Vec2d TargetLockOffset => new(CorruptionOffsetX, CorruptionOffsetY - CorruptionHudHeight - CastHudSpacing - CastHudHeight - CastHudSpacing - TargetLockHudHeight);
     }
 
     internal sealed class RustweaveCorruptionHud : HudElement
@@ -250,6 +254,168 @@ namespace TheRustweave
 
             var u = (progress - 0.5d) / 0.5d;
             return new[] { 1d - u, 1d, 0d, 0.92d };
+        }
+    }
+
+    internal sealed class RustweaveTargetLockHud : HudElement
+    {
+        private RustweaveTargetLockPacket targetLock = new();
+        private RustweaveCastStateData castState = new();
+        private RustweavePlayerStateData playerState = RustweaveStateService.CreateDefaultState();
+        private GuiElementDynamicText? targetLabel;
+
+        public RustweaveTargetLockHud(ICoreClientAPI capi) : base(capi)
+        {
+        }
+
+        public override bool Focusable => false;
+
+        public override bool PrefersUngrabbedMouse => true;
+
+        public override bool UnregisterOnClose => false;
+
+        public override string ToggleKeyCombinationCode => string.Empty;
+
+        public void SetState(RustweaveTargetLockPacket? newTargetLock, RustweaveCastStateData? newCastState, RustweavePlayerStateData? newPlayerState)
+        {
+            targetLock = newTargetLock?.Clone() ?? new RustweaveTargetLockPacket();
+            castState = newCastState?.Clone() ?? new RustweaveCastStateData();
+            playerState = RustweaveStateService.NormalizeState(newPlayerState?.Clone() ?? RustweaveStateService.CreateDefaultState());
+            targetLabel?.SetNewText(GetTargetText(), false, true);
+            if (IsOpened())
+            {
+                SingleComposer?.ReCompose();
+            }
+        }
+
+        public void OpenHud()
+        {
+            EnsureComposer();
+            TryOpen();
+        }
+
+        public new bool TryOpen()
+        {
+            EnsureComposer();
+            return base.TryOpen();
+        }
+
+        private void EnsureComposer()
+        {
+            if (SingleComposer != null)
+            {
+                return;
+            }
+
+            var rootBounds = ElementBounds.FixedSize(RustweaveHudLayout.TargetLockHudWidth, RustweaveHudLayout.TargetLockHudHeight)
+                .WithAlignment(EnumDialogArea.LeftBottom)
+                .WithFixedOffset(GuiStyle.DialogToScreenPadding + RustweaveHudLayout.TargetLockOffset.X, RustweaveHudLayout.TargetLockOffset.Y);
+
+            var textBounds = ElementBounds.Fixed(12, 10, RustweaveHudLayout.TargetLockHudWidth - 24, RustweaveHudLayout.TargetLockHudHeight - 20);
+            var composer = capi.Gui.CreateCompo("therustweave-target-lock-hud", rootBounds);
+            composer.AddDialogBG(ElementBounds.Fixed(0, 0, RustweaveHudLayout.TargetLockHudWidth, RustweaveHudLayout.TargetLockHudHeight), true, 0.95f);
+            composer.AddDynamicText(GetTargetText(), CairoFont.WhiteSmallText().WithFontSize(9.5f), textBounds, "targetlocklabel");
+            composer.Compose();
+            SingleComposer = composer;
+            targetLabel = composer.GetDynamicText("targetlocklabel");
+            targetLabel?.SetNewText(GetTargetText(), false, true);
+        }
+
+        private string GetTargetText()
+        {
+            if (targetLock.IsActive && castState.IsCasting)
+            {
+                return GetLockedTargetText();
+            }
+
+            if (!TryGetPreviewSpell(out var previewSpell))
+            {
+                return string.Empty;
+            }
+
+            if (previewSpell == null)
+            {
+                return string.Empty;
+            }
+
+            return GetPreviewTargetText(previewSpell);
+        }
+
+        private string GetLockedTargetText()
+        {
+            var spellName = string.IsNullOrWhiteSpace(targetLock.SpellName) ? targetLock.SpellCode : targetLock.SpellName;
+            var range = GetRangeToTarget();
+
+            return targetLock.TargetType switch
+            {
+                "self" => $"Locked Target: Self\nSpell: {spellName}",
+                "heldItem" => $"Locked Target: Held Item\nSpell: {spellName}",
+                "inventory" => $"Locked Target: Inventory\nSpell: {spellName}",
+                "lookEntity" => $"Locked Target: {targetLock.TargetName}\nSpell: {spellName}\nRange: {range:0.0} blocks",
+                "lookBlock" => $"Locked Target: Block\nSpell: {spellName}\nPosition: {targetLock.TargetX:0.0}, {targetLock.TargetY:0.0}, {targetLock.TargetZ:0.0}",
+                "lookPosition" => $"Locked Target: Position\nSpell: {spellName}\nRange: {range:0.0} blocks",
+                _ => string.Empty
+            };
+        }
+
+        private string GetPreviewTargetText(SpellDefinition previewSpell)
+        {
+            var spellName = string.IsNullOrWhiteSpace(previewSpell.Name) ? previewSpell.Code : previewSpell.Name;
+            var targetTypeLabel = previewSpell.TargetType switch
+            {
+                SpellTargetTypes.Self => "Self",
+                SpellTargetTypes.HeldItem => "Held Item",
+                SpellTargetTypes.Inventory => "Inventory",
+                SpellTargetTypes.LookEntity => "Entity",
+                SpellTargetTypes.LookBlock => "Block",
+                SpellTargetTypes.LookPosition => "Position",
+                _ => previewSpell.TargetType
+            };
+
+            var range = SpellRegistry.GetEffectiveLookTargetRange(previewSpell);
+            if (range > 0 && (previewSpell.TargetType == SpellTargetTypes.LookEntity || previewSpell.TargetType == SpellTargetTypes.LookBlock || previewSpell.TargetType == SpellTargetTypes.LookPosition))
+            {
+                return $"Aiming: {targetTypeLabel}\nSpell: {spellName}\nRange: {range:0.0} blocks";
+            }
+
+            return $"Aiming: {targetTypeLabel}\nSpell: {spellName}";
+        }
+
+        private bool TryGetPreviewSpell(out SpellDefinition? spell)
+        {
+            spell = null;
+            var player = capi.World?.Player;
+            if (player == null || !RustweaveStateService.IsRustweaver(player) || !RustweaveStateService.IsHoldingTome(player))
+            {
+                return false;
+            }
+
+            var spellCode = RustweaveStateService.GetSelectedPreparedSpellCode(playerState);
+            if (string.IsNullOrWhiteSpace(spellCode))
+            {
+                return false;
+            }
+
+            if (!RustweaveRuntime.SpellRegistry.TryGetSpell(spellCode, out spell) || spell == null)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private double GetRangeToTarget()
+        {
+            var player = capi.World?.Player?.Entity;
+            if (player == null)
+            {
+                return 0d;
+            }
+
+            var dx = player.Pos.XYZ.X - targetLock.TargetX;
+            var dy = player.Pos.XYZ.Y - targetLock.TargetY;
+            var dz = player.Pos.XYZ.Z - targetLock.TargetZ;
+            return Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
         }
     }
 

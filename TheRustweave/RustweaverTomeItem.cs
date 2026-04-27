@@ -39,6 +39,7 @@ namespace TheRustweave
                 return;
             }
 
+            RustweaveRuntime.Client?.RequestPreviewUpdate(byEntity, blockSel, entitySel);
             RustweaveRuntime.Client?.RequestStartCast();
         }
 
@@ -64,6 +65,7 @@ namespace TheRustweave
                 return false;
             }
 
+            RustweaveRuntime.Client?.RequestPreviewUpdate(byEntity, blockSel, entitySel);
             return true;
         }
 
@@ -84,6 +86,14 @@ namespace TheRustweave
                 return;
             }
 
+            if (RustweaveRuntime.Client?.IsCasting == true)
+            {
+                RustweaveRuntime.Client?.RequestPreviewStop();
+            }
+            else
+            {
+                RustweaveRuntime.Client?.RequestPreviewStop(true);
+            }
             // Successful completion is server-driven; do not cancel here.
         }
 
@@ -104,6 +114,7 @@ namespace TheRustweave
                 return true;
             }
 
+            RustweaveRuntime.Client?.RequestPreviewStop();
             RustweaveRuntime.Client?.RequestCancelCast();
             return true;
         }

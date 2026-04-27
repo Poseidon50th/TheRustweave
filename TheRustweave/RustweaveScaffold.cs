@@ -156,6 +156,180 @@ namespace TheRustweave
         public int Delta { get; set; }
     }
 
+    [ProtoContract]
+    internal sealed class RustweaveTargetLockPacket
+    {
+        [ProtoMember(1)]
+        public bool IsActive { get; set; }
+
+        [ProtoMember(2)]
+        public string SpellCode { get; set; } = string.Empty;
+
+        [ProtoMember(3)]
+        public string SpellName { get; set; } = string.Empty;
+
+        [ProtoMember(4)]
+        public string TargetType { get; set; } = string.Empty;
+
+        [ProtoMember(5)]
+        public string TargetName { get; set; } = string.Empty;
+
+        [ProtoMember(6)]
+        public long TargetEntityId { get; set; } = -1;
+
+        [ProtoMember(7)]
+        public double TargetX { get; set; }
+
+        [ProtoMember(8)]
+        public double TargetY { get; set; }
+
+        [ProtoMember(9)]
+        public double TargetZ { get; set; }
+
+        [ProtoMember(10)]
+        public long CastDurationMs { get; set; }
+
+        [ProtoMember(11)]
+        public long CastStartedAtMs { get; set; }
+
+        public RustweaveTargetLockPacket Clone()
+        {
+            return new RustweaveTargetLockPacket
+            {
+                IsActive = IsActive,
+                SpellCode = SpellCode,
+                SpellName = SpellName,
+                TargetType = TargetType,
+                TargetName = TargetName,
+                TargetEntityId = TargetEntityId,
+                TargetX = TargetX,
+                TargetY = TargetY,
+                TargetZ = TargetZ,
+                CastDurationMs = CastDurationMs,
+                CastStartedAtMs = CastStartedAtMs
+            };
+        }
+    }
+
+    [ProtoContract]
+    internal sealed class RustweaveTargetPreviewPacket
+    {
+        [ProtoMember(1)]
+        public bool IsActive { get; set; }
+
+        [ProtoMember(2)]
+        public bool IsLocked { get; set; }
+
+        [ProtoMember(3)]
+        public string CasterPlayerUid { get; set; } = string.Empty;
+
+        [ProtoMember(4)]
+        public long CasterEntityId { get; set; } = -1;
+
+        [ProtoMember(5)]
+        public string SpellCode { get; set; } = string.Empty;
+
+        [ProtoMember(6)]
+        public string SpellName { get; set; } = string.Empty;
+
+        [ProtoMember(7)]
+        public string PreviewMode { get; set; } = string.Empty;
+
+        [ProtoMember(8)]
+        public string TargetType { get; set; } = string.Empty;
+
+        [ProtoMember(9)]
+        public string ColorClass { get; set; } = string.Empty;
+
+        [ProtoMember(10)]
+        public string TargetName { get; set; } = string.Empty;
+
+        [ProtoMember(11)]
+        public long TargetEntityId { get; set; } = -1;
+
+        [ProtoMember(12)]
+        public double SourceX { get; set; }
+
+        [ProtoMember(13)]
+        public double SourceY { get; set; }
+
+        [ProtoMember(14)]
+        public double SourceZ { get; set; }
+
+        [ProtoMember(15)]
+        public double TargetX { get; set; }
+
+        [ProtoMember(16)]
+        public double TargetY { get; set; }
+
+        [ProtoMember(17)]
+        public double TargetZ { get; set; }
+
+        [ProtoMember(18)]
+        public double ImpactX { get; set; }
+
+        [ProtoMember(19)]
+        public double ImpactY { get; set; }
+
+        [ProtoMember(20)]
+        public double ImpactZ { get; set; }
+
+        [ProtoMember(21)]
+        public double Radius { get; set; }
+
+        [ProtoMember(22)]
+        public double Width { get; set; }
+
+        [ProtoMember(23)]
+        public double Length { get; set; }
+
+        [ProtoMember(24)]
+        public bool UsesGravity { get; set; }
+
+        [ProtoMember(25)]
+        public bool ShowImpactPoint { get; set; }
+
+        [ProtoMember(26)]
+        public string MarkerStyle { get; set; } = string.Empty;
+
+        [ProtoMember(27)]
+        public long UpdatedAtMs { get; set; }
+
+        public RustweaveTargetPreviewPacket Clone()
+        {
+            return new RustweaveTargetPreviewPacket
+            {
+                IsActive = IsActive,
+                IsLocked = IsLocked,
+                CasterPlayerUid = CasterPlayerUid,
+                CasterEntityId = CasterEntityId,
+                SpellCode = SpellCode,
+                SpellName = SpellName,
+                PreviewMode = PreviewMode,
+                TargetType = TargetType,
+                ColorClass = ColorClass,
+                TargetName = TargetName,
+                TargetEntityId = TargetEntityId,
+                SourceX = SourceX,
+                SourceY = SourceY,
+                SourceZ = SourceZ,
+                TargetX = TargetX,
+                TargetY = TargetY,
+                TargetZ = TargetZ,
+                ImpactX = ImpactX,
+                ImpactY = ImpactY,
+                ImpactZ = ImpactZ,
+                Radius = Radius,
+                Width = Width,
+                Length = Length,
+                UsesGravity = UsesGravity,
+                ShowImpactPoint = ShowImpactPoint,
+                MarkerStyle = MarkerStyle,
+                UpdatedAtMs = UpdatedAtMs
+            };
+        }
+    }
+
     internal sealed class RustweavePlayerStateData
     {
         public int SpellProgressionVersion { get; set; }
@@ -231,6 +405,26 @@ namespace TheRustweave
 
         public int StartingTemporalCorruption { get; set; }
 
+        public bool HasLockedTarget { get; set; }
+
+        public string LockedTargetType { get; set; } = string.Empty;
+
+        public long LockedEntityId { get; set; } = -1;
+
+        public int LockedBlockX { get; set; } = -1;
+
+        public int LockedBlockY { get; set; } = -1;
+
+        public int LockedBlockZ { get; set; } = -1;
+
+        public double LockedPosX { get; set; }
+
+        public double LockedPosY { get; set; }
+
+        public double LockedPosZ { get; set; }
+
+        public string LockedTargetName { get; set; } = string.Empty;
+
         [JsonIgnore]
         public double Progress => DurationMilliseconds <= 0 ? 0 : Math.Min(1d, (double)ElapsedMilliseconds / DurationMilliseconds);
 
@@ -250,6 +444,17 @@ namespace TheRustweave
                 CorruptionCost = CorruptionCost,
                 BaseCastTimeSeconds = BaseCastTimeSeconds,
                 StartingTemporalCorruption = StartingTemporalCorruption
+                ,
+                HasLockedTarget = HasLockedTarget,
+                LockedTargetType = LockedTargetType,
+                LockedEntityId = LockedEntityId,
+                LockedBlockX = LockedBlockX,
+                LockedBlockY = LockedBlockY,
+                LockedBlockZ = LockedBlockZ,
+                LockedPosX = LockedPosX,
+                LockedPosY = LockedPosY,
+                LockedPosZ = LockedPosZ,
+                LockedTargetName = LockedTargetName
             };
         }
     }
@@ -1797,7 +2002,9 @@ namespace TheRustweave
         private readonly HashSet<string> skippedTabletDecayInventoryLogs = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, RustweaveTimedStatModifier> activeTimedStatModifiers = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, RustweaveTimedDamageOverTime> activeDamageOverTimeEffects = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, RustweaveTimedShield> activeSpellShields = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, Dictionary<string, long>> spellCooldowns = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, RustweaveTargetPreviewPacket> activeTargetPreviews = new(StringComparer.OrdinalIgnoreCase);
         private IServerNetworkChannel? channel;
         private long tickListenerId;
         private long nextTabletDecayScanMilliseconds;
@@ -1812,7 +2019,10 @@ namespace TheRustweave
         {
             channel = sapi.Network.RegisterChannel(RustweaveConstants.NetworkChannelName);
             channel.RegisterMessageType(typeof(RustweaveActionPacket));
+            channel.RegisterMessageType(typeof(RustweaveTargetLockPacket));
+            channel.RegisterMessageType(typeof(RustweaveTargetPreviewPacket));
             channel.SetMessageHandler<RustweaveActionPacket>(OnClientPacket);
+            channel.SetMessageHandler<RustweaveTargetPreviewPacket>(OnClientPreviewPacket);
             sapi.Event.PlayerJoin += OnServerPlayerJoin;
             sapi.Event.PlayerNowPlaying += OnServerPlayerNowPlaying;
             sapi.Event.PlayerLeave += OnServerPlayerLeave;
@@ -2305,6 +2515,21 @@ namespace TheRustweave
             public string EffectType { get; set; } = string.Empty;
         }
 
+        private sealed class RustweaveTimedShield
+        {
+            public long TargetEntityId { get; set; }
+
+            public string ShieldCode { get; set; } = string.Empty;
+
+            public float RemainingAmount { get; set; }
+
+            public long ExpiresAtMilliseconds { get; set; }
+
+            public string SpellCode { get; set; } = string.Empty;
+
+            public string EffectType { get; set; } = string.Empty;
+        }
+
         private void OnServerPlayerJoin(IServerPlayer player)
         {
             if (player == null || !RustweaveStateService.IsRustweaver(player))
@@ -2337,6 +2562,8 @@ namespace TheRustweave
             }
 
             activeCasts.Remove(player.PlayerUID);
+            ClearCastState(player);
+            ClearTargetPreviewState(player);
             activeTabletVents.Remove(player.PlayerUID);
             pendingTabletDecayScans.Remove(player.PlayerUID);
             spellCooldowns.Remove(player.PlayerUID);
@@ -2498,6 +2725,11 @@ namespace TheRustweave
                     CancelCast(fromPlayer, state, Lang.Get("game:rustweave-cast-cancel"), true, true);
                     break;
                 case RustweaveActionType.RequestSelectPrepared:
+                    if (activeCasts.ContainsKey(fromPlayer.PlayerUID))
+                    {
+                        CancelCast(fromPlayer, state, Lang.Get("game:rustweave-cast-cancel"), true, true);
+                    }
+
                     if (RustweaveStateService.TrySelectPreparedSpell(state, packet.SlotIndex))
                     {
                         sapi.Logger.Debug("[TheRustweave] Active prepared slot changed to {0} for player '{1}'.", packet.SlotIndex, fromPlayer.PlayerUID);
@@ -2562,6 +2794,7 @@ namespace TheRustweave
             ProcessPendingTabletDecayScans();
             ProcessPassiveTabletDecay();
             ProcessTimedSpellEffects();
+            ProcessTargetPreviewStates();
 
             foreach (var onlinePlayer in sapi.World.AllOnlinePlayers)
             {
@@ -2586,6 +2819,7 @@ namespace TheRustweave
                 if (serverPlayer.Entity == null || !serverPlayer.Entity.Alive)
                 {
                     activeCasts.Remove(serverPlayer.PlayerUID);
+                    ClearCastState(serverPlayer);
                     activeTabletVents.Remove(serverPlayer.PlayerUID);
                     continue;
                 }
@@ -2947,6 +3181,97 @@ namespace TheRustweave
             return true;
         }
 
+        public bool TryRegisterShield(Entity targetEntity, string shieldCode, float shieldAmount, long durationMilliseconds, string spellCode, string effectType)
+        {
+            if (targetEntity == null || !targetEntity.Alive || string.IsNullOrWhiteSpace(shieldCode) || shieldAmount <= 0 || durationMilliseconds <= 0)
+            {
+                return false;
+            }
+
+            var nowMilliseconds = sapi.World.ElapsedMilliseconds;
+            activeSpellShields[shieldCode] = new RustweaveTimedShield
+            {
+                TargetEntityId = targetEntity.EntityId,
+                ShieldCode = shieldCode,
+                RemainingAmount = shieldAmount,
+                ExpiresAtMilliseconds = nowMilliseconds + durationMilliseconds,
+                SpellCode = spellCode,
+                EffectType = effectType
+            };
+
+            sapi.Logger.Debug("[TheRustweave] Shield '{0}' applied to entity '{1}' for {2} ms with {3} remaining.", effectType, targetEntity.EntityId, durationMilliseconds, shieldAmount);
+            return true;
+        }
+
+        public bool TryApplySpellDamage(Entity targetEntity, DamageSource damageSource, float damageAmount, string spellCode, string effectType)
+        {
+            if (targetEntity == null || !targetEntity.Alive || damageAmount <= 0)
+            {
+                return false;
+            }
+
+            var remainingDamage = damageAmount;
+            var absorbedDamage = TryAbsorbShieldDamage(targetEntity, ref remainingDamage);
+            if (absorbedDamage > 0)
+            {
+                sapi.Logger.Debug("[TheRustweave] Shield absorbed {0} damage from spell '{1}' on entity '{2}'.", absorbedDamage, spellCode, targetEntity.EntityId);
+            }
+
+            if (remainingDamage <= 0)
+            {
+                return true;
+            }
+
+            if (!targetEntity.ShouldReceiveDamage(damageSource, remainingDamage))
+            {
+                return false;
+            }
+
+            targetEntity.ReceiveDamage(damageSource, remainingDamage);
+            sapi.Logger.Debug("[TheRustweave] Spell '{0}' applied {1} damage to entity '{2}' via {3}.", spellCode, remainingDamage, targetEntity.EntityId, effectType);
+            return true;
+        }
+
+        public bool TryTransferCorruption(IServerPlayer sourcePlayer, IServerPlayer? targetPlayer, int amount, string spellCode, string effectType)
+        {
+            if (sourcePlayer == null || sourcePlayer.Entity == null || amount <= 0)
+            {
+                return false;
+            }
+
+            var sourceState = GetState(sourcePlayer);
+            var sourceTransfer = Math.Min(amount, sourceState.CurrentTemporalCorruption);
+            if (sourceTransfer <= 0)
+            {
+                sapi.Logger.Debug("[TheRustweave] Corruption transfer '{0}' for spell '{1}' had no source corruption to move for player '{2}'.", effectType, spellCode, sourcePlayer.PlayerUID);
+                return true;
+            }
+
+            var transferred = sourceTransfer;
+            if (targetPlayer != null && targetPlayer.Entity != null && !string.Equals(targetPlayer.PlayerUID, sourcePlayer.PlayerUID, StringComparison.OrdinalIgnoreCase) && RustweaveStateService.IsRustweaver(targetPlayer))
+            {
+                var targetState = GetState(targetPlayer);
+                var targetCapacity = Math.Max(0, targetState.EffectiveTemporalCorruptionThreshold - targetState.CurrentTemporalCorruption);
+                transferred = Math.Min(transferred, targetCapacity);
+                if (transferred > 0)
+                {
+                    targetState.CurrentTemporalCorruption = Math.Min(targetState.EffectiveTemporalCorruptionThreshold, targetState.CurrentTemporalCorruption + transferred);
+                    SaveAndSyncState(targetPlayer, targetState);
+                }
+            }
+
+            if (transferred <= 0)
+            {
+                sapi.Logger.Debug("[TheRustweave] Corruption transfer '{0}' for spell '{1}' had no target capacity for player '{2}'.", effectType, spellCode, sourcePlayer.PlayerUID);
+                return true;
+            }
+
+            sourceState.CurrentTemporalCorruption = Math.Max(0, sourceState.CurrentTemporalCorruption - transferred);
+            SaveAndSyncState(sourcePlayer, sourceState);
+            sapi.Logger.Debug("[TheRustweave] Corruption transfer '{0}' moved {1} corruption for spell '{2}' from '{3}'.", effectType, transferred, spellCode, sourcePlayer.PlayerUID);
+            return true;
+        }
+
         private void ProcessTimedSpellEffects()
         {
             var nowMilliseconds = sapi.World.ElapsedMilliseconds;
@@ -3009,6 +3334,62 @@ namespace TheRustweave
 
                 activeDamageOverTimeEffects[entry.Key] = effect;
             }
+
+            foreach (var entry in activeSpellShields.ToArray())
+            {
+                var shield = entry.Value;
+                var entity = sapi.World.GetEntityById(shield.TargetEntityId);
+                if (entity == null || !entity.Alive || nowMilliseconds >= shield.ExpiresAtMilliseconds || shield.RemainingAmount <= 0)
+                {
+                    activeSpellShields.Remove(entry.Key);
+                    sapi.Logger.Debug("[TheRustweave] Shield '{0}' expired for entity '{1}'.", shield.EffectType, shield.TargetEntityId);
+                }
+            }
+        }
+
+        private float TryAbsorbShieldDamage(Entity targetEntity, ref float remainingDamage)
+        {
+            if (targetEntity == null || !targetEntity.Alive || remainingDamage <= 0)
+            {
+                return 0f;
+            }
+
+            var absorbedTotal = 0f;
+            foreach (var entry in activeSpellShields.Where(pair => pair.Value.TargetEntityId == targetEntity.EntityId).OrderBy(pair => pair.Value.ExpiresAtMilliseconds).ToArray())
+            {
+                var shield = entry.Value;
+                if (shield.RemainingAmount <= 0)
+                {
+                    activeSpellShields.Remove(entry.Key);
+                    continue;
+                }
+
+                var absorbed = Math.Min(shield.RemainingAmount, remainingDamage);
+                if (absorbed <= 0)
+                {
+                    continue;
+                }
+
+                shield.RemainingAmount -= absorbed;
+                remainingDamage -= absorbed;
+                absorbedTotal += absorbed;
+
+                if (shield.RemainingAmount <= 0)
+                {
+                    activeSpellShields.Remove(entry.Key);
+                }
+                else
+                {
+                    activeSpellShields[entry.Key] = shield;
+                }
+
+                if (remainingDamage <= 0)
+                {
+                    break;
+                }
+            }
+
+            return absorbedTotal;
         }
 
         private void ScheduleTabletDecayScan(IServerPlayer player, int delayMilliseconds)
@@ -3262,7 +3643,15 @@ namespace TheRustweave
                 return;
             }
 
-            if (!spellExecutor.TryBuildPlan(player, state, spell, out var previewPlan, out var previewFailureReason))
+            sapi.Logger.Debug("[TheRustweave] Cast start requested by player '{0}' from slot {1} for spell '{2}' with targetType '{3}'.", player.PlayerUID, slotIndex, spell.Code, spell.TargetType);
+            if (!spellExecutor.TryResolveTarget(player, spell, out var lockedTarget, out var lockFailureReason))
+            {
+                sapi.Logger.Warning("[TheRustweave] Spell '{0}' could not resolve a cast-start target for player '{1}': {2}", spell.Code, player.PlayerUID, lockFailureReason);
+                SendSpellTargetFailure(player, lockFailureReason);
+                return;
+            }
+
+            if (!spellExecutor.TryBuildPlan(player, state, spell, lockedTarget, out var previewPlan, out var previewFailureReason))
             {
                 sapi.Logger.Warning("[TheRustweave] Spell '{0}' could not start for player '{1}': {2}", spell.Code, player.PlayerUID, previewFailureReason);
                 SendSpellTargetFailure(player, previewFailureReason);
@@ -3303,8 +3692,14 @@ namespace TheRustweave
                 StartingTemporalCorruption = state.CurrentTemporalCorruption
             };
 
+            ApplyLockedTarget(castState, spell, lockedTarget);
+            sapi.Logger.Debug("[TheRustweave] Cast start locked target for player '{0}': hasLock={1}, lockType='{2}', targetName='{3}', entityId={4}.",
+                player.PlayerUID, castState.HasLockedTarget, castState.LockedTargetType, castState.LockedTargetName, castState.LockedEntityId);
+
             activeCasts[player.PlayerUID] = castState;
             SyncCastState(player, castState);
+            BroadcastTargetPreviewState(player, spell, lockedTarget, true, true);
+            SendTargetLockState(player, castState, spell, true);
         }
 
         private void FinishCast(IServerPlayer player, RustweavePlayerStateData state, RustweaveCastStateData castState)
@@ -3321,6 +3716,7 @@ namespace TheRustweave
                 return;
             }
 
+            sapi.Logger.Debug("[TheRustweave] Cast completion rebuilding target context for player '{0}' and spell '{1}'.", player.PlayerUID, spell.Code);
             if (TryGetCooldownRemaining(player.PlayerUID, spell.Code, out var remainingMilliseconds))
             {
                 sapi.Logger.Warning("[TheRustweave] Spell '{0}' was rejected at completion for player '{1}' because it is on cooldown for {2} ms.", spell.Code, player.PlayerUID, remainingMilliseconds);
@@ -3329,7 +3725,17 @@ namespace TheRustweave
                 return;
             }
 
-            if (!spellExecutor.TryBuildPlan(player, state, spell, out var executionPlan, out var failureReason))
+            if (!spellExecutor.TryResolveLockedTarget(player, spell, castState, out var lockedTarget, out var lockFailureReason))
+            {
+                sapi.Logger.Warning("[TheRustweave] Spell '{0}' failed at completion for player '{1}' because the locked target was invalid: {2}", spell.Code, player.PlayerUID, lockFailureReason);
+                SendSpellTargetFailure(player, lockFailureReason);
+                ClearCastState(player);
+                return;
+            }
+
+            sapi.Logger.Debug("[TheRustweave] Cast completion rebuilt target context for player '{0}' and spell '{1}' as targetType '{2}' with target '{3}'.",
+                player.PlayerUID, spell.Code, spell.TargetType, lockedTarget.TargetName);
+            if (!spellExecutor.TryBuildPlan(player, state, spell, lockedTarget, out var executionPlan, out var failureReason))
             {
                 sapi.Logger.Warning("[TheRustweave] Spell '{0}' failed at completion for player '{1}': {2}", spell.Code, player.PlayerUID, failureReason);
                 SendSpellTargetFailure(player, failureReason);
@@ -3383,12 +3789,18 @@ namespace TheRustweave
 
         private void ClearCastState(IPlayer player)
         {
+            var castState = new RustweaveCastStateData();
+            if (player is IServerPlayer serverPlayer)
+            {
+                SendTargetLockState(serverPlayer, castState, null, false);
+                ClearTargetPreviewState(serverPlayer);
+            }
+
             if (player.Entity?.WatchedAttributes == null)
             {
                 return;
             }
 
-            var castState = new RustweaveCastStateData();
             RustweaveStateService.SyncWatchedCastState(player, castState);
         }
 
@@ -3401,6 +3813,339 @@ namespace TheRustweave
 
             RustweaveStateService.SyncWatchedCastState(player, state.Clone());
         }
+
+        private void OnClientPreviewPacket(IServerPlayer fromPlayer, RustweaveTargetPreviewPacket packet)
+        {
+            if (fromPlayer == null || packet == null)
+            {
+                return;
+            }
+
+            if (!RustweaveStateService.IsRustweaver(fromPlayer))
+            {
+                return;
+            }
+
+            var playerUid = fromPlayer.PlayerUID;
+            if (!packet.IsActive)
+            {
+                activeTargetPreviews.Remove(playerUid);
+                BroadcastTargetPreviewPacket(packet, true);
+                return;
+            }
+
+            if (activeCasts.ContainsKey(playerUid) && !packet.IsLocked)
+            {
+                return;
+            }
+
+            var normalized = packet.Clone();
+            normalized.CasterPlayerUid = playerUid;
+            normalized.CasterEntityId = fromPlayer.Entity?.EntityId ?? -1;
+            normalized.UpdatedAtMs = sapi.World.ElapsedMilliseconds;
+            activeTargetPreviews[playerUid] = normalized;
+
+            sapi.Logger.Debug("[TheRustweave] Target preview updated for player '{0}' spell '{1}' mode '{2}' targetType '{3}' locked={4}.",
+                playerUid, normalized.SpellCode, normalized.PreviewMode, normalized.TargetType, normalized.IsLocked);
+
+            BroadcastTargetPreviewPacket(normalized, false);
+        }
+
+        private void ProcessTargetPreviewStates()
+        {
+            if (activeTargetPreviews.Count == 0)
+            {
+                return;
+            }
+
+            var now = sapi.World.ElapsedMilliseconds;
+            foreach (var entry in activeTargetPreviews.ToArray())
+            {
+                var playerUid = entry.Key;
+                var preview = entry.Value;
+
+                if (string.IsNullOrWhiteSpace(preview.CasterPlayerUid))
+                {
+                    activeTargetPreviews.Remove(playerUid);
+                    continue;
+                }
+
+                if (!preview.IsActive)
+                {
+                    activeTargetPreviews.Remove(playerUid);
+                    continue;
+                }
+
+                if (now - preview.UpdatedAtMs > 1200)
+                {
+                    sapi.Logger.Debug("[TheRustweave] Target preview expired for player '{0}' spell '{1}'.", playerUid, preview.SpellCode);
+                    ClearTargetPreviewState(playerUid);
+                    continue;
+                }
+
+                if (preview.IsLocked && now - preview.UpdatedAtMs >= 150)
+                {
+                    preview.UpdatedAtMs = now;
+                    activeTargetPreviews[playerUid] = preview;
+                    BroadcastTargetPreviewPacket(preview, false);
+                }
+            }
+        }
+
+        private void ClearTargetPreviewState(IServerPlayer player)
+        {
+            if (player == null)
+            {
+                return;
+            }
+
+            ClearTargetPreviewState(player.PlayerUID);
+        }
+
+        private void ClearTargetPreviewState(string playerUid)
+        {
+            if (string.IsNullOrWhiteSpace(playerUid))
+            {
+                return;
+            }
+
+            if (!activeTargetPreviews.TryGetValue(playerUid, out var existing))
+            {
+                return;
+            }
+
+            activeTargetPreviews.Remove(playerUid);
+            existing.IsActive = false;
+            existing.IsLocked = false;
+            existing.UpdatedAtMs = sapi.World.ElapsedMilliseconds;
+            BroadcastTargetPreviewPacket(existing, true);
+        }
+
+        private void BroadcastTargetPreviewState(IServerPlayer player, SpellDefinition spell, SpellEffectExecutor.SpellTargetContext lockedTarget, bool isActive, bool isLocked)
+        {
+            if (player == null || spell == null)
+            {
+                return;
+            }
+
+            var packet = BuildTargetPreviewPacket(player, spell, lockedTarget, isActive, isLocked);
+            if (packet == null)
+            {
+                if (!isActive)
+                {
+                    ClearTargetPreviewState(player);
+                }
+
+                return;
+            }
+
+            if (!isActive)
+            {
+                ClearTargetPreviewState(player);
+                return;
+            }
+
+            activeTargetPreviews[player.PlayerUID] = packet;
+            BroadcastTargetPreviewPacket(packet, true);
+        }
+
+        private RustweaveTargetPreviewPacket? BuildTargetPreviewPacket(IServerPlayer player, SpellDefinition spell, SpellEffectExecutor.SpellTargetContext lockedTarget, bool isActive, bool isLocked)
+        {
+            if (player?.Entity == null || spell == null || lockedTarget == null)
+            {
+                return null;
+            }
+
+            var previewInfo = SpellRegistry.GetPreviewInfo(spell);
+            if (string.Equals(previewInfo.Mode, SpellPreviewModes.None, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var packet = new RustweaveTargetPreviewPacket
+            {
+                IsActive = isActive,
+                IsLocked = isLocked,
+                CasterPlayerUid = player.PlayerUID,
+                CasterEntityId = player.Entity.EntityId,
+                SpellCode = spell.Code,
+                SpellName = spell.Name,
+                PreviewMode = previewInfo.Mode,
+                TargetType = spell.TargetType,
+                ColorClass = previewInfo.ColorClass,
+                TargetName = lockedTarget.TargetName,
+                TargetEntityId = lockedTarget.Entity?.EntityId ?? -1,
+                SourceX = player.Entity.Pos.X + player.Entity.LocalEyePos.X,
+                SourceY = player.Entity.Pos.Y + player.Entity.LocalEyePos.Y,
+                SourceZ = player.Entity.Pos.Z + player.Entity.LocalEyePos.Z,
+                TargetX = lockedTarget.Entity?.Pos.XYZ.X ?? lockedTarget.Position.X,
+                TargetY = lockedTarget.Entity?.Pos.XYZ.Y ?? lockedTarget.Position.Y,
+                TargetZ = lockedTarget.Entity?.Pos.XYZ.Z ?? lockedTarget.Position.Z,
+                ImpactX = lockedTarget.Position.X,
+                ImpactY = lockedTarget.Position.Y,
+                ImpactZ = lockedTarget.Position.Z,
+                Radius = previewInfo.Radius,
+                Width = previewInfo.Width,
+                Length = previewInfo.Length,
+                UsesGravity = previewInfo.UsesGravity,
+                ShowImpactPoint = previewInfo.ShowImpactPoint,
+                MarkerStyle = previewInfo.MarkerStyle,
+                UpdatedAtMs = sapi.World.ElapsedMilliseconds
+            };
+
+            if (string.IsNullOrWhiteSpace(packet.TargetName))
+            {
+                packet.TargetName = ResolvePreviewTargetName(spell, lockedTarget);
+            }
+
+            return packet;
+        }
+
+        private void BroadcastTargetPreviewPacket(RustweaveTargetPreviewPacket packet, bool includeCaster)
+        {
+            if (packet == null || channel == null)
+            {
+                return;
+            }
+
+            var recipients = sapi.World.AllOnlinePlayers
+                .OfType<IServerPlayer>()
+                .Where(player => includeCaster || !string.Equals(player.PlayerUID, packet.CasterPlayerUid, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+            if (recipients.Length == 0)
+            {
+                return;
+            }
+
+            channel.SendPacket(packet, recipients);
+        }
+
+        private string ResolvePreviewTargetName(SpellDefinition spell, SpellEffectExecutor.SpellTargetContext lockedTarget)
+        {
+            if (spell == null || lockedTarget == null)
+            {
+                return string.Empty;
+            }
+
+            return spell.TargetType switch
+            {
+                SpellTargetTypes.Self => "Self",
+                SpellTargetTypes.HeldItem => "Held Item",
+                SpellTargetTypes.Inventory => "Inventory",
+                SpellTargetTypes.LookEntity => lockedTarget.Entity?.GetName() ?? lockedTarget.TargetName,
+                SpellTargetTypes.LookBlock => lockedTarget.TargetName,
+                SpellTargetTypes.LookPosition => "Position",
+                _ => lockedTarget.TargetName
+            };
+        }
+
+        private void ApplyLockedTarget(RustweaveCastStateData castState, SpellDefinition spell, SpellEffectExecutor.SpellTargetContext lockedTarget)
+        {
+            castState.HasLockedTarget = false;
+            castState.LockedTargetType = string.Empty;
+            castState.LockedEntityId = -1;
+            castState.LockedBlockX = -1;
+            castState.LockedBlockY = -1;
+            castState.LockedBlockZ = -1;
+            castState.LockedPosX = 0;
+            castState.LockedPosY = 0;
+            castState.LockedPosZ = 0;
+            castState.LockedTargetName = string.Empty;
+
+            if (lockedTarget == null)
+            {
+                return;
+            }
+
+            switch (spell.TargetType)
+            {
+                case SpellTargetTypes.Self:
+                    castState.HasLockedTarget = true;
+                    castState.LockedTargetType = SpellTargetTypes.Self;
+                    castState.LockedPosX = lockedTarget.Position.X;
+                    castState.LockedPosY = lockedTarget.Position.Y;
+                    castState.LockedPosZ = lockedTarget.Position.Z;
+                    castState.LockedTargetName = string.IsNullOrWhiteSpace(lockedTarget.TargetName) ? "Self" : lockedTarget.TargetName;
+                    break;
+                case SpellTargetTypes.HeldItem:
+                    castState.HasLockedTarget = true;
+                    castState.LockedTargetType = SpellTargetTypes.HeldItem;
+                    castState.LockedPosX = lockedTarget.Position.X;
+                    castState.LockedPosY = lockedTarget.Position.Y;
+                    castState.LockedPosZ = lockedTarget.Position.Z;
+                    castState.LockedTargetName = string.IsNullOrWhiteSpace(lockedTarget.TargetName) ? "Held Item" : lockedTarget.TargetName;
+                    break;
+                case SpellTargetTypes.Inventory:
+                    castState.HasLockedTarget = true;
+                    castState.LockedTargetType = SpellTargetTypes.Inventory;
+                    castState.LockedPosX = lockedTarget.Position.X;
+                    castState.LockedPosY = lockedTarget.Position.Y;
+                    castState.LockedPosZ = lockedTarget.Position.Z;
+                    castState.LockedTargetName = string.IsNullOrWhiteSpace(lockedTarget.TargetName) ? "Inventory" : lockedTarget.TargetName;
+                    break;
+                case SpellTargetTypes.LookEntity:
+                    if (lockedTarget.Entity != null)
+                    {
+                        castState.HasLockedTarget = true;
+                        castState.LockedTargetType = SpellTargetTypes.LookEntity;
+                        castState.LockedEntityId = lockedTarget.Entity.EntityId;
+                        castState.LockedPosX = lockedTarget.Position.X;
+                        castState.LockedPosY = lockedTarget.Position.Y;
+                        castState.LockedPosZ = lockedTarget.Position.Z;
+                        castState.LockedTargetName = lockedTarget.TargetName;
+                    }
+                    break;
+                case SpellTargetTypes.LookBlock:
+                    if (lockedTarget.BlockPos != null)
+                    {
+                        castState.HasLockedTarget = true;
+                        castState.LockedTargetType = SpellTargetTypes.LookBlock;
+                        castState.LockedBlockX = lockedTarget.BlockPos.X;
+                        castState.LockedBlockY = lockedTarget.BlockPos.Y;
+                        castState.LockedBlockZ = lockedTarget.BlockPos.Z;
+                        castState.LockedPosX = lockedTarget.Position.X;
+                        castState.LockedPosY = lockedTarget.Position.Y;
+                        castState.LockedPosZ = lockedTarget.Position.Z;
+                        castState.LockedTargetName = lockedTarget.TargetName;
+                    }
+                    break;
+                case SpellTargetTypes.LookPosition:
+                    castState.HasLockedTarget = true;
+                    castState.LockedTargetType = SpellTargetTypes.LookPosition;
+                    castState.LockedPosX = lockedTarget.Position.X;
+                    castState.LockedPosY = lockedTarget.Position.Y;
+                    castState.LockedPosZ = lockedTarget.Position.Z;
+                    castState.LockedTargetName = lockedTarget.TargetName;
+                    break;
+            }
+        }
+
+        private void SendTargetLockState(IServerPlayer player, RustweaveCastStateData? castState, SpellDefinition? spell, bool isActive)
+        {
+            if (player == null || channel == null)
+            {
+                sapi.Logger.Warning("[TheRustweave] Target lock packet could not be sent because the network channel or player was unavailable.");
+                return;
+            }
+
+            var packet = new RustweaveTargetLockPacket
+            {
+                IsActive = isActive && castState?.HasLockedTarget == true && spell != null,
+                SpellCode = spell?.Code ?? string.Empty,
+                SpellName = spell?.Name ?? string.Empty,
+                TargetType = castState?.LockedTargetType ?? string.Empty,
+                TargetName = castState?.LockedTargetName ?? string.Empty,
+                TargetEntityId = castState?.LockedEntityId ?? -1,
+                TargetX = castState?.LockedPosX ?? 0,
+                TargetY = castState?.LockedPosY ?? 0,
+                TargetZ = castState?.LockedPosZ ?? 0,
+                CastDurationMs = castState?.DurationMilliseconds ?? 0,
+                CastStartedAtMs = castState?.StartedAtMilliseconds ?? 0
+            };
+
+            channel.SendPacket(packet, new[] { player });
+        }
     }
 
     internal sealed class RustweaveClientController
@@ -3410,10 +4155,15 @@ namespace TheRustweave
         private long tickListenerId;
         private RustweavePlayerStateData currentState = RustweaveStateService.CreateFreshState();
         private RustweaveCastStateData currentCastState = new();
+        private RustweaveTargetLockPacket currentTargetLock = new();
+        private readonly Dictionary<string, RustweaveTargetPreviewPacket> activeTargetPreviews = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, long> activeTargetPreviewRenderTimes = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, long> activeTargetPreviewSendTimes = new(StringComparer.OrdinalIgnoreCase);
         private string lastStateJson = string.Empty;
         private string lastCastJson = string.Empty;
         private RustweaveCorruptionHud? corruptionHud;
         private RustweaveCastHud? castHud;
+        private RustweaveTargetLockHud? targetLockHud;
         private RustweaveSpellPrepDialog? prepDialog;
 
         public RustweaveClientController(ICoreClientAPI capi)
@@ -3425,6 +4175,10 @@ namespace TheRustweave
         {
             channel = capi.Network.RegisterChannel(RustweaveConstants.NetworkChannelName);
             channel.RegisterMessageType(typeof(RustweaveActionPacket));
+            channel.RegisterMessageType(typeof(RustweaveTargetLockPacket));
+            channel.RegisterMessageType(typeof(RustweaveTargetPreviewPacket));
+            channel.SetMessageHandler<RustweaveTargetLockPacket>(OnTargetLockPacket);
+            channel.SetMessageHandler<RustweaveTargetPreviewPacket>(OnTargetPreviewPacket);
             capi.Event.PlayerJoin += OnClientPlayerJoin;
             capi.Event.LevelFinalize += OnClientLevelFinalize;
             tickListenerId = capi.Event.RegisterGameTickListener(OnClientTick, 50, 50);
@@ -3445,6 +4199,8 @@ namespace TheRustweave
             prepDialog!.SetState(currentState, false);
             prepDialog.OpenDialog();
         }
+
+        public bool IsCasting => currentCastState.IsCasting;
 
         public void RequestStartCast()
         {
@@ -3469,14 +4225,95 @@ namespace TheRustweave
             {
                 Action = RustweaveActionType.RequestCancelCast
             });
+            RequestPreviewStop(true);
+        }
+
+        public void RequestPreviewUpdate(EntityAgent byEntity, BlockSelection? blockSel, EntitySelection? entitySel)
+        {
+            HydrateFromSavedState();
+            var player = capi.World?.Player;
+            if (player == null || byEntity == null || currentCastState.IsCasting || !RustweaveStateService.IsRustweaver(player) || !RustweaveStateService.IsHoldingTome(player))
+            {
+                return;
+            }
+
+            if (!TryBuildLocalPreviewPacket(byEntity, blockSel, entitySel, out var packet))
+            {
+                RequestPreviewStop(false);
+                return;
+            }
+
+            var previewKey = GetPreviewKey(packet);
+            if (string.IsNullOrWhiteSpace(previewKey))
+            {
+                return;
+            }
+
+            activeTargetPreviews[previewKey] = packet;
+            activeTargetPreviewRenderTimes[previewKey] = 0;
+            RenderTargetPreview(packet);
+
+            if (ShouldSendPreviewPacket(packet))
+            {
+                SendPacket(packet.Clone());
+            }
+        }
+
+        public void RequestPreviewStop(bool forceSend = false)
+        {
+            var keepLockedPreview = currentCastState.IsCasting;
+            if (forceSend)
+            {
+                foreach (var key in activeTargetPreviews.Keys.ToArray())
+                {
+                    activeTargetPreviews.Remove(key);
+                    activeTargetPreviewRenderTimes.Remove(key);
+                }
+            }
+            else
+            {
+                foreach (var entry in activeTargetPreviews.ToArray())
+                {
+                    if (keepLockedPreview && entry.Value.IsLocked)
+                    {
+                        continue;
+                    }
+
+                    activeTargetPreviews.Remove(entry.Key);
+                    activeTargetPreviewRenderTimes.Remove(entry.Key);
+                }
+            }
+
+            if (!forceSend)
+            {
+                return;
+            }
+
+            var player = capi.World?.Player;
+            if (player == null)
+            {
+                return;
+            }
+
+            SendPacket(new RustweaveTargetPreviewPacket
+            {
+                IsActive = false,
+                IsLocked = false,
+                CasterPlayerUid = player.PlayerUID,
+                CasterEntityId = player.Entity?.EntityId ?? -1,
+                UpdatedAtMs = capi.World?.ElapsedMilliseconds ?? 0
+            });
         }
 
         public void RequestSelectPreparedSpell(int slotIndex)
         {
+            RequestPreviewStop();
             if (RustweaveStateService.IsValidSlotIndex(slotIndex))
             {
                 currentState.SelectedPreparedSpellIndex = slotIndex;
                 prepDialog?.SetState(currentState);
+                targetLockHud?.SetState(currentTargetLock, currentCastState, currentState);
+                UpdateTargetLockHud();
             }
 
             capi.Logger.Debug("[TheRustweave] Client requested prepared slot selection: {0}.", slotIndex);
@@ -3500,10 +4337,13 @@ namespace TheRustweave
 
         public void RequestUnprepareSpell(int slotIndex)
         {
+            RequestPreviewStop();
             if (RustweaveStateService.IsValidSlotIndex(slotIndex) && slotIndex < currentState.PreparedSpellCodes.Count)
             {
                 currentState.PreparedSpellCodes[slotIndex] = string.Empty;
                 prepDialog?.SetState(currentState);
+                targetLockHud?.SetState(currentTargetLock, currentCastState, currentState);
+                UpdateTargetLockHud();
             }
 
             capi.Logger.Debug("[TheRustweave] Client requested clear for prepared slot {0}.", slotIndex);
@@ -3515,6 +4355,11 @@ namespace TheRustweave
         }
 
         private void SendPacket(RustweaveActionPacket packet)
+        {
+            channel?.SendPacket(packet);
+        }
+
+        private void SendPacket(RustweaveTargetPreviewPacket packet)
         {
             channel?.SendPacket(packet);
         }
@@ -3532,6 +4377,495 @@ namespace TheRustweave
         private void OnClientLevelFinalize()
         {
             HydrateFromSavedState();
+            RequestPreviewStop();
+        }
+
+        private void OnTargetLockPacket(RustweaveTargetLockPacket packet)
+        {
+            currentTargetLock = packet?.Clone() ?? new RustweaveTargetLockPacket();
+            EnsureTargetLockHud();
+            targetLockHud?.SetState(currentTargetLock, currentCastState, currentState);
+            UpdateTargetLockHud();
+        }
+
+        private void OnTargetPreviewPacket(RustweaveTargetPreviewPacket packet)
+        {
+            if (packet == null)
+            {
+                return;
+            }
+
+            var preview = packet.Clone();
+            var key = GetPreviewKey(preview);
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return;
+            }
+
+            if (!preview.IsActive)
+            {
+                activeTargetPreviews.Remove(key);
+                activeTargetPreviewRenderTimes.Remove(key);
+                return;
+            }
+
+            activeTargetPreviews[key] = preview;
+            activeTargetPreviewRenderTimes[key] = 0;
+            RenderTargetPreview(preview);
+        }
+
+        private string GetPreviewKey(RustweaveTargetPreviewPacket packet)
+        {
+            if (packet == null)
+            {
+                return string.Empty;
+            }
+
+            if (!string.IsNullOrWhiteSpace(packet.CasterPlayerUid))
+            {
+                return packet.CasterPlayerUid;
+            }
+
+            return packet.CasterEntityId >= 0 ? packet.CasterEntityId.ToString(CultureInfo.InvariantCulture) : string.Empty;
+        }
+
+        private bool ShouldSendPreviewPacket(RustweaveTargetPreviewPacket packet)
+        {
+            if (packet == null)
+            {
+                return false;
+            }
+
+            var key = GetPreviewKey(packet);
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return false;
+            }
+
+            var now = capi.World?.ElapsedMilliseconds ?? 0;
+            if (!activeTargetPreviewSendTimes.TryGetValue(key, out var lastSent))
+            {
+                activeTargetPreviewSendTimes[key] = now;
+                return true;
+            }
+
+            if (now - lastSent >= 125)
+            {
+                activeTargetPreviewSendTimes[key] = now;
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryBuildLocalPreviewPacket(EntityAgent byEntity, BlockSelection? blockSel, EntitySelection? entitySel, out RustweaveTargetPreviewPacket packet)
+        {
+            packet = new RustweaveTargetPreviewPacket();
+
+            var player = capi.World?.Player;
+            if (player == null || byEntity == null || !RustweaveStateService.IsRustweaver(player) || !RustweaveStateService.IsHoldingTome(player))
+            {
+                return false;
+            }
+
+            var selectedSpellCode = RustweaveStateService.GetSelectedPreparedSpellCode(currentState);
+            if (string.IsNullOrWhiteSpace(selectedSpellCode) || !RustweaveRuntime.SpellRegistry.TryGetSpell(selectedSpellCode, out var spell) || spell == null)
+            {
+                return false;
+            }
+
+            var preview = SpellRegistry.GetPreviewInfo(spell);
+            if (string.Equals(preview.Mode, SpellPreviewModes.None, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var eyePos = byEntity.LocalEyePos;
+            var fromPos = new Vec3d(byEntity.Pos.X + eyePos.X, byEntity.Pos.Y + eyePos.Y, byEntity.Pos.Z + eyePos.Z);
+            var feetPos = byEntity.Pos.XYZ;
+            var viewVector = byEntity.Pos.GetViewVector();
+            var range = Math.Max(1d, SpellRegistry.GetEffectiveLookTargetRange(spell));
+            var toPos = new Vec3d(
+                fromPos.X + (viewVector.X * range),
+                fromPos.Y + (viewVector.Y * range),
+                fromPos.Z + (viewVector.Z * range));
+
+            if (blockSel == null && entitySel == null && !string.Equals(spell.TargetType, SpellTargetTypes.Self, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(spell.TargetType, SpellTargetTypes.HeldItem, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(spell.TargetType, SpellTargetTypes.Inventory, StringComparison.OrdinalIgnoreCase))
+            {
+                BlockSelection? tracedBlock = null;
+                EntitySelection? tracedEntity = null;
+                capi.World.RayTraceForSelection(
+                    fromPos,
+                    toPos,
+                    ref tracedBlock,
+                    ref tracedEntity,
+                null,
+                candidate => candidate != null
+                    && candidate != byEntity
+                    && candidate.Alive);
+
+                blockSel = tracedBlock;
+                entitySel = tracedEntity;
+            }
+
+            var spellPreviewMode = preview.Mode;
+            var packetTargetName = string.Empty;
+            double targetX;
+            double targetY;
+            double targetZ;
+            double impactX;
+            double impactY;
+            double impactZ;
+            long targetEntityId = -1;
+
+            switch (spell.TargetType)
+            {
+                case SpellTargetTypes.Self:
+                case SpellTargetTypes.HeldItem:
+                case SpellTargetTypes.Inventory:
+                    targetX = feetPos.X;
+                    targetY = feetPos.Y;
+                    targetZ = feetPos.Z;
+                    impactX = targetX;
+                    impactY = targetY;
+                    impactZ = targetZ;
+                    packetTargetName = spell.TargetType switch
+                    {
+                        SpellTargetTypes.Self => "Self",
+                        SpellTargetTypes.HeldItem => "Held Item",
+                        SpellTargetTypes.Inventory => "Inventory",
+                        _ => spell.Name
+                    };
+                    spellPreviewMode = SpellPreviewModes.Self;
+                    break;
+                case SpellTargetTypes.LookEntity:
+                    if (entitySel?.Entity == null || !entitySel.Entity.Alive)
+                    {
+                        return false;
+                    }
+
+                    targetEntityId = entitySel.Entity.EntityId;
+                    targetX = entitySel.Entity.Pos.XYZ.X;
+                    targetY = entitySel.Entity.Pos.XYZ.Y;
+                    targetZ = entitySel.Entity.Pos.XYZ.Z;
+                    impactX = entitySel.HitPosition.X;
+                    impactY = entitySel.HitPosition.Y;
+                    impactZ = entitySel.HitPosition.Z;
+                    packetTargetName = entitySel.Entity.GetName() ?? spell.Name;
+                    break;
+                case SpellTargetTypes.LookBlock:
+                    if (blockSel == null)
+                    {
+                        return false;
+                    }
+
+                    targetX = blockSel.Position.X + 0.5;
+                    targetY = blockSel.Position.Y + 0.5;
+                    targetZ = blockSel.Position.Z + 0.5;
+                    impactX = blockSel.HitPosition.X;
+                    impactY = blockSel.HitPosition.Y;
+                    impactZ = blockSel.HitPosition.Z;
+                    packetTargetName = GetBlockDisplayName(blockSel.Position);
+                    break;
+                case SpellTargetTypes.LookPosition:
+                    if (blockSel?.HitPosition != null)
+                    {
+                        impactX = blockSel.HitPosition.X;
+                        impactY = blockSel.HitPosition.Y;
+                        impactZ = blockSel.HitPosition.Z;
+                    }
+                    else if (entitySel?.Entity != null)
+                    {
+                        impactX = entitySel.HitPosition.X;
+                        impactY = entitySel.HitPosition.Y;
+                        impactZ = entitySel.HitPosition.Z;
+                    }
+                    else
+                    {
+                        impactX = toPos.X;
+                        impactY = toPos.Y;
+                        impactZ = toPos.Z;
+                    }
+
+                    targetX = impactX;
+                    targetY = impactY;
+                    targetZ = impactZ;
+                    packetTargetName = "Position";
+                    break;
+                default:
+                    return false;
+            }
+
+            if (string.Equals(spellPreviewMode, SpellPreviewModes.Projectile, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(spell.TargetType, SpellTargetTypes.LookPosition, StringComparison.OrdinalIgnoreCase))
+            {
+                targetX = impactX;
+                targetY = impactY;
+                targetZ = impactZ;
+            }
+
+            packet = new RustweaveTargetPreviewPacket
+            {
+                IsActive = true,
+                IsLocked = false,
+                CasterPlayerUid = player.PlayerUID,
+                CasterEntityId = byEntity.EntityId,
+                SpellCode = spell.Code,
+                SpellName = string.IsNullOrWhiteSpace(spell.Name) ? spell.Code : spell.Name,
+                PreviewMode = spellPreviewMode,
+                TargetType = spell.TargetType,
+                ColorClass = preview.ColorClass,
+                TargetName = packetTargetName,
+                TargetEntityId = targetEntityId,
+                SourceX = fromPos.X,
+                SourceY = fromPos.Y,
+                SourceZ = fromPos.Z,
+                TargetX = targetX,
+                TargetY = targetY,
+                TargetZ = targetZ,
+                ImpactX = impactX,
+                ImpactY = impactY,
+                ImpactZ = impactZ,
+                Radius = preview.Radius,
+                Width = preview.Width,
+                Length = preview.Length,
+                UsesGravity = preview.UsesGravity,
+                ShowImpactPoint = preview.ShowImpactPoint,
+                MarkerStyle = preview.MarkerStyle,
+                UpdatedAtMs = capi.World.ElapsedMilliseconds
+            };
+
+            return true;
+        }
+
+        private void RenderTargetPreview(RustweaveTargetPreviewPacket packet)
+        {
+            if (packet == null || !packet.IsActive || capi.World == null)
+            {
+                return;
+            }
+
+            var color = GetPreviewColor(packet.ColorClass);
+            var locked = packet.IsLocked;
+            var mode = packet.PreviewMode;
+            var center = new Vec3d(packet.TargetX, packet.TargetY, packet.TargetZ);
+            var source = new Vec3d(packet.SourceX, packet.SourceY, packet.SourceZ);
+            var impact = new Vec3d(packet.ImpactX, packet.ImpactY, packet.ImpactZ);
+
+            switch (mode)
+            {
+                case SpellPreviewModes.Self:
+                    RenderPreviewRing(center, locked ? 0.85d : 0.7d, color, locked ? 24 : 16, locked);
+                    RenderPreviewColumn(center, 1.3d, color, locked);
+                    break;
+                case SpellPreviewModes.Entity:
+                    RenderPreviewRing(center, locked ? 0.9d : 0.75d, color, locked ? 28 : 20, locked);
+                    RenderPreviewColumn(center, 1.4d, color, locked);
+                    break;
+                case SpellPreviewModes.Block:
+                    RenderPreviewBlockMarker(center, impact, color, locked);
+                    break;
+                case SpellPreviewModes.Area:
+                    RenderPreviewArea(center, packet.Radius > 0 ? packet.Radius : 2d, color, locked);
+                    break;
+                case SpellPreviewModes.Projectile:
+                    RenderPreviewProjectile(source, center, impact, color, packet.UsesGravity, packet.ShowImpactPoint, locked);
+                    break;
+                case SpellPreviewModes.Line:
+                    RenderPreviewLine(source, center, impact, color, packet.Width > 0 ? packet.Width : 0.35d, packet.ShowImpactPoint, locked);
+                    break;
+                case SpellPreviewModes.Position:
+                default:
+                    RenderPreviewRing(center, 0.65d, color, locked ? 16 : 10, locked);
+                    break;
+            }
+        }
+
+        private void RenderPreviewRing(Vec3d center, double radius, int color, int points, bool locked)
+        {
+            if (radius <= 0d)
+            {
+                radius = 0.65d;
+            }
+
+            var count = Math.Max(8, points);
+            for (var i = 0; i < count; i++)
+            {
+                var angle = (Math.PI * 2d * i) / count;
+                var x = center.X + Math.Cos(angle) * radius;
+                var z = center.Z + Math.Sin(angle) * radius;
+                SpawnPreviewParticle(new Vec3d(x, center.Y + 0.05, z), color, locked ? 0.14f : 0.1f, locked ? 0.5f : 0.35f);
+            }
+        }
+
+        private void RenderPreviewColumn(Vec3d center, double height, int color, bool locked)
+        {
+            var segments = locked ? 5 : 4;
+            for (var i = 0; i < segments; i++)
+            {
+                var y = center.Y + (height * i / Math.Max(1, segments - 1));
+                SpawnPreviewParticle(new Vec3d(center.X, y, center.Z), color, locked ? 0.12f : 0.09f, locked ? 0.45f : 0.3f);
+            }
+        }
+
+        private void RenderPreviewBlockMarker(Vec3d center, Vec3d impact, int color, bool locked)
+        {
+            RenderPreviewRing(new Vec3d(center.X, center.Y + 0.02, center.Z), 0.45d, color, locked ? 18 : 12, locked);
+            RenderPreviewColumn(new Vec3d(center.X, center.Y + 0.1, center.Z), 1.2d, color, locked);
+            if (impact != default)
+            {
+                SpawnPreviewParticle(impact, color, locked ? 0.16f : 0.12f, locked ? 0.45f : 0.3f);
+            }
+        }
+
+        private void RenderPreviewArea(Vec3d center, double radius, int color, bool locked)
+        {
+            RenderPreviewRing(new Vec3d(center.X, center.Y + 0.02, center.Z), radius, color, locked ? 32 : 24, locked);
+            RenderPreviewRing(new Vec3d(center.X, center.Y + 0.12, center.Z), Math.Max(0.2d, radius * 0.55d), color, locked ? 24 : 16, locked);
+        }
+
+        private void RenderPreviewProjectile(Vec3d source, Vec3d target, Vec3d impact, int color, bool usesGravity, bool showImpactPoint, bool locked)
+        {
+            var distance = source.DistanceTo(target);
+            var segments = Math.Max(8, (int)Math.Ceiling(distance * 2d));
+            if (segments <= 0)
+            {
+                segments = 8;
+            }
+
+            for (var i = 0; i <= segments; i++)
+            {
+                var t = (double)i / segments;
+                var x = source.X + ((target.X - source.X) * t);
+                var y = source.Y + ((target.Y - source.Y) * t);
+                var z = source.Z + ((target.Z - source.Z) * t);
+                if (usesGravity)
+                {
+                    var arc = Math.Sin(Math.PI * t) * Math.Max(0.4d, distance * 0.15d);
+                    y += arc;
+                }
+
+                SpawnPreviewParticle(new Vec3d(x, y, z), color, locked ? 0.14f : 0.1f, locked ? 0.45f : 0.3f);
+            }
+
+            if (showImpactPoint)
+            {
+                RenderPreviewRing(new Vec3d(impact.X, impact.Y + 0.02, impact.Z), 0.25d, color, locked ? 12 : 8, locked);
+            }
+        }
+
+        private void RenderPreviewLine(Vec3d source, Vec3d target, Vec3d impact, int color, double width, bool showImpactPoint, bool locked)
+        {
+            var distance = source.DistanceTo(target);
+            var segments = Math.Max(8, (int)Math.Ceiling(distance * 2d));
+            var dx = target.X - source.X;
+            var dz = target.Z - source.Z;
+            var length = Math.Sqrt((dx * dx) + (dz * dz));
+            if (length <= 0.001d)
+            {
+                length = 1d;
+            }
+
+            var perpX = -dz / length;
+            var perpZ = dx / length;
+            var halfWidth = Math.Max(0.1d, width * 0.5d);
+            var offsets = new[] { -halfWidth, 0d, halfWidth };
+
+            foreach (var offset in offsets)
+            {
+                for (var i = 0; i <= segments; i++)
+                {
+                    var t = (double)i / segments;
+                    var x = source.X + (dx * t) + (perpX * offset);
+                    var y = source.Y + ((target.Y - source.Y) * t);
+                    var z = source.Z + (dz * t) + (perpZ * offset);
+                    SpawnPreviewParticle(new Vec3d(x, y, z), color, locked ? 0.12f : 0.09f, locked ? 0.45f : 0.3f);
+                }
+            }
+
+            if (showImpactPoint)
+            {
+                RenderPreviewRing(new Vec3d(impact.X, impact.Y + 0.02, impact.Z), Math.Max(0.2d, width * 0.5d), color, locked ? 12 : 8, locked);
+            }
+        }
+
+        private void SpawnPreviewParticle(Vec3d pos, int color, float size, float lifeLength)
+        {
+            if (capi.World == null)
+            {
+                return;
+            }
+
+            var minPos = new Vec3d(pos.X - 0.03, pos.Y - 0.03, pos.Z - 0.03);
+            var maxPos = new Vec3d(pos.X + 0.03, pos.Y + 0.03, pos.Z + 0.03);
+            var minVelocity = new Vec3d(0, 0.01, 0);
+            var maxVelocity = new Vec3d(0, 0.02, 0);
+            capi.World.SpawnParticles(1, color, minPos, maxPos, new Vec3f((float)minVelocity.X, (float)minVelocity.Y, (float)minVelocity.Z), new Vec3f((float)maxVelocity.X, (float)maxVelocity.Y, (float)maxVelocity.Z), size, -0.01f, lifeLength, EnumParticleModel.Quad, capi.World.Player);
+        }
+
+        private string GetBlockDisplayName(BlockPos pos)
+        {
+            if (capi.World?.BlockAccessor == null || pos == null)
+            {
+                return "Block";
+            }
+
+            var block = capi.World.BlockAccessor.GetBlock(pos);
+            if (block?.Code != null)
+            {
+                var code = block.Code.Path;
+                if (!string.IsNullOrWhiteSpace(code))
+                {
+                    return code;
+                }
+            }
+
+            return "Block";
+        }
+
+        private static int GetPreviewColor(string colorClass)
+        {
+            if (string.Equals(colorClass, SpellPreviewColorClasses.Harmful, StringComparison.OrdinalIgnoreCase))
+            {
+                return unchecked((int)0xFFFF544D);
+            }
+
+            if (string.Equals(colorClass, SpellPreviewColorClasses.Beneficial, StringComparison.OrdinalIgnoreCase))
+            {
+                return unchecked((int)0xFF58E56B);
+            }
+
+            return unchecked((int)0xFFC58A4A);
+        }
+
+        private void UpdateTargetPreviewVisuals()
+        {
+            if (activeTargetPreviews.Count == 0)
+            {
+                return;
+            }
+
+            var now = capi.World?.ElapsedMilliseconds ?? 0;
+            foreach (var entry in activeTargetPreviews.ToArray())
+            {
+                var key = entry.Key;
+                var preview = entry.Value;
+                if (!preview.IsActive || now - preview.UpdatedAtMs > 1200)
+                {
+                    activeTargetPreviews.Remove(key);
+                    activeTargetPreviewRenderTimes.Remove(key);
+                    activeTargetPreviewSendTimes.Remove(key);
+                    continue;
+                }
+
+                if (!activeTargetPreviewRenderTimes.TryGetValue(key, out var lastRender) || now - lastRender >= 120)
+                {
+                    RenderTargetPreview(preview);
+                    activeTargetPreviewRenderTimes[key] = now;
+                }
+            }
         }
 
         private bool HydrateFromSavedState()
@@ -3620,6 +4954,8 @@ namespace TheRustweave
             RefreshSnapshots(player);
             UpdateCorruptionHud();
             UpdateCastHud();
+            UpdateTargetLockHud();
+            UpdateTargetPreviewVisuals();
             CancelCastIfGuiOpened();
             CancelCastIfHoldingWrongItem(player);
         }
@@ -3636,6 +4972,7 @@ namespace TheRustweave
                 }
                 corruptionHud?.SetState(currentState);
                 prepDialog?.SetState(currentState);
+                targetLockHud?.SetState(currentTargetLock, currentCastState, currentState);
             }
 
             if (string.IsNullOrWhiteSpace(stateJson))
@@ -3652,6 +4989,7 @@ namespace TheRustweave
                     currentCastState = syncedCastState;
                 }
                 castHud?.SetState(currentCastState, currentState);
+                targetLockHud?.SetState(currentTargetLock, currentCastState, currentState);
             }
         }
 
@@ -3668,6 +5006,50 @@ namespace TheRustweave
             {
                 hud.TryOpen();
             }
+        }
+
+        private void UpdateTargetLockHud()
+        {
+            EnsureTargetLockHud();
+            var hud = targetLockHud;
+            if (hud == null)
+            {
+                return;
+            }
+
+            var shouldShowPreview = !currentCastState.IsCasting && ShouldShowPreviewTargetLockHud();
+            if ((currentTargetLock == null || !currentTargetLock.IsActive || !currentCastState.IsCasting) && !shouldShowPreview)
+            {
+                if (hud.IsOpened())
+                {
+                    hud.TryClose();
+                }
+
+                return;
+            }
+
+            hud.SetState(shouldShowPreview ? new RustweaveTargetLockPacket() : currentTargetLock, currentCastState, currentState);
+            if (!hud.IsOpened())
+            {
+                hud.TryOpen();
+            }
+        }
+
+        private bool ShouldShowPreviewTargetLockHud()
+        {
+            var player = capi.World?.Player;
+            if (player == null || !RustweaveStateService.IsRustweaver(player) || !RustweaveStateService.IsHoldingTome(player))
+            {
+                return false;
+            }
+
+            var selectedSpellCode = RustweaveStateService.GetSelectedPreparedSpellCode(currentState);
+            if (string.IsNullOrWhiteSpace(selectedSpellCode))
+            {
+                return false;
+            }
+
+            return RustweaveRuntime.SpellRegistry.TryGetSpell(selectedSpellCode, out var spell) && spell != null;
         }
 
         private void UpdateCastHud()
@@ -3702,7 +5084,7 @@ namespace TheRustweave
                 return;
             }
 
-            if (capi.OpenedGuis.OfType<GuiDialog>().Any(gui => gui != corruptionHud && gui != castHud && gui != prepDialog && gui.DialogType != EnumDialogType.HUD))
+            if (capi.OpenedGuis.OfType<GuiDialog>().Any(gui => gui != corruptionHud && gui != castHud && gui != targetLockHud && gui != prepDialog && gui.DialogType != EnumDialogType.HUD))
             {
                 RequestCancelCast();
             }
@@ -3723,8 +5105,11 @@ namespace TheRustweave
 
         private void CloseAllDialogs()
         {
+            currentTargetLock = new RustweaveTargetLockPacket();
+            targetLockHud?.SetState(currentTargetLock, currentCastState, currentState);
             corruptionHud?.TryClose();
             castHud?.TryClose();
+            targetLockHud?.TryClose();
             prepDialog?.TryClose();
         }
 
@@ -3746,6 +5131,16 @@ namespace TheRustweave
             }
 
             castHud = new RustweaveCastHud(capi);
+        }
+
+        private void EnsureTargetLockHud()
+        {
+            if (targetLockHud != null)
+            {
+                return;
+            }
+
+            targetLockHud = new RustweaveTargetLockHud(capi);
         }
 
         private void EnsurePrepDialog()
