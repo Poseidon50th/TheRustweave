@@ -1,37 +1,43 @@
-# Current Task: Rustplane Sage mentor learning backend
+# Current Task: Rustweaver Tome title and tier label fix
 
 ## Objective
-Implement backend support for Rustplane Sage mentor learning, including persistent studies, configurable payment, study completion, and admin/debug commands.
+Apply a focused Rustweaver Tome UI fix only:
+1. Move the Tome title and exit/close button down further.
+2. Fix Learned tab tier labels so they display readable text like `Initiate Spell`, not asset/lang keys.
 
 ## Scope
-This task is limited to mentor backend/config/commands.
+This task is only for Tome GUI layout and Tome-local tier label display.
 
 Do not add:
-- Tome UI work
+- spells
 - rituals
-- player-made scrolls
-- Rustbound Magic dependencies
-- hostile/corrupted mentors
-- school specialization
-- prerequisite chains
+- glyph mechanics
+- NPCs
+- assets
+- Harmony patches
+- unrelated systems
+
+Do not change:
+- spell loading
+- spell casting
+- corruption
+- mentor learning
+- discovery items
+- Rust Tablet behavior
+- saved player data
 
 ## Required behavior
-1. Rustplane Sage mentor studies must be stored per player and persist across logout/world reload.
-2. Mentors must offer only enabled, non-hidden, non-Loreweave spells.
-3. Locked/learned validation must happen before study starts.
-4. Study timers must continue using world/calendar time when possible.
-5. Payment must be configurable by tier.
-6. Completing a study must call `LearnSpell(player, spellCode, "mentor:rustplane-sage")`.
-7. Admin/debug commands must exist for listing, starting, checking, and completing mentor studies.
+1. Move the title and close button downward.
+2. Keep the Learned tab row to spell name, tier label, and Prep only.
+3. Tier labels must display readable text such as `Initiate Spell`.
+4. Preserve all current Tome behavior.
 
 ## Validation requirements
-After the repair:
-1. Game starts without errors.
-2. Mentor config loads.
-3. `/rustweave mentor list` shows teachable spells.
-4. `/rustweave mentor study <spellcode>` starts a paid study.
-5. `/rustweave mentor status` reports active studies.
-6. Due studies complete on login/tick and unlock the spell.
-7. Studying persists across logout/world reload.
-8. Invalid spell codes fail cleanly.
-9. Loreweave spells are never taught.
+After the change:
+1. The project builds successfully.
+2. The Tome opens without new errors.
+3. The title and close button are moved downward.
+4. Learned rows show readable tier labels.
+5. Learned tab does not display raw localization keys.
+6. No unrelated systems were changed.
+

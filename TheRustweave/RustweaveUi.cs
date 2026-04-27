@@ -255,6 +255,20 @@ namespace TheRustweave
 
     internal sealed class RustweaveSpellPrepDialog : GuiDialog
     {
+        private const int TomeWidth = 1140;
+        private const int TomeHeight = 840;
+        private const float TomeRootOffsetY = -68f;
+        private const int TomeTabButtonWidth = 92;
+        private const int TomeTabButtonHeight = 24;
+        private const int TomeTabButtonSpacing = 14;
+        private const int TomeTabRowX = 26;
+        private const int TomeTabRowY = 96;
+
+        private static CairoFont TomeTitleFont => CairoFont.WhiteSmallishText().WithFontSize(12.5f);
+        private static CairoFont TomeButtonFont => CairoFont.WhiteSmallText().WithFontSize(9.5f);
+        private static CairoFont TomeListFont => CairoFont.WhiteSmallText().WithFontSize(9.5f);
+        private static CairoFont TomeDetailFont => CairoFont.WhiteSmallText().WithFontSize(9.5f);
+
         private enum TomeTab
         {
             All,
@@ -420,28 +434,35 @@ namespace TheRustweave
 
             NormalizeSelectedSpellForActiveTab();
 
-            var rootBounds = ElementBounds.FixedSize(1000, 760).WithAlignment(EnumDialogArea.CenterMiddle);
-            var backgroundBounds = ElementBounds.Fixed(0, 0, 1000, 760);
-            var titleBounds = ElementBounds.Fixed(26, 22, 540, 24);
-            var closeBounds = ElementBounds.Fixed(930, 20, 42, 22);
-            var statusBounds = ElementBounds.Fixed(26, 50, 620, 44);
-            var tabAllBounds = ElementBounds.Fixed(26, 96, 88, 24);
-            var tabLearnedBounds = ElementBounds.Fixed(120, 96, 88, 24);
-            var tabLockedBounds = ElementBounds.Fixed(214, 96, 88, 24);
-            var tabLoreBounds = ElementBounds.Fixed(308, 96, 88, 24);
-            var tabPreparedBounds = ElementBounds.Fixed(402, 96, 88, 24);
-            var contentBounds = ElementBounds.Fixed(20, 130, 960, 610);
+            var rootBounds = ElementBounds.FixedSize(TomeWidth, TomeHeight)
+                .WithAlignment(EnumDialogArea.CenterMiddle)
+                .WithFixedOffset(0, TomeRootOffsetY);
+            var backgroundBounds = ElementBounds.Fixed(0, 0, TomeWidth, TomeHeight);
+            var titleBounds = ElementBounds.Fixed(26, 40, 760, 24);
+            var closeBounds = ElementBounds.Fixed(1070, 40, 42, 22);
+            var statusBounds = ElementBounds.Fixed(26, 68, 920, 38);
+            var tabX = TomeTabRowX;
+            var tabAllBounds = ElementBounds.Fixed(tabX, TomeTabRowY, TomeTabButtonWidth, TomeTabButtonHeight);
+            tabX += TomeTabButtonWidth + TomeTabButtonSpacing;
+            var tabLearnedBounds = ElementBounds.Fixed(tabX, TomeTabRowY, TomeTabButtonWidth, TomeTabButtonHeight);
+            tabX += TomeTabButtonWidth + TomeTabButtonSpacing;
+            var tabLockedBounds = ElementBounds.Fixed(tabX, TomeTabRowY, TomeTabButtonWidth, TomeTabButtonHeight);
+            tabX += TomeTabButtonWidth + TomeTabButtonSpacing;
+            var tabLoreBounds = ElementBounds.Fixed(tabX, TomeTabRowY, TomeTabButtonWidth, TomeTabButtonHeight);
+            tabX += TomeTabButtonWidth + TomeTabButtonSpacing;
+            var tabPreparedBounds = ElementBounds.Fixed(tabX, TomeTabRowY, TomeTabButtonWidth, TomeTabButtonHeight);
+            var contentBounds = ElementBounds.Fixed(18, 126, 1104, 676);
 
             var composer = capi.Gui.CreateCompo("therustweave-spell-prep", rootBounds);
             composer.AddDialogBG(backgroundBounds, true, 1f);
             composer.AddInset(contentBounds, 6, 0.94f);
-            composer.AddStaticText(Lang.Get("game:rustweave-prep-title"), CairoFont.WhiteSmallishText(), titleBounds, "tome-title");
-            composer.AddStaticTextAutoBoxSize(GetStatusHeaderText(), CairoFont.WhiteSmallText(), EnumTextOrientation.Left, statusBounds, "tome-status");
+            composer.AddStaticText(Lang.Get("game:rustweave-prep-title"), TomeTitleFont, titleBounds, "tome-title");
+            composer.AddStaticTextAutoBoxSize(GetStatusHeaderText(), TomeListFont, EnumTextOrientation.Left, statusBounds, "tome-status");
             composer.AddButton("X", () =>
             {
                 TryClose();
                 return true;
-            }, closeBounds, EnumButtonStyle.Normal, "tome-close");
+            }, closeBounds, TomeButtonFont, EnumButtonStyle.Normal, "tome-close");
 
             AddTabButton(composer, tabAllBounds, TomeTab.All, "tab-all", "All");
             AddTabButton(composer, tabLearnedBounds, TomeTab.Learned, "tab-learned", "Learned");
@@ -452,16 +473,16 @@ namespace TheRustweave
             switch (activeTab)
             {
                 case TomeTab.All:
-                    AddSpellBrowseTab(composer, Lang.Get("game:rustweave-all-spells"), GetAllSpells(), allowPrepare: true, allowUnlockHint: true, showLoreNote: false, pageName: "all");
+                    AddSpellBrowseTab(composer, Lang.Get("game:rustweave-all-spells"), GetAllSpells(), allowPrepare: true, allowUnlockHint: true, showLoreNote: false, showStateLabel: true, showTierLabel: false, pageName: "all");
                     break;
                 case TomeTab.Learned:
-                    AddSpellBrowseTab(composer, Lang.Get("game:rustweave-learned-spells"), GetLearnedSpells(), allowPrepare: true, allowUnlockHint: false, showLoreNote: false, pageName: "learned");
+                    AddSpellBrowseTab(composer, Lang.Get("game:rustweave-learned-spells"), GetLearnedSpells(), allowPrepare: true, allowUnlockHint: false, showLoreNote: false, showStateLabel: false, showTierLabel: true, pageName: "learned");
                     break;
                 case TomeTab.Locked:
-                    AddSpellBrowseTab(composer, Lang.Get("game:rustweave-locked-spells"), GetLockedSpells(), allowPrepare: false, allowUnlockHint: true, showLoreNote: false, pageName: "locked");
+                    AddSpellBrowseTab(composer, Lang.Get("game:rustweave-locked-spells"), GetLockedSpells(), allowPrepare: false, allowUnlockHint: true, showLoreNote: false, showStateLabel: true, showTierLabel: false, pageName: "locked");
                     break;
                 case TomeTab.Loreweave:
-                    AddSpellBrowseTab(composer, Lang.Get("game:rustweave-loreweave-spells"), GetLoreweaveSpells(), allowPrepare: true, allowUnlockHint: false, showLoreNote: true, pageName: "lore");
+                    AddSpellBrowseTab(composer, Lang.Get("game:rustweave-loreweave-spells"), GetLoreweaveSpells(), allowPrepare: true, allowUnlockHint: false, showLoreNote: true, showStateLabel: true, showTierLabel: false, pageName: "lore");
                     break;
                 case TomeTab.Prepared:
                     AddPreparedTab(composer);
@@ -492,37 +513,37 @@ namespace TheRustweave
                 capi.Logger.Debug("[TheRustweave] Tome tab clicked: {0}", label);
                 SwitchTab(tab);
                 return true;
-            }, bounds, EnumButtonStyle.Normal, name);
+            }, bounds, TomeButtonFont, EnumButtonStyle.Normal, name);
         }
 
-        private void AddSpellBrowseTab(GuiComposer composer, string pageTitle, List<SpellDefinition> spells, bool allowPrepare, bool allowUnlockHint, bool showLoreNote, string pageName)
+        private void AddSpellBrowseTab(GuiComposer composer, string pageTitle, List<SpellDefinition> spells, bool allowPrepare, bool allowUnlockHint, bool showLoreNote, bool showStateLabel, bool showTierLabel, string pageName)
         {
-            var listPanelBounds = ElementBounds.Fixed(28, 142, 452, 548);
-            var detailsPanelBounds = ElementBounds.Fixed(490, 142, 482, 548);
+            var listPanelBounds = ElementBounds.Fixed(28, 142, 520, 580);
+            var detailsPanelBounds = ElementBounds.Fixed(552, 142, 560, 580);
             composer.AddInset(listPanelBounds, 3, 0.9f);
             composer.AddInset(detailsPanelBounds, 3, 0.9f);
-            composer.AddStaticText(pageTitle, CairoFont.WhiteSmallishText(), ElementBounds.Fixed(36, 146, 320, 20), $"{pageName}-header");
+            composer.AddStaticText(pageTitle, TomeTitleFont, ElementBounds.Fixed(36, 146, 480, 20), $"{pageName}-header");
 
             if (showLoreNote)
             {
-                composer.AddStaticTextAutoBoxSize(Lang.Get("game:rustweave-loreweave-note"), CairoFont.WhiteSmallText(), EnumTextOrientation.Left, ElementBounds.Fixed(36, 170, 410, 34), $"{pageName}-note");
+                composer.AddStaticTextAutoBoxSize(Lang.Get("game:rustweave-loreweave-note"), TomeListFont, EnumTextOrientation.Left, ElementBounds.Fixed(36, 170, 470, 32), $"{pageName}-note");
             }
 
             NormalizeSelectedSpellForActiveTab(spells);
             var selectedSpell = GetDisplayedSpell(spells);
 
-            var listTop = showLoreNote ? 214 : 190;
-            var listBounds = ElementBounds.Fixed(36, listTop, 412, 470);
+            var listTop = showLoreNote ? 212 : 188;
+            var listBounds = ElementBounds.Fixed(36, listTop, 500, 470);
             composer.BeginChildElements(listBounds);
             if (spells.Count == 0)
             {
-                composer.AddStaticText(Lang.Get("game:rustweave-slot-empty"), CairoFont.WhiteSmallText().WithColor(GuiStyle.DisabledTextColor), ElementBounds.Fixed(0, 0, 340, 18), $"{pageName}-empty");
+                composer.AddStaticText(Lang.Get("game:rustweave-slot-empty"), TomeListFont.WithColor(GuiStyle.DisabledTextColor), ElementBounds.Fixed(0, 0, 340, 18), $"{pageName}-empty");
             }
             else
             {
                 for (var index = 0; index < spells.Count; index++)
                 {
-                    AddSpellRow(composer, spells[index], index, allowPrepare, pageName);
+                    AddSpellRow(composer, spells[index], index, allowPrepare, showStateLabel, showTierLabel, pageName);
                 }
             }
             composer.EndChildElements();
@@ -530,15 +551,17 @@ namespace TheRustweave
             AddSpellDetailsPanel(composer, selectedSpell, allowUnlockHint, pageName);
         }
 
-        private void AddSpellRow(GuiComposer composer, SpellDefinition spell, int index, bool allowPrepare, string pageName)
+        private void AddSpellRow(GuiComposer composer, SpellDefinition spell, int index, bool allowPrepare, bool showStateLabel, bool showTierLabel, string pageName)
         {
             var code = spell.Code ?? string.Empty;
-            var rowTop = index * 34;
+            var rowTop = index * 36;
             var isSelected = string.Equals(code, selectedSpellCode, StringComparison.OrdinalIgnoreCase);
             var name = string.IsNullOrWhiteSpace(spell.Name) ? code : spell.Name;
             var stateLabel = GetSpellStateLabel(spell);
+            var tierLabel = GetTierDisplayLabel(spell.Tier);
             var displayName = isSelected ? $"> {name} <" : name;
             var canPrepare = allowPrepare && CanPrepareSpell(spell);
+            var nameWidth = showStateLabel || showTierLabel ? 292 : 316;
 
             composer.AddButton(displayName, () =>
             {
@@ -546,9 +569,16 @@ namespace TheRustweave
                 capi.Logger.Debug("[TheRustweave] Spell selected: {0} ({1}).", code, stateLabel);
                 RequestRebuild();
                 return true;
-            }, ElementBounds.Fixed(0, rowTop, 240, 22), EnumButtonStyle.Normal, $"{pageName}-spell-{index}");
+            }, ElementBounds.Fixed(0, rowTop, nameWidth, 21), TomeButtonFont, EnumButtonStyle.Normal, $"{pageName}-spell-{index}");
 
-            composer.AddStaticText(stateLabel, CairoFont.WhiteSmallText(), ElementBounds.Fixed(250, rowTop + 2, 92, 18), $"{pageName}-state-{index}");
+            if (showStateLabel)
+            {
+                composer.AddStaticText(stateLabel, TomeListFont, ElementBounds.Fixed(300, rowTop + 2, 118, 18), $"{pageName}-state-{index}");
+            }
+            else if (showTierLabel)
+            {
+                composer.AddStaticText(tierLabel, TomeListFont, ElementBounds.Fixed(300, rowTop + 2, 118, 18), $"{pageName}-tier-{index}");
+            }
 
             if (canPrepare)
             {
@@ -557,7 +587,7 @@ namespace TheRustweave
                     RustweaveRuntime.Client?.RequestPrepareSpell(code, -1);
                     RequestRebuild();
                     return true;
-                }, ElementBounds.Fixed(348, rowTop, 52, 22), EnumButtonStyle.Normal, $"{pageName}-prep-{index}");
+                }, ElementBounds.Fixed(438, rowTop, 48, 21), TomeButtonFont, EnumButtonStyle.Normal, $"{pageName}-prep-{index}");
             }
         }
 
@@ -565,7 +595,7 @@ namespace TheRustweave
         {
             if (spell == null)
             {
-                composer.AddStaticText(Lang.Get("game:rustweave-slot-empty"), CairoFont.WhiteSmallText().WithColor(GuiStyle.DisabledTextColor), ElementBounds.Fixed(500, 172, 420, 18), $"{pageName}-details-empty");
+                composer.AddStaticText(Lang.Get("game:rustweave-slot-empty"), TomeDetailFont.WithColor(GuiStyle.DisabledTextColor), ElementBounds.Fixed(552, 172, 508, 18), $"{pageName}-details-empty");
                 return;
             }
 
@@ -577,52 +607,52 @@ namespace TheRustweave
             var isHidden = RustweaveStateService.IsHiddenSpell(spell);
             var stateText = isLore ? Lang.Get("game:rustweave-spell-state-lore") : isLearned ? Lang.Get("game:rustweave-spell-state-learned") : Lang.Get("game:rustweave-spell-state-locked");
 
-            composer.AddStaticText(name, CairoFont.WhiteSmallishText(), ElementBounds.Fixed(500, 170, 420, 20), $"{pageName}-detail-name");
-            composer.AddStaticTextAutoBoxSize(description, CairoFont.WhiteSmallText(), EnumTextOrientation.Left, ElementBounds.Fixed(500, 198, 420, 56), $"{pageName}-detail-desc");
-            composer.AddStaticText($"{Lang.Get("game:rustweave-school")}: {spell.School}", CairoFont.WhiteSmallText(), ElementBounds.Fixed(500, 264, 420, 18), $"{pageName}-detail-school");
+            composer.AddStaticText(name, TomeTitleFont, ElementBounds.Fixed(552, 170, 520, 20), $"{pageName}-detail-name");
+            composer.AddStaticTextAutoBoxSize(description, TomeDetailFont, EnumTextOrientation.Left, ElementBounds.Fixed(552, 198, 520, 52), $"{pageName}-detail-desc");
+            composer.AddStaticText($"{Lang.Get("game:rustweave-school")}: {spell.School}", TomeDetailFont, ElementBounds.Fixed(552, 258, 520, 18), $"{pageName}-detail-school");
 
             if (!string.IsNullOrWhiteSpace(spell.Category))
             {
-                composer.AddStaticText($"{Lang.Get("game:rustweave-category")}: {spell.Category}", CairoFont.WhiteSmallText(), ElementBounds.Fixed(500, 286, 420, 18), $"{pageName}-detail-category");
+                composer.AddStaticText($"{Lang.Get("game:rustweave-category")}: {spell.Category}", TomeDetailFont, ElementBounds.Fixed(552, 280, 520, 18), $"{pageName}-detail-category");
             }
 
-            composer.AddStaticText($"{Lang.Get("game:rustweave-tier")}: {spell.Tier}", CairoFont.WhiteSmallText(), ElementBounds.Fixed(500, 308, 420, 18), $"{pageName}-detail-tier");
-            composer.AddStaticText($"{Lang.Get("game:rustweave-corruption-cost")}: {spell.CorruptionCost}", CairoFont.WhiteSmallText(), ElementBounds.Fixed(500, 330, 420, 18), $"{pageName}-detail-corruption");
-            composer.AddStaticText($"{Lang.Get("game:rustweave-cast-time")}: {RustweaveStateService.FormatSeconds(spell.CastTimeSeconds)}s", CairoFont.WhiteSmallText(), ElementBounds.Fixed(500, 352, 420, 18), $"{pageName}-detail-cast");
-            composer.AddStaticText($"{Lang.Get("game:rustweave-cooldown")}: {RustweaveStateService.FormatSeconds(spell.CooldownSeconds)}s", CairoFont.WhiteSmallText(), ElementBounds.Fixed(500, 374, 420, 18), $"{pageName}-detail-cooldown");
-            composer.AddStaticText($"{Lang.Get("game:rustweave-target-type")}: {spell.TargetType}", CairoFont.WhiteSmallText(), ElementBounds.Fixed(500, 396, 420, 18), $"{pageName}-detail-target");
-            composer.AddStaticTextAutoBoxSize($"{Lang.Get("game:rustweave-effects")}: {effectsSummary}", CairoFont.WhiteSmallText(), EnumTextOrientation.Left, ElementBounds.Fixed(500, 420, 420, 72), $"{pageName}-detail-effects");
-            composer.AddStaticText($"{Lang.Get("game:rustweave-spell-state")}: {stateText}", CairoFont.WhiteSmallText(), ElementBounds.Fixed(500, 498, 420, 18), $"{pageName}-detail-state");
+            composer.AddStaticText($"{Lang.Get("game:rustweave-tier")}: {spell.Tier}", TomeDetailFont, ElementBounds.Fixed(552, 302, 520, 18), $"{pageName}-detail-tier");
+            composer.AddStaticText($"{Lang.Get("game:rustweave-corruption-cost")}: {spell.CorruptionCost}", TomeDetailFont, ElementBounds.Fixed(552, 324, 520, 18), $"{pageName}-detail-corruption");
+            composer.AddStaticText($"{Lang.Get("game:rustweave-cast-time")}: {RustweaveStateService.FormatSeconds(spell.CastTimeSeconds)}s", TomeDetailFont, ElementBounds.Fixed(552, 346, 520, 18), $"{pageName}-detail-cast");
+            composer.AddStaticText($"{Lang.Get("game:rustweave-cooldown")}: {RustweaveStateService.FormatSeconds(spell.CooldownSeconds)}s", TomeDetailFont, ElementBounds.Fixed(552, 368, 520, 18), $"{pageName}-detail-cooldown");
+            composer.AddStaticText($"{Lang.Get("game:rustweave-target-type")}: {spell.TargetType}", TomeDetailFont, ElementBounds.Fixed(552, 390, 520, 18), $"{pageName}-detail-target");
+            composer.AddStaticTextAutoBoxSize($"{Lang.Get("game:rustweave-effects")}: {effectsSummary}", TomeDetailFont, EnumTextOrientation.Left, ElementBounds.Fixed(552, 414, 520, 64), $"{pageName}-detail-effects");
+            composer.AddStaticText($"{Lang.Get("game:rustweave-spell-state")}: {stateText}", TomeDetailFont, ElementBounds.Fixed(552, 484, 520, 18), $"{pageName}-detail-state");
 
             if (isLearned)
             {
-                composer.AddStaticText($"{Lang.Get("game:rustweave-cast-count")}: {RustweaveStateService.GetSpellCastCount(state, spell.Code)}", CairoFont.WhiteSmallText(), ElementBounds.Fixed(500, 520, 420, 18), $"{pageName}-detail-casts");
+                composer.AddStaticText($"{Lang.Get("game:rustweave-cast-count")}: {RustweaveStateService.GetSpellCastCount(state, spell.Code)}", TomeDetailFont, ElementBounds.Fixed(552, 506, 520, 18), $"{pageName}-detail-casts");
             }
 
             if (isHidden)
             {
-                composer.AddStaticText(Lang.Get("game:rustweave-hidden-note"), CairoFont.WhiteSmallText(), ElementBounds.Fixed(500, 542, 420, 18), $"{pageName}-detail-hidden");
+                composer.AddStaticText(Lang.Get("game:rustweave-hidden-note"), TomeDetailFont, ElementBounds.Fixed(552, 528, 520, 18), $"{pageName}-detail-hidden");
             }
 
             if (isLore)
             {
-                composer.AddStaticText(Lang.Get("game:rustweave-loreweave-note"), CairoFont.WhiteSmallText(), ElementBounds.Fixed(500, 564, 420, 18), $"{pageName}-detail-lore");
+                composer.AddStaticText(Lang.Get("game:rustweave-loreweave-note"), TomeDetailFont, ElementBounds.Fixed(552, 550, 520, 18), $"{pageName}-detail-lore");
             }
 
             if (!isLearned && allowUnlockHint)
             {
                 var hint = string.IsNullOrWhiteSpace(spell.UnlockHint) ? Lang.Get("game:rustweave-discovery-required") : spell.UnlockHint;
-                composer.AddStaticTextAutoBoxSize($"{Lang.Get("game:rustweave-unlock-hint")}: {hint}", CairoFont.WhiteSmallText(), EnumTextOrientation.Left, ElementBounds.Fixed(500, 586, 420, 48), $"{pageName}-detail-hint");
+                composer.AddStaticTextAutoBoxSize($"{Lang.Get("game:rustweave-unlock-hint")}: {hint}", TomeDetailFont, EnumTextOrientation.Left, ElementBounds.Fixed(552, 572, 520, 44), $"{pageName}-detail-hint");
             }
         }
 
         private void AddPreparedTab(GuiComposer composer)
         {
-            var panelBounds = ElementBounds.Fixed(28, 142, 944, 548);
+            var panelBounds = ElementBounds.Fixed(28, 142, 1084, 584);
             composer.AddInset(panelBounds, 3, 0.9f);
-            composer.AddStaticText(Lang.Get("game:rustweave-prepared-spells"), CairoFont.WhiteSmallishText(), ElementBounds.Fixed(36, 146, 280, 20), "prepared-header");
+            composer.AddStaticText(Lang.Get("game:rustweave-prepared-spells"), TomeTitleFont, ElementBounds.Fixed(36, 146, 280, 20), "prepared-header");
 
-            var listBounds = ElementBounds.Fixed(36, 172, 904, 482);
+            var listBounds = ElementBounds.Fixed(36, 172, 1048, 506);
             composer.BeginChildElements(listBounds);
             for (var slotIndex = 0; slotIndex < RustweaveConstants.PreparedSlotCount; slotIndex++)
             {
@@ -633,7 +663,7 @@ namespace TheRustweave
 
         private void AddPreparedSlotRow(GuiComposer composer, int slotIndex)
         {
-            var rowTop = slotIndex * 50;
+            var rowTop = slotIndex * 52;
             var isSelected = state.SelectedPreparedSpellIndex == slotIndex;
             var spellCode = RustweaveStateService.GetPreparedSpellCode(state, slotIndex);
             var hasSpell = !string.IsNullOrWhiteSpace(spellCode);
@@ -643,30 +673,30 @@ namespace TheRustweave
                 : spellExists
                     ? RustweaveStateService.GetSpellDisplayName(spellCode)
                     : $"{spellCode} ({Lang.Get("game:rustweave-spell-invalid")})";
-            var displayText = isSelected ? $"> {Lang.Get("game:rustweave-prepared-slot", slotIndex + 1)}: {spellName} <" : $"{Lang.Get("game:rustweave-prepared-slot", slotIndex + 1)}: {spellName}";
-
-            composer.AddButton(displayText, () =>
-            {
-                RustweaveRuntime.Client?.RequestSelectPreparedSpell(slotIndex);
-                RequestRebuild();
-                return true;
-            }, ElementBounds.Fixed(0, rowTop, 334, 24), EnumButtonStyle.Normal, $"prepared-slot-{slotIndex}");
+            composer.AddStaticText($"#{slotIndex + 1}", TomeListFont.WithColor(GuiStyle.DisabledTextColor), ElementBounds.Fixed(0, rowTop + 3, 30, 16), $"prepared-slot-number-{slotIndex}");
 
             composer.AddButton("Select", () =>
             {
                 RustweaveRuntime.Client?.RequestSelectPreparedSpell(slotIndex);
                 RequestRebuild();
                 return true;
-            }, ElementBounds.Fixed(342, rowTop, 60, 24), EnumButtonStyle.Normal, $"prepared-select-{slotIndex}");
-
-            composer.AddStaticText(isSelected ? Lang.Get("game:rustweave-active-slot") : string.Empty, CairoFont.WhiteSmallText().WithColor(isSelected ? GuiStyle.ActiveButtonTextColor : GuiStyle.DisabledTextColor), ElementBounds.Fixed(410, rowTop + 3, 58, 16), $"prepared-active-{slotIndex}");
+            }, ElementBounds.Fixed(40, rowTop, 48, 22), TomeButtonFont, EnumButtonStyle.Normal, $"prepared-select-{slotIndex}");
 
             composer.AddButton("Clear", () =>
             {
                 RustweaveRuntime.Client?.RequestUnprepareSpell(slotIndex);
                 RequestRebuild();
                 return true;
-            }, ElementBounds.Fixed(476, rowTop, 54, 24), EnumButtonStyle.Normal, $"prepared-clear-{slotIndex}");
+            }, ElementBounds.Fixed(100, rowTop, 48, 22), TomeButtonFont, EnumButtonStyle.Normal, $"prepared-clear-{slotIndex}");
+
+            composer.AddStaticText(isSelected ? Lang.Get("game:rustweave-active-slot") : string.Empty, TomeListFont.WithColor(isSelected ? GuiStyle.ActiveButtonTextColor : GuiStyle.DisabledTextColor), ElementBounds.Fixed(156, rowTop + 3, 58, 16), $"prepared-active-{slotIndex}");
+
+            composer.AddButton(isSelected ? $"* {spellName}" : spellName, () =>
+            {
+                RustweaveRuntime.Client?.RequestSelectPreparedSpell(slotIndex);
+                RequestRebuild();
+                return true;
+            }, ElementBounds.Fixed(228, rowTop, 820, 22), TomeButtonFont, EnumButtonStyle.Normal, $"prepared-slot-label-{slotIndex}");
         }
 
         private void NormalizeSelectedSpellForActiveTab()
@@ -776,6 +806,20 @@ namespace TheRustweave
                 .ToList() ?? new List<string>();
 
             return effects.Count == 0 ? Lang.Get("game:rustweave-slot-empty") : string.Join(", ", effects);
+        }
+
+        private static string GetTierDisplayLabel(int tier)
+        {
+            return tier switch
+            {
+                1 => "Initiate Spell",
+                2 => "Apprentice Spell",
+                3 => "Adept Spell",
+                4 => "Expert Spell",
+                5 => "Master Spell",
+                6 => "Ascendant Spell",
+                _ => "Initiate Spell"
+            };
         }
 
         private string GetSpellStateLabel(SpellDefinition spell)
