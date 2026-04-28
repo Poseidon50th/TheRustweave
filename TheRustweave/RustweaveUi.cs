@@ -345,15 +345,23 @@ namespace TheRustweave
         {
             var spellName = string.IsNullOrWhiteSpace(targetLock.SpellName) ? targetLock.SpellCode : targetLock.SpellName;
             var range = GetRangeToTarget();
+            var targetLabel = SpellTargetTypes.GetDisplayName(targetLock.TargetType);
 
             return targetLock.TargetType switch
             {
-                "self" => $"Locked Target: Self\nSpell: {spellName}",
-                "heldItem" => $"Locked Target: Held Item\nSpell: {spellName}",
-                "inventory" => $"Locked Target: Inventory\nSpell: {spellName}",
-                "lookEntity" => $"Locked Target: {targetLock.TargetName}\nSpell: {spellName}\nRange: {range:0.0} blocks",
-                "lookBlock" => $"Locked Target: Block\nSpell: {spellName}\nPosition: {targetLock.TargetX:0.0}, {targetLock.TargetY:0.0}, {targetLock.TargetZ:0.0}",
-                "lookPosition" => $"Locked Target: Position\nSpell: {spellName}\nRange: {range:0.0} blocks",
+                SpellTargetTypes.Self => $"Locked Target: {targetLabel}\nSpell: {spellName}",
+                SpellTargetTypes.HeldItem => $"Locked Target: {targetLabel}\nSpell: {spellName}",
+                SpellTargetTypes.Inventory => $"Locked Target: {targetLabel}\nSpell: {spellName}",
+                SpellTargetTypes.LookEntity => $"Locked Target: {targetLock.TargetName}\nSpell: {spellName}\nRange: {range:0.0} blocks",
+                SpellTargetTypes.LookPlayer => $"Locked Target: {targetLock.TargetName}\nSpell: {spellName}\nRange: {range:0.0} blocks",
+                SpellTargetTypes.LookNonPlayerEntity => $"Locked Target: {targetLock.TargetName}\nSpell: {spellName}\nRange: {range:0.0} blocks",
+                SpellTargetTypes.LookDroppedItem => $"Locked Target: {targetLock.TargetName}\nSpell: {spellName}\nRange: {range:0.0} blocks",
+                SpellTargetTypes.LookBlock => $"Locked Target: {targetLabel}\nSpell: {spellName}\nPosition: {targetLock.TargetX:0.0}, {targetLock.TargetY:0.0}, {targetLock.TargetZ:0.0}",
+                SpellTargetTypes.LookBlockEntity => $"Locked Target: {targetLabel}\nSpell: {spellName}\nPosition: {targetLock.TargetX:0.0}, {targetLock.TargetY:0.0}, {targetLock.TargetZ:0.0}",
+                SpellTargetTypes.LookContainer => $"Locked Target: {targetLabel}\nSpell: {spellName}\nPosition: {targetLock.TargetX:0.0}, {targetLock.TargetY:0.0}, {targetLock.TargetZ:0.0}",
+                SpellTargetTypes.SelfArea => $"Locked Target: {targetLabel}\nSpell: {spellName}",
+                SpellTargetTypes.LookArea => $"Locked Target: {targetLabel}\nSpell: {spellName}\nRange: {range:0.0} blocks",
+                SpellTargetTypes.LookPosition => $"Locked Target: {targetLabel}\nSpell: {spellName}\nRange: {range:0.0} blocks",
                 _ => string.Empty
             };
         }
@@ -361,19 +369,10 @@ namespace TheRustweave
         private string GetPreviewTargetText(SpellDefinition previewSpell)
         {
             var spellName = string.IsNullOrWhiteSpace(previewSpell.Name) ? previewSpell.Code : previewSpell.Name;
-            var targetTypeLabel = previewSpell.TargetType switch
-            {
-                SpellTargetTypes.Self => "Self",
-                SpellTargetTypes.HeldItem => "Held Item",
-                SpellTargetTypes.Inventory => "Inventory",
-                SpellTargetTypes.LookEntity => "Entity",
-                SpellTargetTypes.LookBlock => "Block",
-                SpellTargetTypes.LookPosition => "Position",
-                _ => previewSpell.TargetType
-            };
+            var targetTypeLabel = SpellTargetTypes.GetDisplayName(previewSpell.TargetType);
 
             var range = SpellRegistry.GetEffectiveLookTargetRange(previewSpell);
-            if (range > 0 && (previewSpell.TargetType == SpellTargetTypes.LookEntity || previewSpell.TargetType == SpellTargetTypes.LookBlock || previewSpell.TargetType == SpellTargetTypes.LookPosition))
+            if (range > 0 && (SpellTargetTypes.RequiresLookRange(previewSpell.TargetType) || SpellTargetTypes.IsAreaTarget(previewSpell.TargetType)))
             {
                 return $"Aiming: {targetTypeLabel}\nSpell: {spellName}\nRange: {range:0.0} blocks";
             }
@@ -830,6 +829,7 @@ namespace TheRustweave
         private void AddPreparedSlotRow(GuiComposer composer, int slotIndex)
         {
             var rowTop = slotIndex * 52;
+            var displaySlot = RustweaveStateService.ToDisplaySlotNumber(slotIndex);
             var isSelected = state.SelectedPreparedSpellIndex == slotIndex;
             var spellCode = RustweaveStateService.GetPreparedSpellCode(state, slotIndex);
             var hasSpell = !string.IsNullOrWhiteSpace(spellCode);
@@ -839,7 +839,7 @@ namespace TheRustweave
                 : spellExists
                     ? RustweaveStateService.GetSpellDisplayName(spellCode)
                     : $"{spellCode} ({Lang.Get("game:rustweave-spell-invalid")})";
-            composer.AddStaticText($"#{slotIndex + 1}", TomeListFont.WithColor(GuiStyle.DisabledTextColor), ElementBounds.Fixed(0, rowTop + 3, 30, 16), $"prepared-slot-number-{slotIndex}");
+            composer.AddStaticText($"{displaySlot}:", TomeListFont.WithColor(GuiStyle.DisabledTextColor), ElementBounds.Fixed(0, rowTop + 3, 30, 16), $"prepared-slot-number-{slotIndex}");
 
             composer.AddButton("Select", () =>
             {

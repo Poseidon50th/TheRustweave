@@ -48,6 +48,15 @@ Unless the task document says otherwise, do **not**:
 - refactor unrelated files
 - touch build scripts beyond what the task strictly requires
 
+## Spell framework policy
+- Spell framework work is only in scope when `docs/current-task.md` explicitly asks for it.
+- All currently recognized spell effect types are expected to be executable, validated, and have a runtime outcome.
+- Future new effect types must not be added to `SpellEffectTypes.Supported` unless they also have validation and real runtime behavior.
+- No silent no-ops: if an effect cannot execute safely, it must fail clearly during validation or runtime.
+- Block-changing effects must respect protection and claims.
+- Temporal/history tracking must stay bounded and avoid log spam.
+- Loreweave or lore-flavored spells must only gain mechanical behavior when the spell JSON explicitly assigns it and the current task authorizes that behavior; do not rely on a blanket cosmetic-only allowlist in framework work.
+
 ## Task document policy
 - The current prompt-specific instructions live in:
   - `docs/current-task.md`

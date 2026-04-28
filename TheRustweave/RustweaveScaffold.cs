@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Reflection;
 using Newtonsoft.Json;
 using ProtoBuf;
 using Cairo;
@@ -12,6 +13,7 @@ using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+using Vintagestory.GameContent;
 using SpellRegistryType = TheRustweave.SpellRegistry;
 
 namespace TheRustweave
@@ -23,6 +25,7 @@ namespace TheRustweave
         public const string ProgressionConfigFileName = "therustweave-progression.json";
         public const string MentorConfigFileName = "therustweave-mentor.json";
         public const string DiscoveryConfigFileName = "therustweave-discovery.json";
+        public const string ActiveEffectConfigFileName = "therustweave-activeeffects.json";
         public const string DiscoveryConfigAsset = "therustweave:config/therustweave-discovery.json";
         public const string TomeItemCode = "rustweaverstome";
         public const string TomeItemClass = "ItemRustweaverTome";
@@ -330,6 +333,435 @@ namespace TheRustweave
         }
     }
 
+    [ProtoContract]
+    internal sealed class RustweaveTargetedWarningPacket
+    {
+        [ProtoMember(1)]
+        public bool IsActive { get; set; }
+
+        [ProtoMember(2)]
+        public string CastId { get; set; } = string.Empty;
+
+        [ProtoMember(3)]
+        public long CasterEntityId { get; set; } = -1;
+
+        [ProtoMember(4)]
+        public long TargetEntityId { get; set; } = -1;
+
+        [ProtoMember(5)]
+        public string TargetPlayerUid { get; set; } = string.Empty;
+
+        [ProtoMember(6)]
+        public string SpellSchool { get; set; } = string.Empty;
+
+        [ProtoMember(7)]
+        public string WarningType { get; set; } = string.Empty;
+
+        [ProtoMember(8)]
+        public string TargetType { get; set; } = string.Empty;
+
+        [ProtoMember(9)]
+        public double OriginX { get; set; }
+
+        [ProtoMember(10)]
+        public double OriginY { get; set; }
+
+        [ProtoMember(11)]
+        public double OriginZ { get; set; }
+
+        [ProtoMember(12)]
+        public double TargetX { get; set; }
+
+        [ProtoMember(13)]
+        public double TargetY { get; set; }
+
+        [ProtoMember(14)]
+        public double TargetZ { get; set; }
+
+        [ProtoMember(15)]
+        public long StartedAtMs { get; set; }
+
+        [ProtoMember(16)]
+        public long ExpectedEndAtMs { get; set; }
+
+        [ProtoMember(17)]
+        public long ExpiresAtMs { get; set; }
+
+        [ProtoMember(18)]
+        public bool IsPersonalWarning { get; set; }
+
+        public RustweaveTargetedWarningPacket Clone()
+        {
+            return new RustweaveTargetedWarningPacket
+            {
+                IsActive = IsActive,
+                CastId = CastId,
+                CasterEntityId = CasterEntityId,
+                TargetEntityId = TargetEntityId,
+                TargetPlayerUid = TargetPlayerUid,
+                SpellSchool = SpellSchool,
+                WarningType = WarningType,
+                TargetType = TargetType,
+                OriginX = OriginX,
+                OriginY = OriginY,
+                OriginZ = OriginZ,
+                TargetX = TargetX,
+                TargetY = TargetY,
+                TargetZ = TargetZ,
+                StartedAtMs = StartedAtMs,
+                ExpectedEndAtMs = ExpectedEndAtMs,
+                ExpiresAtMs = ExpiresAtMs,
+                IsPersonalWarning = IsPersonalWarning
+            };
+        }
+    }
+
+    internal sealed class RustweaveActiveCastRecord
+    {
+        public string CastId { get; set; } = string.Empty;
+
+        public string CasterPlayerUid { get; set; } = string.Empty;
+
+        public long CasterEntityId { get; set; } = -1;
+
+        public string TargetPlayerUid { get; set; } = string.Empty;
+
+        public long TargetEntityId { get; set; } = -1;
+
+        public string SpellCode { get; set; } = string.Empty;
+
+        public string SpellSchool { get; set; } = string.Empty;
+
+        public string WarningType { get; set; } = SpellWarningTypes.Neutral;
+
+        public string TargetType { get; set; } = string.Empty;
+
+        public long StartedAtMs { get; set; }
+
+        public long ExpectedEndAtMs { get; set; }
+
+        public long ExpiresAtMs { get; set; }
+
+        public double OriginX { get; set; }
+
+        public double OriginY { get; set; }
+
+        public double OriginZ { get; set; }
+
+        public double TargetX { get; set; }
+
+        public double TargetY { get; set; }
+
+        public double TargetZ { get; set; }
+
+        public bool IsActive { get; set; } = true;
+
+        public bool IsPersonalWarning { get; set; }
+
+        public List<string> ObserverPlayerUids { get; set; } = new();
+
+        public RustweaveTargetedWarningPacket ToPacket()
+        {
+            return new RustweaveTargetedWarningPacket
+            {
+                IsActive = IsActive,
+                CastId = CastId,
+                CasterEntityId = CasterEntityId,
+                TargetEntityId = TargetEntityId,
+                TargetPlayerUid = TargetPlayerUid,
+                SpellSchool = SpellSchool,
+                WarningType = WarningType,
+                TargetType = TargetType,
+                OriginX = OriginX,
+                OriginY = OriginY,
+                OriginZ = OriginZ,
+                TargetX = TargetX,
+                TargetY = TargetY,
+                TargetZ = TargetZ,
+                StartedAtMs = StartedAtMs,
+                ExpectedEndAtMs = ExpectedEndAtMs,
+                ExpiresAtMs = ExpiresAtMs,
+                IsPersonalWarning = IsPersonalWarning
+            };
+        }
+
+        public RustweaveActiveCastRecord Clone()
+        {
+            return new RustweaveActiveCastRecord
+            {
+                CastId = CastId,
+                CasterPlayerUid = CasterPlayerUid,
+                CasterEntityId = CasterEntityId,
+                TargetPlayerUid = TargetPlayerUid,
+                TargetEntityId = TargetEntityId,
+                SpellCode = SpellCode,
+                SpellSchool = SpellSchool,
+                WarningType = WarningType,
+                TargetType = TargetType,
+                StartedAtMs = StartedAtMs,
+                ExpectedEndAtMs = ExpectedEndAtMs,
+                ExpiresAtMs = ExpiresAtMs,
+                OriginX = OriginX,
+                OriginY = OriginY,
+                OriginZ = OriginZ,
+                TargetX = TargetX,
+                TargetY = TargetY,
+                TargetZ = TargetZ,
+                IsActive = IsActive,
+                IsPersonalWarning = IsPersonalWarning,
+                ObserverPlayerUids = ObserverPlayerUids?.ToList() ?? new List<string>()
+            };
+        }
+    }
+
+    internal sealed class RustweaveBlockSnapshot
+    {
+        [JsonProperty("x")]
+        public int X { get; set; }
+
+        [JsonProperty("y")]
+        public int Y { get; set; }
+
+        [JsonProperty("z")]
+        public int Z { get; set; }
+
+        [JsonProperty("dimension")]
+        public int Dimension { get; set; } = -1;
+
+        [JsonProperty("blockCode")]
+        public string BlockCode { get; set; } = string.Empty;
+
+        [JsonProperty("blockId")]
+        public int BlockId { get; set; } = 0;
+    }
+
+    internal sealed class RustweaveActiveEffectRecord
+    {
+        [JsonProperty("effectId")]
+        public string EffectId { get; set; } = string.Empty;
+
+        [JsonProperty("effectType")]
+        public string EffectType { get; set; } = string.Empty;
+
+        [JsonProperty("recordKind")]
+        public string RecordKind { get; set; } = string.Empty;
+
+        [JsonProperty("spellCode")]
+        public string SpellCode { get; set; } = string.Empty;
+
+        [JsonProperty("casterPlayerUid")]
+        public string CasterPlayerUid { get; set; } = string.Empty;
+
+        [JsonProperty("casterEntityId")]
+        public long CasterEntityId { get; set; } = -1;
+
+        [JsonProperty("targetPlayerUid")]
+        public string TargetPlayerUid { get; set; } = string.Empty;
+
+        [JsonProperty("targetEntityId")]
+        public long TargetEntityId { get; set; } = -1;
+
+        [JsonProperty("targetType")]
+        public string TargetType { get; set; } = string.Empty;
+
+        [JsonProperty("mode")]
+        public string Mode { get; set; } = string.Empty;
+
+        [JsonProperty("centerX")]
+        public double CenterX { get; set; }
+
+        [JsonProperty("centerY")]
+        public double CenterY { get; set; }
+
+        [JsonProperty("centerZ")]
+        public double CenterZ { get; set; }
+
+        [JsonProperty("originX")]
+        public double OriginX { get; set; }
+
+        [JsonProperty("originY")]
+        public double OriginY { get; set; }
+
+        [JsonProperty("originZ")]
+        public double OriginZ { get; set; }
+
+        [JsonProperty("targetX")]
+        public double TargetX { get; set; }
+
+        [JsonProperty("targetY")]
+        public double TargetY { get; set; }
+
+        [JsonProperty("targetZ")]
+        public double TargetZ { get; set; }
+
+        [JsonProperty("radius")]
+        public double Radius { get; set; }
+
+        [JsonProperty("width")]
+        public double Width { get; set; }
+
+        [JsonProperty("length")]
+        public double Length { get; set; }
+
+        [JsonProperty("amount")]
+        public float Amount { get; set; }
+
+        [JsonProperty("secondaryAmount")]
+        public float SecondaryAmount { get; set; }
+
+        [JsonProperty("durationMilliseconds")]
+        public long DurationMilliseconds { get; set; }
+
+        [JsonProperty("startedAtMilliseconds")]
+        public long StartedAtMilliseconds { get; set; }
+
+        [JsonProperty("expiresAtMilliseconds")]
+        public long ExpiresAtMilliseconds { get; set; }
+
+        [JsonProperty("startedAtTotalDays")]
+        public double StartedAtTotalDays { get; set; }
+
+        [JsonProperty("expiresAtTotalDays")]
+        public double ExpiresAtTotalDays { get; set; }
+
+        [JsonProperty("tickIntervalMilliseconds")]
+        public long TickIntervalMilliseconds { get; set; }
+
+        [JsonProperty("nextTickAtMilliseconds")]
+        public long NextTickAtMilliseconds { get; set; }
+
+        [JsonProperty("persistAcrossRestart")]
+        public bool PersistAcrossRestart { get; set; }
+
+        [JsonProperty("isArea")]
+        public bool IsArea { get; set; }
+
+        [JsonProperty("isHostile")]
+        public bool IsHostile { get; set; }
+
+        [JsonProperty("isBeneficial")]
+        public bool IsBeneficial { get; set; }
+
+        [JsonProperty("isBlocking")]
+        public bool IsBlocking { get; set; }
+
+        [JsonProperty("blockSnapshots")]
+        public List<RustweaveBlockSnapshot> BlockSnapshots { get; set; } = new();
+
+        [JsonProperty("affectedEntityIds")]
+        public List<long> AffectedEntityIds { get; set; } = new();
+
+        [JsonProperty("statusCode")]
+        public string StatusCode { get; set; } = string.Empty;
+
+        [JsonProperty("blockCode")]
+        public string BlockCode { get; set; } = string.Empty;
+
+        [JsonProperty("resultBlockCode")]
+        public string ResultBlockCode { get; set; } = string.Empty;
+
+        [JsonProperty("itemCode")]
+        public string ItemCode { get; set; } = string.Empty;
+
+        [JsonProperty("entityCode")]
+        public string EntityCode { get; set; } = string.Empty;
+
+        [JsonProperty("weatherType")]
+        public string WeatherType { get; set; } = string.Empty;
+
+        public RustweaveActiveEffectRecord Clone()
+        {
+            return new RustweaveActiveEffectRecord
+            {
+                EffectId = EffectId,
+                EffectType = EffectType,
+                RecordKind = RecordKind,
+                SpellCode = SpellCode,
+                CasterPlayerUid = CasterPlayerUid,
+                CasterEntityId = CasterEntityId,
+                TargetPlayerUid = TargetPlayerUid,
+                TargetEntityId = TargetEntityId,
+                TargetType = TargetType,
+                Mode = Mode,
+                CenterX = CenterX,
+                CenterY = CenterY,
+                CenterZ = CenterZ,
+                OriginX = OriginX,
+                OriginY = OriginY,
+                OriginZ = OriginZ,
+                TargetX = TargetX,
+                TargetY = TargetY,
+                TargetZ = TargetZ,
+                Radius = Radius,
+                Width = Width,
+                Length = Length,
+                Amount = Amount,
+                SecondaryAmount = SecondaryAmount,
+                DurationMilliseconds = DurationMilliseconds,
+                StartedAtMilliseconds = StartedAtMilliseconds,
+                ExpiresAtMilliseconds = ExpiresAtMilliseconds,
+                StartedAtTotalDays = StartedAtTotalDays,
+                ExpiresAtTotalDays = ExpiresAtTotalDays,
+                TickIntervalMilliseconds = TickIntervalMilliseconds,
+                NextTickAtMilliseconds = NextTickAtMilliseconds,
+                PersistAcrossRestart = PersistAcrossRestart,
+                IsArea = IsArea,
+                IsHostile = IsHostile,
+                IsBeneficial = IsBeneficial,
+                IsBlocking = IsBlocking,
+                BlockSnapshots = BlockSnapshots?.Select(snapshot => new RustweaveBlockSnapshot
+                {
+                    X = snapshot.X,
+                    Y = snapshot.Y,
+                    Z = snapshot.Z,
+                    Dimension = snapshot.Dimension,
+                    BlockCode = snapshot.BlockCode,
+                    BlockId = snapshot.BlockId
+                }).ToList() ?? new List<RustweaveBlockSnapshot>(),
+                AffectedEntityIds = AffectedEntityIds?.ToList() ?? new List<long>(),
+                StatusCode = StatusCode,
+                BlockCode = BlockCode,
+                ResultBlockCode = ResultBlockCode,
+                ItemCode = ItemCode,
+                EntityCode = EntityCode,
+                WeatherType = WeatherType
+            };
+        }
+    }
+
+    internal sealed class RustweaveEntityHistorySample
+    {
+        [JsonProperty("entityId")]
+        public long EntityId { get; set; }
+
+        [JsonProperty("playerUid")]
+        public string PlayerUid { get; set; } = string.Empty;
+
+        [JsonProperty("x")]
+        public double X { get; set; }
+
+        [JsonProperty("y")]
+        public double Y { get; set; }
+
+        [JsonProperty("z")]
+        public double Z { get; set; }
+
+        [JsonProperty("yaw")]
+        public float Yaw { get; set; }
+
+        [JsonProperty("pitch")]
+        public float Pitch { get; set; }
+
+        [JsonProperty("sampledAtMilliseconds")]
+        public long SampledAtMilliseconds { get; set; }
+    }
+
+    internal sealed class RustweaveActiveEffectRegistryConfig
+    {
+        [JsonProperty("activeEffects")]
+        public List<RustweaveActiveEffectRecord> ActiveEffects { get; set; } = new();
+    }
+
     internal sealed class RustweavePlayerStateData
     {
         public int SpellProgressionVersion { get; set; }
@@ -425,6 +857,8 @@ namespace TheRustweave
 
         public string LockedTargetName { get; set; } = string.Empty;
 
+        public string ActiveCastId { get; set; } = string.Empty;
+
         [JsonIgnore]
         public double Progress => DurationMilliseconds <= 0 ? 0 : Math.Min(1d, (double)ElapsedMilliseconds / DurationMilliseconds);
 
@@ -454,7 +888,8 @@ namespace TheRustweave
                 LockedPosX = LockedPosX,
                 LockedPosY = LockedPosY,
                 LockedPosZ = LockedPosZ,
-                LockedTargetName = LockedTargetName
+                LockedTargetName = LockedTargetName,
+                ActiveCastId = ActiveCastId
             };
         }
     }
@@ -1196,6 +1631,12 @@ namespace TheRustweave
             return state.PreparedSpellCodes[slotIndex] ?? string.Empty;
         }
 
+        public static string GetPreparedSlotDisplayText(RustweavePlayerStateData state, int slotIndex)
+        {
+            var spellCode = GetPreparedSpellCode(state, slotIndex);
+            return string.IsNullOrWhiteSpace(spellCode) ? "Empty" : GetSpellDisplayName(spellCode);
+        }
+
         public static string GetSelectedPreparedSpellCode(RustweavePlayerStateData state)
         {
             return GetPreparedSpellCode(state, state.SelectedPreparedSpellIndex);
@@ -1321,6 +1762,21 @@ namespace TheRustweave
         public static bool IsValidSlotIndex(int slotIndex)
         {
             return slotIndex >= 0 && slotIndex < RustweaveConstants.PreparedSlotCount;
+        }
+
+        public static int ToDisplaySlotNumber(int slotIndex)
+        {
+            return slotIndex + 1;
+        }
+
+        public static int ToInternalSlotIndex(int displaySlotNumber)
+        {
+            return displaySlotNumber - 1;
+        }
+
+        public static string DescribePreparedSlot(int slotIndex)
+        {
+            return IsValidSlotIndex(slotIndex) ? ToDisplaySlotNumber(slotIndex).ToString(CultureInfo.InvariantCulture) : "none";
         }
 
         public static int GetFirstEmptyPreparedSlotIndex(IReadOnlyList<string> preparedSpellCodes)
@@ -2005,9 +2461,16 @@ namespace TheRustweave
         private readonly Dictionary<string, RustweaveTimedShield> activeSpellShields = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, Dictionary<string, long>> spellCooldowns = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, RustweaveTargetPreviewPacket> activeTargetPreviews = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, RustweaveActiveCastRecord> activeTargetedCastRecords = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, RustweaveActiveEffectRecord> activeEffectRecords = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<long, LinkedList<RustweaveEntityHistorySample>> entityHistory = new();
+        private readonly Dictionary<long, long> nextHistorySampleMilliseconds = new();
         private IServerNetworkChannel? channel;
         private long tickListenerId;
         private long nextTabletDecayScanMilliseconds;
+        private long nextActiveEffectPersistenceSaveMilliseconds;
+        private bool activeEffectRegistryDirty;
+        private RustweaveActiveEffectRegistryConfig activeEffectRegistry = new();
 
         public RustweaveServerController(ICoreServerAPI sapi)
         {
@@ -2021,13 +2484,73 @@ namespace TheRustweave
             channel.RegisterMessageType(typeof(RustweaveActionPacket));
             channel.RegisterMessageType(typeof(RustweaveTargetLockPacket));
             channel.RegisterMessageType(typeof(RustweaveTargetPreviewPacket));
+            channel.RegisterMessageType(typeof(RustweaveTargetedWarningPacket));
             channel.SetMessageHandler<RustweaveActionPacket>(OnClientPacket);
             channel.SetMessageHandler<RustweaveTargetPreviewPacket>(OnClientPreviewPacket);
+            LoadActiveEffectRegistry();
             sapi.Event.PlayerJoin += OnServerPlayerJoin;
             sapi.Event.PlayerNowPlaying += OnServerPlayerNowPlaying;
             sapi.Event.PlayerLeave += OnServerPlayerLeave;
             RegisterCommands();
             tickListenerId = sapi.Event.RegisterGameTickListener(OnServerTick, 50, 50);
+        }
+
+        private void LoadActiveEffectRegistry()
+        {
+            try
+            {
+                activeEffectRegistry = sapi.LoadModConfig<RustweaveActiveEffectRegistryConfig>(RustweaveConstants.ActiveEffectConfigFileName) ?? new RustweaveActiveEffectRegistryConfig();
+            }
+            catch (Exception exception)
+            {
+                activeEffectRegistry = new RustweaveActiveEffectRegistryConfig();
+                sapi.Logger.Warning("[TheRustweave] Failed to load active effect registry, using defaults: {0}", exception.Message);
+            }
+
+            activeEffectRegistry.ActiveEffects ??= new List<RustweaveActiveEffectRecord>();
+            activeEffectRecords.Clear();
+
+            var nowDays = Math.Max(0d, sapi.World.Calendar?.TotalDays ?? 0d);
+            foreach (var record in activeEffectRegistry.ActiveEffects.Where(entry => entry != null))
+            {
+                var normalized = record!.Clone();
+                if (string.IsNullOrWhiteSpace(normalized.EffectId))
+                {
+                    normalized.EffectId = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+                }
+
+                if (normalized.ExpiresAtTotalDays > 0d && normalized.ExpiresAtTotalDays < nowDays)
+                {
+                    continue;
+                }
+
+                activeEffectRecords[normalized.EffectId] = normalized;
+            }
+
+            activeEffectRegistry.ActiveEffects = activeEffectRecords.Values.Select(effect => effect.Clone()).ToList();
+            try
+            {
+                sapi.StoreModConfig(activeEffectRegistry, RustweaveConstants.ActiveEffectConfigFileName);
+            }
+            catch (Exception exception)
+            {
+                sapi.Logger.Warning("[TheRustweave] Failed to store active effect registry defaults: {0}", exception.Message);
+            }
+        }
+
+        private void SaveActiveEffectRegistry()
+        {
+            try
+            {
+                activeEffectRegistry.ActiveEffects = activeEffectRecords.Values.Select(effect => effect.Clone()).ToList();
+                sapi.StoreModConfig(activeEffectRegistry, RustweaveConstants.ActiveEffectConfigFileName);
+                activeEffectRegistryDirty = false;
+                nextActiveEffectPersistenceSaveMilliseconds = sapi.World.ElapsedMilliseconds + 5000;
+            }
+            catch (Exception exception)
+            {
+                sapi.Logger.Warning("[TheRustweave] Failed to store active effect registry: {0}", exception.Message);
+            }
         }
 
         private void RegisterCommands()
@@ -2563,7 +3086,9 @@ namespace TheRustweave
 
             activeCasts.Remove(player.PlayerUID);
             ClearCastState(player);
+            ClearTargetedWarningState(casterPlayerUid: player.PlayerUID, targetPlayerUid: player.PlayerUID, sendInactive: true);
             ClearTargetPreviewState(player);
+            RemoveActiveEffectsForPlayer(player.PlayerUID);
             activeTabletVents.Remove(player.PlayerUID);
             pendingTabletDecayScans.Remove(player.PlayerUID);
             spellCooldowns.Remove(player.PlayerUID);
@@ -2732,13 +3257,14 @@ namespace TheRustweave
 
                     if (RustweaveStateService.TrySelectPreparedSpell(state, packet.SlotIndex))
                     {
-                        sapi.Logger.Debug("[TheRustweave] Active prepared slot changed to {0} for player '{1}'.", packet.SlotIndex, fromPlayer.PlayerUID);
+                        var displaySlot = RustweaveStateService.ToDisplaySlotNumber(packet.SlotIndex);
+                        sapi.Logger.Debug("[TheRustweave] Active prepared slot changed to {0} (internal index {1}) for player '{2}'.", displaySlot, packet.SlotIndex, fromPlayer.PlayerUID);
                         SaveAndSyncState(fromPlayer, state);
-                        fromPlayer.SendMessage(0, Lang.Get("game:rustweave-selected-spell", RustweaveStateService.GetPreparedSpellCode(state, state.SelectedPreparedSpellIndex)), EnumChatType.Notification, null);
+                        fromPlayer.SendMessage(0, Lang.Get("game:rustweave-selected-slot", displaySlot, RustweaveStateService.GetPreparedSlotDisplayText(state, state.SelectedPreparedSpellIndex)), EnumChatType.Notification, null);
                     }
                     break;
                 case RustweaveActionType.RequestPrepareSpell:
-                    sapi.Logger.Debug("[TheRustweave] Prepare request received from player '{0}' for spell '{1}' (requested slot {2}).", fromPlayer.PlayerUID, packet.SpellCode, packet.SlotIndex);
+                    sapi.Logger.Debug("[TheRustweave] Prepare request received from player '{0}' for spell '{1}' (requested slot {2}).", fromPlayer.PlayerUID, packet.SpellCode, RustweaveStateService.DescribePreparedSlot(packet.SlotIndex));
 
                     if (string.IsNullOrWhiteSpace(packet.SpellCode) || !RustweaveRuntime.SpellRegistry.TryGetEnabledSpell(packet.SpellCode, out var spell) || spell == null || !RustweaveStateService.IsSpellLearned(spell.Code, state))
                     {
@@ -2748,7 +3274,7 @@ namespace TheRustweave
                     }
 
                     var chosenSlot = RustweaveStateService.ResolvePrepareTargetSlot(state, packet.SlotIndex);
-                    sapi.Logger.Debug("[TheRustweave] Prepare target slot resolved to {0} for player '{1}'.", chosenSlot, fromPlayer.PlayerUID);
+                    sapi.Logger.Debug("[TheRustweave] Prepare target slot resolved to {0} (internal index {1}) for player '{2}'.", RustweaveStateService.DescribePreparedSlot(chosenSlot), chosenSlot, fromPlayer.PlayerUID);
 
                     if (chosenSlot < 0)
                     {
@@ -2769,9 +3295,9 @@ namespace TheRustweave
                     if (RustweaveStateService.TryPrepareSpell(state, spell.Code, chosenSlot))
                     {
                         var afterValue = RustweaveStateService.GetPreparedSpellCode(state, chosenSlot);
-                        sapi.Logger.Debug("[TheRustweave] Stored spell '{0}' in prepared slot {1} for player '{2}' (before='{3}', after='{4}').", spell.Code, chosenSlot, fromPlayer.PlayerUID, beforeValue, afterValue);
+                        sapi.Logger.Debug("[TheRustweave] Stored spell '{0}' in prepared slot {1} (internal index {2}) for player '{3}' (before='{4}', after='{5}').", spell.Code, RustweaveStateService.ToDisplaySlotNumber(chosenSlot), chosenSlot, fromPlayer.PlayerUID, beforeValue, afterValue);
                         SaveAndSyncState(fromPlayer, state);
-                        fromPlayer.SendMessage(0, Lang.Get("game:rustweave-spell-prepared", RustweaveStateService.GetSpellDisplayName(spell.Code)), EnumChatType.Notification, null);
+                        fromPlayer.SendMessage(0, Lang.Get("game:rustweave-spell-prepared-slot", RustweaveStateService.GetSpellDisplayName(spell.Code), RustweaveStateService.ToDisplaySlotNumber(chosenSlot)), EnumChatType.Notification, null);
                     }
                     else
                     {
@@ -2782,8 +3308,9 @@ namespace TheRustweave
                 case RustweaveActionType.RequestUnprepareSpell:
                     if (RustweaveStateService.TryUnprepareSpell(state, packet.SlotIndex))
                     {
-                        sapi.Logger.Debug("[TheRustweave] Prepared slot {0} cleared for player '{1}'.", packet.SlotIndex, fromPlayer.PlayerUID);
+                        sapi.Logger.Debug("[TheRustweave] Prepared slot {0} (internal index {1}) cleared for player '{2}'.", RustweaveStateService.ToDisplaySlotNumber(packet.SlotIndex), packet.SlotIndex, fromPlayer.PlayerUID);
                         SaveAndSyncState(fromPlayer, state);
+                        fromPlayer.SendMessage(0, Lang.Get("game:rustweave-cleared-prepared-slot", RustweaveStateService.ToDisplaySlotNumber(packet.SlotIndex)), EnumChatType.Notification, null);
                     }
                     break;
             }
@@ -2794,7 +3321,10 @@ namespace TheRustweave
             ProcessPendingTabletDecayScans();
             ProcessPassiveTabletDecay();
             ProcessTimedSpellEffects();
+            ProcessActiveEffectRecords();
+            SampleEntityHistory();
             ProcessTargetPreviewStates();
+            ProcessActiveTargetedWarningRecords();
 
             foreach (var onlinePlayer in sapi.World.AllOnlinePlayers)
             {
@@ -2861,6 +3391,888 @@ namespace TheRustweave
 
                 FinishCast(serverPlayer, state, castState);
             }
+
+            if (activeEffectRegistryDirty && sapi.World.ElapsedMilliseconds >= nextActiveEffectPersistenceSaveMilliseconds)
+            {
+                SaveActiveEffectRegistry();
+            }
+        }
+
+        private void SampleEntityHistory()
+        {
+            var nowMilliseconds = sapi.World.ElapsedMilliseconds;
+            if (nowMilliseconds <= 0)
+            {
+                return;
+            }
+
+            foreach (var onlinePlayer in sapi.World.AllOnlinePlayers.OfType<IServerPlayer>())
+            {
+                if (onlinePlayer.Entity == null || !onlinePlayer.Entity.Alive)
+                {
+                    continue;
+                }
+
+                SampleEntityHistory(onlinePlayer.Entity);
+            }
+
+            foreach (var effect in activeEffectRecords.Values)
+            {
+                if (effect == null || effect.TargetEntityId <= 0)
+                {
+                    continue;
+                }
+
+                var entity = sapi.World.GetEntityById(effect.TargetEntityId);
+                if (entity != null && entity.Alive)
+                {
+                    SampleEntityHistory(entity);
+                }
+            }
+        }
+
+        private void SampleEntityHistory(Entity entity)
+        {
+            if (entity?.Pos == null)
+            {
+                return;
+            }
+
+            var entityId = entity.EntityId;
+            var nowMilliseconds = sapi.World.ElapsedMilliseconds;
+            if (nextHistorySampleMilliseconds.TryGetValue(entityId, out var nextSampleMilliseconds) && nowMilliseconds < nextSampleMilliseconds)
+            {
+                return;
+            }
+
+            nextHistorySampleMilliseconds[entityId] = nowMilliseconds + 1000;
+            if (!entityHistory.TryGetValue(entityId, out var samples))
+            {
+                samples = new LinkedList<RustweaveEntityHistorySample>();
+                entityHistory[entityId] = samples;
+            }
+
+            samples.AddLast(new RustweaveEntityHistorySample
+            {
+                EntityId = entityId,
+                PlayerUid = entity is EntityPlayer entityPlayer ? entityPlayer.PlayerUID ?? string.Empty : string.Empty,
+                X = entity.Pos.XYZ.X,
+                Y = entity.Pos.XYZ.Y,
+                Z = entity.Pos.XYZ.Z,
+                Yaw = entity.Pos.Yaw,
+                Pitch = entity.Pos.Pitch,
+                SampledAtMilliseconds = nowMilliseconds
+            });
+
+            while (samples.Count > 30)
+            {
+                samples.RemoveFirst();
+            }
+        }
+
+        private void ProcessActiveEffectRecords()
+        {
+            if (activeEffectRecords.Count == 0)
+            {
+                return;
+            }
+
+            var nowMilliseconds = sapi.World.ElapsedMilliseconds;
+            var nowDays = Math.Max(0d, sapi.World.Calendar?.TotalDays ?? 0d);
+            var expired = new List<string>();
+
+            foreach (var pair in activeEffectRecords.ToArray())
+            {
+                var record = pair.Value;
+                if (record == null)
+                {
+                    expired.Add(pair.Key);
+                    continue;
+                }
+
+                if (record.ExpiresAtMilliseconds > 0 && nowMilliseconds >= record.ExpiresAtMilliseconds)
+                {
+                    expired.Add(pair.Key);
+                    continue;
+                }
+
+                if (record.ExpiresAtTotalDays > 0d && nowDays >= record.ExpiresAtTotalDays)
+                {
+                    expired.Add(pair.Key);
+                    continue;
+                }
+
+                if (record.IsArea)
+                {
+                    ProcessActiveAreaEffect(record);
+                }
+                else if (!string.Equals(record.RecordKind, "summon", StringComparison.OrdinalIgnoreCase))
+                {
+                    ProcessActiveEntityEffect(record);
+                }
+            }
+
+            foreach (var effectId in expired)
+            {
+                TryRemoveActiveEffect(effectId, true);
+            }
+        }
+
+        private void ProcessActiveAreaEffect(RustweaveActiveEffectRecord record)
+        {
+            var center = new Vec3d(record.CenterX, record.CenterY, record.CenterZ);
+            var radius = Math.Max(0d, record.Radius);
+            if (radius <= 0d)
+            {
+                return;
+            }
+
+            var entities = sapi.World.GetEntitiesAround(center, (float)radius, (float)radius);
+            if (entities == null || entities.Length == 0)
+            {
+                return;
+            }
+
+            foreach (var entity in entities.Where(entity => entity != null && entity.Alive))
+            {
+                if (entity is EntityPlayer player && !string.IsNullOrWhiteSpace(record.TargetPlayerUid) && !string.Equals(player.PlayerUID, record.TargetPlayerUid, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                switch (record.EffectType)
+                {
+                    case SpellEffectTypes.StabilizeArea:
+                        AdjustEntityCorruption(entity, -Math.Max(1, (int)Math.Round(Math.Max(1f, record.Amount))));
+                        break;
+                    case SpellEffectTypes.ModifyTemporalStability:
+                        AdjustEntityCorruption(entity, -Math.Max(1, (int)Math.Round(record.Amount)));
+                        break;
+                    case SpellEffectTypes.ModifyCorruptionGain:
+                        AdjustEntityCorruption(entity, (int)Math.Round(record.Amount));
+                        break;
+                    case SpellEffectTypes.ChangeTemperatureArea:
+                    case SpellEffectTypes.ChangeEnvironmentalPressure:
+                    case SpellEffectTypes.StormPulse:
+                        ApplyEnvironmentalPulse(entity, record);
+                        break;
+                    case SpellEffectTypes.ModifyCropGrowth:
+                        ApplyBlockEntityAreaPulse(record, record.Amount, "GrowthStage", "growthStage", "Growth", "growth", "GrowthProgress", "growthProgress", "Progress", "progress");
+                        break;
+                    case SpellEffectTypes.ModifyFarmlandNutrients:
+                        ApplyBlockEntityAreaPulse(record, record.Amount, "Nutrients", "nutrients", "SoilNutrients", "soilNutrients", "Fertility", "fertility", "Moisture", "moisture");
+                        break;
+                    case SpellEffectTypes.CreateContainmentArea:
+                    case SpellEffectTypes.CreateWardArea:
+                    case SpellEffectTypes.CreateBarrier:
+                    case SpellEffectTypes.CreateBoundaryLine:
+                    case SpellEffectTypes.CreateAntiSpreadArea:
+                    case SpellEffectTypes.CreateRift:
+                        ApplyBarrierPulse(entity, record);
+                        break;
+                    case SpellEffectTypes.BindEntityToArea:
+                        EnforceEntityWithinArea(entity, record);
+                        break;
+                    case SpellEffectTypes.TetherEntity:
+                        EnforceEntityTether(entity, record);
+                        break;
+                    case SpellEffectTypes.CharmEntity:
+                    case SpellEffectTypes.CommandEntity:
+                        EnforceCharmedEntity(entity, record);
+                        break;
+                }
+            }
+        }
+
+        private void ProcessActiveEntityEffect(RustweaveActiveEffectRecord record)
+        {
+            var entity = record.TargetEntityId > 0 ? sapi.World.GetEntityById(record.TargetEntityId) : null;
+            if (entity == null || !entity.Alive)
+            {
+                return;
+            }
+
+            switch (record.EffectType)
+            {
+                case SpellEffectTypes.AnchorEntity:
+                case SpellEffectTypes.PreventDisplacement:
+                    entity.ServerPos.Motion.Set(0, 0, 0);
+                    entity.Pos.Motion.Set(0, 0, 0);
+                    break;
+                case SpellEffectTypes.HealOverTime:
+                case SpellEffectTypes.VitalityOverTime:
+                    ApplyEnvironmentalPulse(entity, record);
+                    break;
+                case SpellEffectTypes.ModifyAnimalFertility:
+                    if (entity is EntityPlayer)
+                    {
+                        return;
+                    }
+
+                    TryAdjustNumericMember(entity, record.Amount, "Fertility", "fertility", "BreedChance", "breedChance", "MateChance", "mateChance");
+                    TrySetBooleanMember(entity, record.Amount >= 0d, "CanMate", "canMate", "ReadyToMate", "readyToMate", "Fertile", "fertile");
+                    break;
+                case SpellEffectTypes.TetherEntity:
+                    EnforceEntityTether(entity, record);
+                    break;
+                case SpellEffectTypes.BindEntityToArea:
+                    EnforceEntityWithinArea(entity, record);
+                    break;
+                case SpellEffectTypes.CharmEntity:
+                case SpellEffectTypes.CommandEntity:
+                    EnforceCharmedEntity(entity, record);
+                    break;
+            }
+        }
+
+        private void AdjustEntityCorruption(Entity entity, int delta)
+        {
+            if (entity is not EntityPlayer player || delta == 0)
+            {
+                return;
+            }
+
+            var serverPlayer = GetOnlineServerPlayer(player.PlayerUID);
+            if (serverPlayer == null)
+            {
+                return;
+            }
+
+            var state = GetState(serverPlayer);
+            state.CurrentTemporalCorruption = Math.Max(0, Math.Min(state.AbsoluteTemporalCorruptionCap, state.CurrentTemporalCorruption + delta));
+            SaveAndSyncState(serverPlayer, state);
+        }
+
+        private void ApplyEnvironmentalPulse(Entity entity, RustweaveActiveEffectRecord record)
+        {
+            if (record.Amount > 0)
+            {
+                var damageSource = new DamageSource
+                {
+                    Source = EnumDamageSource.Internal,
+                    SourceEntity = null,
+                    CauseEntity = null,
+                    DamageTier = 1,
+                    KnockbackStrength = 0.2f
+                };
+
+                entity.ReceiveDamage(damageSource, record.Amount);
+            }
+            else if (entity.GetBehavior<EntityBehaviorHealth>() is { } health && record.Amount < 0)
+            {
+                health.Health = Math.Min(health.MaxHealth, health.Health - record.Amount);
+            }
+        }
+
+        private static bool TryAdjustNumericMember(object target, double delta, params string[] memberNames)
+        {
+            if (target == null || memberNames == null || memberNames.Length == 0 || delta == 0d)
+            {
+                return false;
+            }
+
+            var type = target.GetType();
+            foreach (var memberName in memberNames.Where(name => !string.IsNullOrWhiteSpace(name)))
+            {
+                var property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (property?.CanRead == true && property.CanWrite == true)
+                {
+                    var current = property.GetValue(target);
+                    if (current is int currentInt)
+                    {
+                        property.SetValue(target, currentInt + (int)Math.Round(delta));
+                        return true;
+                    }
+
+                    if (current is long currentLong)
+                    {
+                        property.SetValue(target, currentLong + (long)Math.Round(delta));
+                        return true;
+                    }
+
+                    if (current is float currentFloat)
+                    {
+                        property.SetValue(target, currentFloat + (float)delta);
+                        return true;
+                    }
+
+                    if (current is double currentDouble)
+                    {
+                        property.SetValue(target, currentDouble + delta);
+                        return true;
+                    }
+                }
+
+                var field = type.GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (field != null)
+                {
+                    var current = field.GetValue(target);
+                    if (current is int currentInt)
+                    {
+                        field.SetValue(target, currentInt + (int)Math.Round(delta));
+                        return true;
+                    }
+
+                    if (current is long currentLong)
+                    {
+                        field.SetValue(target, currentLong + (long)Math.Round(delta));
+                        return true;
+                    }
+
+                    if (current is float currentFloat)
+                    {
+                        field.SetValue(target, currentFloat + (float)delta);
+                        return true;
+                    }
+
+                    if (current is double currentDouble)
+                    {
+                        field.SetValue(target, currentDouble + delta);
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TrySetBooleanMember(object target, bool value, params string[] memberNames)
+        {
+            if (target == null || memberNames == null || memberNames.Length == 0)
+            {
+                return false;
+            }
+
+            var type = target.GetType();
+            foreach (var memberName in memberNames.Where(name => !string.IsNullOrWhiteSpace(name)))
+            {
+                var property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (property?.CanRead == true && property.CanWrite == true && property.PropertyType == typeof(bool))
+                {
+                    property.SetValue(target, value);
+                    return true;
+                }
+
+                var field = type.GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (field != null && field.FieldType == typeof(bool))
+                {
+                    field.SetValue(target, value);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static void TryMarkBlockEntityDirty(BlockEntity? blockEntity)
+        {
+            if (blockEntity == null)
+            {
+                return;
+            }
+
+            var method = blockEntity.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                .FirstOrDefault(candidate => string.Equals(candidate.Name, "MarkDirty", StringComparison.OrdinalIgnoreCase));
+            if (method == null)
+            {
+                return;
+            }
+
+            try
+            {
+                var parameters = method.GetParameters();
+                var args = new object?[parameters.Length];
+                for (var index = 0; index < parameters.Length; index++)
+                {
+                    args[index] = parameters[index].ParameterType == typeof(bool)
+                        ? true
+                        : parameters[index].ParameterType.IsValueType
+                            ? Activator.CreateInstance(parameters[index].ParameterType)
+                            : null;
+                }
+
+                method.Invoke(blockEntity, args);
+            }
+            catch
+            {
+            }
+        }
+
+        private void ApplyBarrierPulse(Entity entity, RustweaveActiveEffectRecord record)
+        {
+            if (entity == null || !entity.Alive)
+            {
+                return;
+            }
+
+            if (record.Radius > 0 && entity.Pos.XYZ.DistanceTo(new Vec3d(record.CenterX, record.CenterY, record.CenterZ)) > record.Radius)
+            {
+                return;
+            }
+        }
+
+        private void EnforceEntityWithinArea(Entity entity, RustweaveActiveEffectRecord record)
+        {
+            if (entity?.Pos == null)
+            {
+                return;
+            }
+
+            var center = new Vec3d(record.CenterX, record.CenterY, record.CenterZ);
+            var maxDistance = Math.Max(1d, record.Radius);
+            if (entity.Pos.XYZ.DistanceTo(center) <= maxDistance)
+            {
+                return;
+            }
+
+            if (TryFindNearestSafeTeleportPosition(entity.World, entity, center, out var safePosition))
+            {
+                entity.TeleportTo(safePosition);
+            }
+        }
+
+        private void EnforceEntityTether(Entity entity, RustweaveActiveEffectRecord record)
+        {
+            if (entity?.Pos == null)
+            {
+                return;
+            }
+
+            var origin = record.CasterEntityId > 0 ? sapi.World.GetEntityById(record.CasterEntityId)?.Pos?.XYZ ?? new Vec3d(record.OriginX, record.OriginY, record.OriginZ) : new Vec3d(record.OriginX, record.OriginY, record.OriginZ);
+            var maxDistance = Math.Max(1d, record.Radius);
+            if (entity.Pos.XYZ.DistanceTo(origin) <= maxDistance)
+            {
+                return;
+            }
+
+            if (TryFindNearestSafeTeleportPosition(entity.World, entity, origin, out var safePosition))
+            {
+                entity.TeleportTo(safePosition);
+            }
+        }
+
+        private void EnforceCharmedEntity(Entity entity, RustweaveActiveEffectRecord record)
+        {
+            if (entity is EntityPlayer || entity is not EntityAgent creature || !creature.Alive)
+            {
+                return;
+            }
+
+            var caster = record.CasterEntityId > 0 ? sapi.World.GetEntityById(record.CasterEntityId) : null;
+            var origin = caster?.Pos?.XYZ ?? new Vec3d(record.OriginX, record.OriginY, record.OriginZ);
+            if (creature.Pos.XYZ.DistanceTo(origin) > 2.5d)
+            {
+                if (TryFindNearestSafeTeleportPosition(creature.World, creature, origin, out var safePosition))
+                {
+                    creature.TeleportTo(safePosition);
+                }
+            }
+        }
+
+        private void ApplyBlockEntityAreaPulse(RustweaveActiveEffectRecord record, double delta, params string[] memberNames)
+        {
+            var center = new Vec3d(record.CenterX, record.CenterY, record.CenterZ);
+            var radius = Math.Max(1d, record.Radius);
+            var minX = (int)Math.Floor(center.X - radius);
+            var maxX = (int)Math.Ceiling(center.X + radius);
+            var minY = (int)Math.Floor(center.Y) - 1;
+            var maxY = (int)Math.Floor(center.Y) + 1;
+            var minZ = (int)Math.Floor(center.Z - radius);
+            var maxZ = (int)Math.Ceiling(center.Z + radius);
+
+            for (var x = minX; x <= maxX; x++)
+            {
+                for (var y = minY; y <= maxY; y++)
+                {
+                    for (var z = minZ; z <= maxZ; z++)
+                    {
+                        var pos = new BlockPos(x, y, z);
+                        if (new Vec3d(x + 0.5, y + 0.5, z + 0.5).DistanceTo(center) > radius)
+                        {
+                            continue;
+                        }
+
+                        var blockEntity = sapi.World.BlockAccessor.GetBlockEntity(pos);
+                        if (blockEntity == null)
+                        {
+                            continue;
+                        }
+
+                        if (TryAdjustNumericMember(blockEntity, delta, memberNames))
+                        {
+                            TryMarkBlockEntityDirty(blockEntity);
+                        }
+                    }
+                }
+            }
+        }
+
+        public bool TryRegisterActiveEffect(RustweaveActiveEffectRecord record)
+        {
+            if (record == null || string.IsNullOrWhiteSpace(record.EffectId) || string.IsNullOrWhiteSpace(record.EffectType))
+            {
+                return false;
+            }
+
+            activeEffectRecords[record.EffectId] = record.Clone();
+            activeEffectRegistryDirty = true;
+            return true;
+        }
+
+        public bool TryRemoveActiveEffect(string effectId, bool restoreBlocks)
+        {
+            if (string.IsNullOrWhiteSpace(effectId) || !activeEffectRecords.TryGetValue(effectId, out var record))
+            {
+                return false;
+            }
+
+            if (restoreBlocks && record.BlockSnapshots.Count > 0)
+            {
+                RestoreBlockSnapshots(record);
+            }
+
+            if (string.Equals(record.RecordKind, "summon", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(record.RecordKind, "projectile", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(record.RecordKind, "item", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(record.RecordKind, "construct", StringComparison.OrdinalIgnoreCase))
+            {
+                CleanupSummonedRecord(record);
+            }
+            activeEffectRecords.Remove(effectId);
+            activeEffectRegistryDirty = true;
+            return true;
+        }
+
+        private void CleanupSummonedRecord(RustweaveActiveEffectRecord record)
+        {
+            if (record == null)
+            {
+                return;
+            }
+
+            if (string.Equals(record.RecordKind, "item", StringComparison.OrdinalIgnoreCase))
+            {
+                RemoveTemporaryItemFromCaster(record.CasterPlayerUid, record.ItemCode);
+            }
+
+            foreach (var entityId in record.AffectedEntityIds.Concat(record.TargetEntityId > 0 ? new[] { record.TargetEntityId } : Array.Empty<long>()).Where(entityId => entityId > 0).Distinct())
+            {
+                var entity = sapi.World.GetEntityById(entityId);
+                if (entity == null)
+                {
+                    continue;
+                }
+
+                TryDespawnEntity(entity);
+            }
+        }
+
+        private void RemoveTemporaryItemFromCaster(string casterPlayerUid, string itemCode)
+        {
+            if (string.IsNullOrWhiteSpace(casterPlayerUid) || string.IsNullOrWhiteSpace(itemCode))
+            {
+                return;
+            }
+
+            var player = GetOnlineServerPlayer(casterPlayerUid);
+            if (player?.InventoryManager?.InventoriesOrdered == null)
+            {
+                return;
+            }
+
+            foreach (var inventory in player.InventoryManager.InventoriesOrdered)
+            {
+                for (var slotIndex = 0; slotIndex < inventory.Count; slotIndex++)
+                {
+                    var slot = inventory[slotIndex];
+                    var stack = slot?.Itemstack;
+                    if (stack?.Collectible?.Code?.Path == null)
+                    {
+                        continue;
+                    }
+
+                    if (!string.Equals(stack.Collectible.Code.Path, itemCode.Split(':').LastOrDefault() ?? itemCode, StringComparison.OrdinalIgnoreCase) && !string.Equals(stack.Collectible.Code.ToString(), itemCode, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    slot.Itemstack = null;
+                    slot.MarkDirty();
+                    inventory.MarkSlotDirty(slotIndex);
+                    return;
+                }
+            }
+        }
+
+        private static void TryDespawnEntity(Entity entity)
+        {
+            if (entity == null)
+            {
+                return;
+            }
+
+            try
+            {
+                var despawnMethod = entity.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                    .FirstOrDefault(candidate => string.Equals(candidate.Name, "Despawn", StringComparison.OrdinalIgnoreCase));
+                if (despawnMethod != null && despawnMethod.GetParameters().Length == 0)
+                {
+                    despawnMethod.Invoke(entity, Array.Empty<object>());
+                    return;
+                }
+
+                var dieMethod = entity.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                    .FirstOrDefault(candidate => string.Equals(candidate.Name, "Die", StringComparison.OrdinalIgnoreCase));
+                if (dieMethod != null)
+                {
+                    var parameters = dieMethod.GetParameters();
+                    var args = new object?[parameters.Length];
+                    for (var index = 0; index < parameters.Length; index++)
+                    {
+                        args[index] = parameters[index].ParameterType.IsValueType ? Activator.CreateInstance(parameters[index].ParameterType) : null;
+                    }
+
+                    dieMethod.Invoke(entity, args);
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        public IReadOnlyList<RustweaveActiveEffectRecord> GetActiveEffectsForEntity(long entityId)
+        {
+            if (entityId <= 0 || activeEffectRecords.Count == 0)
+            {
+                return Array.Empty<RustweaveActiveEffectRecord>();
+            }
+
+            return activeEffectRecords.Values.Where(record => record.TargetEntityId == entityId || record.AffectedEntityIds.Contains(entityId)).Select(record => record.Clone()).ToList();
+        }
+
+        public IReadOnlyList<RustweaveActiveEffectRecord> GetActiveEffectsNear(Vec3d position, double radius)
+        {
+            if (radius <= 0d || activeEffectRecords.Count == 0)
+            {
+                return Array.Empty<RustweaveActiveEffectRecord>();
+            }
+
+            return activeEffectRecords.Values
+                .Where(record => record.IsArea && new Vec3d(record.CenterX, record.CenterY, record.CenterZ).DistanceTo(position) <= radius + Math.Max(0d, record.Radius))
+                .Select(record => record.Clone())
+                .ToList();
+        }
+
+        public bool TryGetHistoricalPosition(long entityId, int stepsBack, out Vec3d position)
+        {
+            position = new Vec3d();
+            if (entityId <= 0 || stepsBack < 0 || !entityHistory.TryGetValue(entityId, out var samples) || samples.Count == 0)
+            {
+                return false;
+            }
+
+            var sample = samples.Last;
+            for (var index = 0; index < stepsBack && sample?.Previous != null; index++)
+            {
+                sample = sample.Previous;
+            }
+
+            if (sample?.Value == null)
+            {
+                return false;
+            }
+
+            position = new Vec3d(sample.Value.X, sample.Value.Y, sample.Value.Z);
+            return true;
+        }
+
+        public bool TryGetCounterTargetEffects(long targetEntityId, out IReadOnlyList<RustweaveActiveEffectRecord> effects)
+        {
+            effects = GetActiveEffectsForEntity(targetEntityId);
+            return effects.Count > 0;
+        }
+
+        private void RestoreBlockSnapshots(RustweaveActiveEffectRecord record)
+        {
+            if (record.BlockSnapshots == null || record.BlockSnapshots.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var snapshot in record.BlockSnapshots)
+            {
+                try
+                {
+                    var pos = new BlockPos(snapshot.X, snapshot.Y, snapshot.Z, snapshot.Dimension);
+                    if (!CanModifyBlockAt(pos, record.CasterPlayerUid))
+                    {
+                        continue;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(snapshot.BlockCode))
+                    {
+                        var block = sapi.World.BlockAccessor.GetBlock(new AssetLocation(snapshot.BlockCode));
+                        if (block != null)
+                        {
+                            sapi.World.BlockAccessor.SetBlock(block.BlockId, pos);
+                            continue;
+                        }
+                    }
+
+                    if (snapshot.BlockId > 0)
+                    {
+                        sapi.World.BlockAccessor.SetBlock(snapshot.BlockId, pos);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    sapi.Logger.Warning("[TheRustweave] Failed to restore block snapshot for effect '{0}': {1}", record.EffectType, exception.Message);
+                }
+            }
+        }
+
+        public bool CanModifyBlockAt(BlockPos pos, string casterPlayerUid)
+        {
+            if (pos == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                var worldType = sapi.World.GetType();
+                var claimsProperty = worldType.GetProperty("Claims", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var claims = claimsProperty?.GetValue(sapi.World);
+                if (claims == null)
+                {
+                    return true;
+                }
+
+                var player = GetOnlineServerPlayer(casterPlayerUid);
+                if (player == null)
+                {
+                    return false;
+                }
+
+                foreach (var method in claims.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+                {
+                    if (!string.Equals(method.Name, "TryAccess", StringComparison.OrdinalIgnoreCase) && !string.Equals(method.Name, "TryAccessBlock", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var parameters = method.GetParameters();
+                    try
+                    {
+                        if (parameters.Length == 2 && parameters[0].ParameterType == typeof(BlockPos))
+                        {
+                            var result = method.Invoke(claims, new object[] { pos, player });
+                            if (result is bool allowed)
+                            {
+                                return allowed;
+                            }
+                        }
+                        else if (parameters.Length == 3 && parameters[0].ParameterType == typeof(IWorldAccessor))
+                        {
+                            var result = method.Invoke(claims, new object[] { sapi.World, player, pos });
+                            if (result is bool allowed)
+                            {
+                                return allowed;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // fall back below
+                    }
+                }
+
+                var center = new Vec3d(pos.X + 0.5, pos.Y + 0.5, pos.Z + 0.5);
+                var blockingEffects = GetActiveEffectsNear(center, 2d);
+                if (blockingEffects.Any(record => record != null && record.IsBlocking && (string.Equals(record.EffectType, SpellEffectTypes.AnchorBlock, StringComparison.OrdinalIgnoreCase) || string.Equals(record.EffectType, SpellEffectTypes.CreateWardArea, StringComparison.OrdinalIgnoreCase) || string.Equals(record.EffectType, SpellEffectTypes.CreateBarrier, StringComparison.OrdinalIgnoreCase) || string.Equals(record.EffectType, SpellEffectTypes.CreateContainmentArea, StringComparison.OrdinalIgnoreCase) || string.Equals(record.EffectType, SpellEffectTypes.CreateBoundaryLine, StringComparison.OrdinalIgnoreCase) || string.Equals(record.EffectType, SpellEffectTypes.CreateAntiSpreadArea, StringComparison.OrdinalIgnoreCase) || string.Equals(record.EffectType, SpellEffectTypes.CreateRift, StringComparison.OrdinalIgnoreCase) || string.Equals(record.EffectType, SpellEffectTypes.OpenPassage, StringComparison.OrdinalIgnoreCase))))
+                {
+                    return false;
+                }
+            }
+            catch
+            {
+            }
+
+            return true;
+        }
+
+        public bool TryFindNearestSafeTeleportPosition(IWorldAccessor world, Entity entity, Vec3d desired, out Vec3d safePosition)
+        {
+            safePosition = entity?.Pos?.XYZ ?? desired;
+            if (world == null || entity == null)
+            {
+                return false;
+            }
+
+            var dim = entity.Pos.Dimension;
+            var baseY = Math.Floor(desired.Y);
+            var offsets = new List<(int X, int Z)>();
+            for (var radius = 0; radius <= 3; radius++)
+            {
+                for (var x = -radius; x <= radius; x++)
+                {
+                    for (var z = -radius; z <= radius; z++)
+                    {
+                        if (Math.Abs(x) != radius && Math.Abs(z) != radius && radius > 0)
+                        {
+                            continue;
+                        }
+
+                        offsets.Add((x, z));
+                    }
+                }
+            }
+
+            foreach (var offset in offsets)
+            {
+                for (var vertical = 0; vertical <= 3; vertical++)
+                {
+                    var candidate = new Vec3d(desired.X + offset.X, baseY + vertical, desired.Z + offset.Z);
+                    if (IsTeleportPositionSafe(world, entity, candidate, dim))
+                    {
+                        safePosition = candidate;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsTeleportPositionSafe(IWorldAccessor world, Entity entity, Vec3d candidate, int expectedDimension)
+        {
+            if (world == null || entity == null)
+            {
+                return false;
+            }
+
+            if (entity.Pos.Dimension != expectedDimension)
+            {
+                return false;
+            }
+
+            var feetPos = new BlockPos((int)Math.Floor(candidate.X), (int)Math.Floor(candidate.Y), (int)Math.Floor(candidate.Z), expectedDimension);
+            var headPos = new BlockPos(feetPos.X, feetPos.Y + 1, feetPos.Z, expectedDimension);
+            var supportPos = new BlockPos(feetPos.X, feetPos.Y - 1, feetPos.Z, expectedDimension);
+
+            return IsSpaceClear(world, feetPos) && IsSpaceClear(world, headPos) && IsTeleportSupportSafe(world, supportPos);
+        }
+
+        private static bool IsSpaceClear(IWorldAccessor world, BlockPos pos)
+        {
+            var block = world.BlockAccessor.GetBlock(pos);
+            return block == null || block.CollisionBoxes == null || block.CollisionBoxes.Length == 0;
+        }
+
+        private static bool IsTeleportSupportSafe(IWorldAccessor world, BlockPos pos)
+        {
+            var block = world.BlockAccessor.GetBlock(pos);
+            return block != null && block.CollisionBoxes != null && block.CollisionBoxes.Length > 0;
         }
 
         private void ProcessTabletVenting(IServerPlayer serverPlayer, RustweavePlayerStateData state)
@@ -3001,6 +4413,7 @@ namespace TheRustweave
         {
             activeCasts.Remove(serverPlayer.PlayerUID);
             activeTabletVents.Remove(serverPlayer.PlayerUID);
+            RemoveActiveEffectsForPlayer(serverPlayer.PlayerUID);
 
             if (serverPlayer.Entity == null || !serverPlayer.Entity.Alive)
             {
@@ -3611,10 +5024,10 @@ namespace TheRustweave
             }
 
             var spellCode = RustweaveStateService.GetPreparedSpellCode(state, slotIndex);
-            sapi.Logger.Debug("[TheRustweave] Cast attempted from active prepared slot {0} for player '{1}' (spell '{2}').", slotIndex, player.PlayerUID, spellCode);
+            sapi.Logger.Debug("[TheRustweave] Cast attempted from active prepared slot {0} (internal index {1}) for player '{2}' (spell '{3}').", RustweaveStateService.ToDisplaySlotNumber(slotIndex), slotIndex, player.PlayerUID, spellCode);
             if (string.IsNullOrWhiteSpace(spellCode))
             {
-                player.SendMessage(0, Lang.Get("game:rustweave-no-spell-prepared"), EnumChatType.Notification, null);
+                player.SendMessage(0, Lang.Get("game:rustweave-no-spell-in-slot", RustweaveStateService.ToDisplaySlotNumber(slotIndex)), EnumChatType.Notification, null);
                 return;
             }
 
@@ -3643,7 +5056,7 @@ namespace TheRustweave
                 return;
             }
 
-            sapi.Logger.Debug("[TheRustweave] Cast start requested by player '{0}' from slot {1} for spell '{2}' with targetType '{3}'.", player.PlayerUID, slotIndex, spell.Code, spell.TargetType);
+            sapi.Logger.Debug("[TheRustweave] Cast start requested by player '{0}' from prepared slot {1} (internal index {2}) for spell '{3}' with targetType '{4}'.", player.PlayerUID, RustweaveStateService.ToDisplaySlotNumber(slotIndex), slotIndex, spell.Code, spell.TargetType);
             if (!spellExecutor.TryResolveTarget(player, spell, out var lockedTarget, out var lockFailureReason))
             {
                 sapi.Logger.Warning("[TheRustweave] Spell '{0}' could not resolve a cast-start target for player '{1}': {2}", spell.Code, player.PlayerUID, lockFailureReason);
@@ -3689,7 +5102,8 @@ namespace TheRustweave
                 ElapsedMilliseconds = 0,
                 CorruptionCost = castSpell.CorruptionCost,
                 BaseCastTimeSeconds = castSpell.CastTimeSeconds,
-                StartingTemporalCorruption = state.CurrentTemporalCorruption
+                StartingTemporalCorruption = state.CurrentTemporalCorruption,
+                ActiveCastId = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)
             };
 
             ApplyLockedTarget(castState, spell, lockedTarget);
@@ -3700,6 +5114,7 @@ namespace TheRustweave
             SyncCastState(player, castState);
             BroadcastTargetPreviewState(player, spell, lockedTarget, true, true);
             SendTargetLockState(player, castState, spell, true);
+            RegisterTargetedWarningIfNeeded(player, spell, castState, lockedTarget);
         }
 
         private void FinishCast(IServerPlayer player, RustweavePlayerStateData state, RustweaveCastStateData castState)
@@ -3792,6 +5207,7 @@ namespace TheRustweave
             var castState = new RustweaveCastStateData();
             if (player is IServerPlayer serverPlayer)
             {
+                ClearTargetedWarningState(casterPlayerUid: serverPlayer.PlayerUID, sendInactive: true);
                 SendTargetLockState(serverPlayer, castState, null, false);
                 ClearTargetPreviewState(serverPlayer);
             }
@@ -3802,6 +5218,19 @@ namespace TheRustweave
             }
 
             RustweaveStateService.SyncWatchedCastState(player, castState);
+        }
+
+        private void RemoveActiveEffectsForPlayer(string playerUid)
+        {
+            if (string.IsNullOrWhiteSpace(playerUid) || activeEffectRecords.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var entry in activeEffectRecords.Where(pair => string.Equals(pair.Value.CasterPlayerUid, playerUid, StringComparison.OrdinalIgnoreCase) || string.Equals(pair.Value.TargetPlayerUid, playerUid, StringComparison.OrdinalIgnoreCase)).Select(pair => pair.Key).ToArray())
+            {
+                TryRemoveActiveEffect(entry, true);
+            }
         }
 
         private void SyncCastState(IPlayer player, RustweaveCastStateData state)
@@ -3845,9 +5274,6 @@ namespace TheRustweave
             normalized.UpdatedAtMs = sapi.World.ElapsedMilliseconds;
             activeTargetPreviews[playerUid] = normalized;
 
-            sapi.Logger.Debug("[TheRustweave] Target preview updated for player '{0}' spell '{1}' mode '{2}' targetType '{3}' locked={4}.",
-                playerUid, normalized.SpellCode, normalized.PreviewMode, normalized.TargetType, normalized.IsLocked);
-
             BroadcastTargetPreviewPacket(normalized, false);
         }
 
@@ -3878,7 +5304,6 @@ namespace TheRustweave
 
                 if (now - preview.UpdatedAtMs > 1200)
                 {
-                    sapi.Logger.Debug("[TheRustweave] Target preview expired for player '{0}' spell '{1}'.", playerUid, preview.SpellCode);
                     ClearTargetPreviewState(playerUid);
                     continue;
                 }
@@ -3919,6 +5344,381 @@ namespace TheRustweave
             existing.IsLocked = false;
             existing.UpdatedAtMs = sapi.World.ElapsedMilliseconds;
             BroadcastTargetPreviewPacket(existing, true);
+        }
+
+        private void RegisterTargetedWarningIfNeeded(IServerPlayer caster, SpellDefinition spell, RustweaveCastStateData castState, SpellEffectExecutor.SpellTargetContext lockedTarget)
+        {
+            if (caster?.Entity == null || spell == null || castState == null || lockedTarget == null)
+            {
+                return;
+            }
+
+            if (lockedTarget.Entity is not EntityPlayer targetPlayer || string.IsNullOrWhiteSpace(targetPlayer.PlayerUID))
+            {
+                return;
+            }
+
+            var warningType = SpellRegistry.ResolveTargetedWarningType(spell);
+            var record = new RustweaveActiveCastRecord
+            {
+                CastId = string.IsNullOrWhiteSpace(castState.ActiveCastId)
+                    ? Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)
+                    : castState.ActiveCastId,
+                CasterPlayerUid = caster.PlayerUID,
+                CasterEntityId = caster.Entity.EntityId,
+                TargetPlayerUid = targetPlayer.PlayerUID,
+                TargetEntityId = targetPlayer.EntityId,
+                SpellCode = spell.Code,
+                SpellSchool = SpellRegistry.GetSpellSchoolCategoryDisplayName(spell),
+                WarningType = warningType,
+                TargetType = spell.TargetType,
+                StartedAtMs = castState.StartedAtMilliseconds,
+                ExpectedEndAtMs = castState.StartedAtMilliseconds + castState.DurationMilliseconds,
+                ExpiresAtMs = castState.StartedAtMilliseconds + castState.DurationMilliseconds + 750,
+                OriginX = caster.Entity.Pos.X + caster.Entity.LocalEyePos.X,
+                OriginY = caster.Entity.Pos.Y + caster.Entity.LocalEyePos.Y,
+                OriginZ = caster.Entity.Pos.Z + caster.Entity.LocalEyePos.Z,
+                TargetX = targetPlayer.Pos.XYZ.X,
+                TargetY = targetPlayer.Pos.XYZ.Y,
+                TargetZ = targetPlayer.Pos.XYZ.Z,
+                IsActive = true,
+                IsPersonalWarning = true
+            };
+
+            if (string.Equals(record.WarningType, SpellWarningTypes.Neutral, StringComparison.OrdinalIgnoreCase))
+            {
+                activeTargetedCastRecords[record.CastId] = record.Clone();
+                return;
+            }
+
+            var recipients = BuildTargetedWarningRecipients(record, targetPlayer);
+            record.ObserverPlayerUids = recipients.Select(player => player.PlayerUID).ToList();
+            activeTargetedCastRecords[record.CastId] = record.Clone();
+            BroadcastTargetedWarningState(record, recipients);
+        }
+
+        private List<IServerPlayer> BuildTargetedWarningRecipients(RustweaveActiveCastRecord record, EntityPlayer? targetPlayer)
+        {
+            var recipients = new List<IServerPlayer>();
+            if (record == null)
+            {
+                return recipients;
+            }
+
+            var targetServerPlayer = GetOnlineServerPlayer(record.TargetPlayerUid);
+            if (targetServerPlayer != null)
+            {
+                recipients.Add(targetServerPlayer);
+            }
+
+            var targetPos = new Vec3d(record.TargetX, record.TargetY, record.TargetZ);
+            foreach (var online in sapi.World.AllOnlinePlayers.OfType<IServerPlayer>())
+            {
+                if (online == null || online.Entity == null || !online.Entity.Alive)
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(record.TargetPlayerUid) && string.Equals(online.PlayerUID, record.TargetPlayerUid, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (targetPlayer != null && online.Entity.Pos.Dimension != targetPlayer.Pos.Dimension)
+                {
+                    continue;
+                }
+
+                var eyePos = online.Entity.LocalEyePos;
+                var originPos = new Vec3d(online.Entity.Pos.X + eyePos.X, online.Entity.Pos.Y + eyePos.Y, online.Entity.Pos.Z + eyePos.Z);
+                if (originPos.DistanceTo(targetPos) > 32d)
+                {
+                    continue;
+                }
+
+                if (!CanObserveTargetedWarning(online, targetPos, record.TargetEntityId))
+                {
+                    continue;
+                }
+
+                recipients.Add(online);
+            }
+
+            return recipients;
+        }
+
+        private bool CanObserveTargetedWarning(IServerPlayer observer, Vec3d targetPos, long targetEntityId)
+        {
+            if (observer?.Entity == null)
+            {
+                return false;
+            }
+
+            var eyePos = observer.Entity.LocalEyePos;
+            var fromPos = new Vec3d(observer.Entity.Pos.X + eyePos.X, observer.Entity.Pos.Y + eyePos.Y, observer.Entity.Pos.Z + eyePos.Z);
+            BlockSelection? blockSelection = null;
+            EntitySelection? entitySelection = null;
+            sapi.World.RayTraceForSelection(
+                fromPos,
+                targetPos,
+                ref blockSelection,
+                ref entitySelection,
+                null,
+                candidate => candidate != null && candidate.Alive && candidate != observer.Entity);
+
+            if (targetEntityId >= 0)
+            {
+                return entitySelection?.Entity != null && entitySelection.Entity.EntityId == targetEntityId;
+            }
+
+            return blockSelection == null && entitySelection?.Entity == null;
+        }
+
+        private void BroadcastTargetedWarningState(RustweaveActiveCastRecord record, IReadOnlyList<IServerPlayer> recipients)
+        {
+            if (record == null || recipients == null || recipients.Count == 0 || channel == null)
+            {
+                return;
+            }
+
+            var packet = record.ToPacket();
+            var targetRecipient = recipients.FirstOrDefault(player => string.Equals(player.PlayerUID, record.TargetPlayerUid, StringComparison.OrdinalIgnoreCase));
+            if (targetRecipient != null)
+            {
+                var personalPacket = packet.Clone();
+                personalPacket.IsPersonalWarning = true;
+                channel.SendPacket(personalPacket, new[] { targetRecipient });
+            }
+
+            var observerRecipients = recipients
+                .Where(player => player != null && !string.Equals(player.PlayerUID, record.TargetPlayerUid, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (observerRecipients.Length > 0)
+            {
+                var observerPacket = packet.Clone();
+                observerPacket.IsPersonalWarning = false;
+                channel.SendPacket(observerPacket, observerRecipients);
+            }
+        }
+
+        private void ClearTargetedWarningState(string? casterPlayerUid = null, string? targetPlayerUid = null, string? castId = null, bool sendInactive = true)
+        {
+            if (activeTargetedCastRecords.Count == 0)
+            {
+                return;
+            }
+
+            var matches = activeTargetedCastRecords.Values
+                .Where(record =>
+                    record != null
+                    && record.IsActive
+                    && (string.IsNullOrWhiteSpace(castId) || string.Equals(record.CastId, castId, StringComparison.OrdinalIgnoreCase))
+                    && (string.IsNullOrWhiteSpace(casterPlayerUid) || string.Equals(record.CasterPlayerUid, casterPlayerUid, StringComparison.OrdinalIgnoreCase))
+                    && (string.IsNullOrWhiteSpace(targetPlayerUid) || string.Equals(record.TargetPlayerUid, targetPlayerUid, StringComparison.OrdinalIgnoreCase)))
+                .Select(record => record.Clone())
+                .ToList();
+
+            foreach (var record in matches)
+            {
+                activeTargetedCastRecords.Remove(record.CastId);
+                if (!sendInactive || channel == null)
+                {
+                    continue;
+                }
+
+                record.IsActive = false;
+                var recipients = GetWarningRecipientsForClear(record);
+                if (recipients.Count == 0)
+                {
+                    continue;
+                }
+
+                var packet = record.ToPacket();
+                packet.IsActive = false;
+                if (recipients.Any(player => string.Equals(player.PlayerUID, record.TargetPlayerUid, StringComparison.OrdinalIgnoreCase)))
+                {
+                    var targetRecipient = recipients.First(player => string.Equals(player.PlayerUID, record.TargetPlayerUid, StringComparison.OrdinalIgnoreCase));
+                    var personalPacket = packet.Clone();
+                    personalPacket.IsPersonalWarning = true;
+                    channel.SendPacket(personalPacket, new[] { targetRecipient });
+                }
+
+                var observerRecipients = recipients
+                    .Where(player => !string.Equals(player.PlayerUID, record.TargetPlayerUid, StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+                if (observerRecipients.Length > 0)
+                {
+                    var observerPacket = packet.Clone();
+                    observerPacket.IsPersonalWarning = false;
+                    channel.SendPacket(observerPacket, observerRecipients);
+                }
+            }
+        }
+
+        private List<IServerPlayer> GetWarningRecipientsForClear(RustweaveActiveCastRecord record)
+        {
+            var recipients = new List<IServerPlayer>();
+            if (record == null)
+            {
+                return recipients;
+            }
+
+            if (!string.IsNullOrWhiteSpace(record.TargetPlayerUid))
+            {
+                var targetPlayer = GetOnlineServerPlayer(record.TargetPlayerUid);
+                if (targetPlayer != null)
+                {
+                    recipients.Add(targetPlayer);
+                }
+            }
+
+            foreach (var observerUid in record.ObserverPlayerUids ?? new List<string>())
+            {
+                if (string.IsNullOrWhiteSpace(observerUid))
+                {
+                    continue;
+                }
+
+                var observerPlayer = GetOnlineServerPlayer(observerUid);
+                if (observerPlayer != null && recipients.All(player => !string.Equals(player.PlayerUID, observerPlayer.PlayerUID, StringComparison.OrdinalIgnoreCase)))
+                {
+                    recipients.Add(observerPlayer);
+                }
+            }
+
+            return recipients;
+        }
+
+        private void ProcessActiveTargetedWarningRecords()
+        {
+            if (activeTargetedCastRecords.Count == 0)
+            {
+                return;
+            }
+
+            var now = sapi.World.ElapsedMilliseconds;
+            foreach (var entry in activeTargetedCastRecords.Values.ToArray())
+            {
+                if (entry == null)
+                {
+                    continue;
+                }
+
+                if (!entry.IsActive || now >= entry.ExpiresAtMs)
+                {
+                    ClearTargetedWarningState(entry.CasterPlayerUid, entry.TargetPlayerUid, entry.CastId, true);
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(entry.TargetPlayerUid) || GetOnlineServerPlayer(entry.TargetPlayerUid) == null)
+                {
+                    ClearTargetedWarningState(entry.CasterPlayerUid, entry.TargetPlayerUid, entry.CastId, true);
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(entry.CasterPlayerUid) || GetOnlineServerPlayer(entry.CasterPlayerUid) == null)
+                {
+                    ClearTargetedWarningState(entry.CasterPlayerUid, entry.TargetPlayerUid, entry.CastId, true);
+                }
+            }
+        }
+
+        public IReadOnlyList<RustweaveActiveCastRecord> GetActiveCastsTargetingPlayer(string targetPlayerUid)
+        {
+            if (string.IsNullOrWhiteSpace(targetPlayerUid) || activeTargetedCastRecords.Count == 0)
+            {
+                return Array.Empty<RustweaveActiveCastRecord>();
+            }
+
+            return activeTargetedCastRecords.Values
+                .Where(record => record != null
+                    && record.IsActive
+                    && string.Equals(record.TargetPlayerUid, targetPlayerUid, StringComparison.OrdinalIgnoreCase))
+                .Select(record => record.Clone())
+                .ToArray();
+        }
+
+        public IReadOnlyList<RustweaveActiveCastRecord> GetActiveHostileCastsTargetingPlayer(string targetPlayerUid)
+        {
+            if (string.IsNullOrWhiteSpace(targetPlayerUid))
+            {
+                return Array.Empty<RustweaveActiveCastRecord>();
+            }
+
+            return GetActiveCastsTargetingPlayer(targetPlayerUid)
+                .Where(record => string.Equals(record.WarningType, SpellWarningTypes.Hostile, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+        }
+
+        public IReadOnlyList<RustweaveActiveCastRecord> GetActiveHostileCastsNearPosition(Vec3d position, double radius)
+        {
+            if (radius <= 0d || activeTargetedCastRecords.Count == 0)
+            {
+                return Array.Empty<RustweaveActiveCastRecord>();
+            }
+
+            var squaredRadius = radius * radius;
+            return activeTargetedCastRecords.Values
+                .Where(record => record != null
+                    && record.IsActive
+                    && string.Equals(record.WarningType, SpellWarningTypes.Hostile, StringComparison.OrdinalIgnoreCase)
+                    && DistanceSquared(position, record.TargetX, record.TargetY, record.TargetZ) <= squaredRadius)
+                .Select(record => record.Clone())
+                .ToArray();
+        }
+
+        public bool TryGetActiveCastById(string castId, out RustweaveActiveCastRecord? record)
+        {
+            record = null;
+            if (string.IsNullOrWhiteSpace(castId))
+            {
+                return false;
+            }
+
+            if (!activeTargetedCastRecords.TryGetValue(castId, out var existing) || existing == null)
+            {
+                return false;
+            }
+
+            if (!existing.IsActive)
+            {
+                return false;
+            }
+
+            record = existing.Clone();
+            return true;
+        }
+
+        public bool TryCancelActiveCast(string castId, string reason)
+        {
+            if (string.IsNullOrWhiteSpace(castId) || !activeTargetedCastRecords.TryGetValue(castId, out var record) || record == null)
+            {
+                return false;
+            }
+
+            if (!record.IsActive)
+            {
+                return false;
+            }
+
+            var player = GetOnlineServerPlayer(record.CasterPlayerUid);
+            if (player == null)
+            {
+                ClearTargetedWarningState(record.CasterPlayerUid, record.TargetPlayerUid, record.CastId, true);
+                return true;
+            }
+
+            var state = GetState(player);
+            CancelCast(player, state, string.IsNullOrWhiteSpace(reason) ? Lang.Get("game:rustweave-cast-cancel") : reason, true, true);
+            return true;
+        }
+
+        private static double DistanceSquared(Vec3d position, double x, double y, double z)
+        {
+            var dx = position.X - x;
+            var dy = position.Y - y;
+            var dz = position.Z - z;
+            return (dx * dx) + (dy * dy) + (dz * dz);
         }
 
         private void BroadcastTargetPreviewState(IServerPlayer player, SpellDefinition spell, SpellEffectExecutor.SpellTargetContext lockedTarget, bool isActive, bool isLocked)
@@ -4034,7 +5834,14 @@ namespace TheRustweave
                 SpellTargetTypes.HeldItem => "Held Item",
                 SpellTargetTypes.Inventory => "Inventory",
                 SpellTargetTypes.LookEntity => lockedTarget.Entity?.GetName() ?? lockedTarget.TargetName,
+                SpellTargetTypes.LookPlayer => lockedTarget.Entity?.GetName() ?? "Player",
+                SpellTargetTypes.LookNonPlayerEntity => lockedTarget.Entity?.GetName() ?? "Creature/NPC",
+                SpellTargetTypes.LookDroppedItem => lockedTarget.Entity?.GetName() ?? "Dropped Item",
                 SpellTargetTypes.LookBlock => lockedTarget.TargetName,
+                SpellTargetTypes.LookBlockEntity => !string.IsNullOrWhiteSpace(lockedTarget.TargetName) ? lockedTarget.TargetName : "Block Entity",
+                SpellTargetTypes.LookContainer => !string.IsNullOrWhiteSpace(lockedTarget.TargetName) ? lockedTarget.TargetName : "Container",
+                SpellTargetTypes.SelfArea => SpellTargetTypes.GetDisplayName(SpellTargetTypes.SelfArea),
+                SpellTargetTypes.LookArea => SpellTargetTypes.GetDisplayName(SpellTargetTypes.LookArea),
                 SpellTargetTypes.LookPosition => "Position",
                 _ => lockedTarget.TargetName
             };
@@ -4096,6 +5903,20 @@ namespace TheRustweave
                         castState.LockedTargetName = lockedTarget.TargetName;
                     }
                     break;
+                case SpellTargetTypes.LookPlayer:
+                case SpellTargetTypes.LookNonPlayerEntity:
+                case SpellTargetTypes.LookDroppedItem:
+                    if (lockedTarget.Entity != null)
+                    {
+                        castState.HasLockedTarget = true;
+                        castState.LockedTargetType = spell.TargetType;
+                        castState.LockedEntityId = lockedTarget.Entity.EntityId;
+                        castState.LockedPosX = lockedTarget.Position.X;
+                        castState.LockedPosY = lockedTarget.Position.Y;
+                        castState.LockedPosZ = lockedTarget.Position.Z;
+                        castState.LockedTargetName = lockedTarget.TargetName;
+                    }
+                    break;
                 case SpellTargetTypes.LookBlock:
                     if (lockedTarget.BlockPos != null)
                     {
@@ -4110,9 +5931,40 @@ namespace TheRustweave
                         castState.LockedTargetName = lockedTarget.TargetName;
                     }
                     break;
+                case SpellTargetTypes.LookBlockEntity:
+                case SpellTargetTypes.LookContainer:
+                    if (lockedTarget.BlockPos != null)
+                    {
+                        castState.HasLockedTarget = true;
+                        castState.LockedTargetType = spell.TargetType;
+                        castState.LockedBlockX = lockedTarget.BlockPos.X;
+                        castState.LockedBlockY = lockedTarget.BlockPos.Y;
+                        castState.LockedBlockZ = lockedTarget.BlockPos.Z;
+                        castState.LockedPosX = lockedTarget.Position.X;
+                        castState.LockedPosY = lockedTarget.Position.Y;
+                        castState.LockedPosZ = lockedTarget.Position.Z;
+                        castState.LockedTargetName = lockedTarget.TargetName;
+                    }
+                    break;
                 case SpellTargetTypes.LookPosition:
                     castState.HasLockedTarget = true;
                     castState.LockedTargetType = SpellTargetTypes.LookPosition;
+                    castState.LockedPosX = lockedTarget.Position.X;
+                    castState.LockedPosY = lockedTarget.Position.Y;
+                    castState.LockedPosZ = lockedTarget.Position.Z;
+                    castState.LockedTargetName = lockedTarget.TargetName;
+                    break;
+                case SpellTargetTypes.SelfArea:
+                    castState.HasLockedTarget = true;
+                    castState.LockedTargetType = SpellTargetTypes.SelfArea;
+                    castState.LockedPosX = lockedTarget.Position.X;
+                    castState.LockedPosY = lockedTarget.Position.Y;
+                    castState.LockedPosZ = lockedTarget.Position.Z;
+                    castState.LockedTargetName = lockedTarget.TargetName;
+                    break;
+                case SpellTargetTypes.LookArea:
+                    castState.HasLockedTarget = true;
+                    castState.LockedTargetType = SpellTargetTypes.LookArea;
                     castState.LockedPosX = lockedTarget.Position.X;
                     castState.LockedPosY = lockedTarget.Position.Y;
                     castState.LockedPosZ = lockedTarget.Position.Z;
@@ -4159,6 +6011,9 @@ namespace TheRustweave
         private readonly Dictionary<string, RustweaveTargetPreviewPacket> activeTargetPreviews = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, long> activeTargetPreviewRenderTimes = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, long> activeTargetPreviewSendTimes = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, RustweaveTargetedWarningPacket> activeTargetedWarnings = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, long> activeTargetedWarningRenderTimes = new(StringComparer.OrdinalIgnoreCase);
+        private int localSelectedPreparedSpellIndex = -1;
         private string lastStateJson = string.Empty;
         private string lastCastJson = string.Empty;
         private RustweaveCorruptionHud? corruptionHud;
@@ -4177,8 +6032,10 @@ namespace TheRustweave
             channel.RegisterMessageType(typeof(RustweaveActionPacket));
             channel.RegisterMessageType(typeof(RustweaveTargetLockPacket));
             channel.RegisterMessageType(typeof(RustweaveTargetPreviewPacket));
+            channel.RegisterMessageType(typeof(RustweaveTargetedWarningPacket));
             channel.SetMessageHandler<RustweaveTargetLockPacket>(OnTargetLockPacket);
             channel.SetMessageHandler<RustweaveTargetPreviewPacket>(OnTargetPreviewPacket);
+            channel.SetMessageHandler<RustweaveTargetedWarningPacket>(OnTargetedWarningPacket);
             capi.Event.PlayerJoin += OnClientPlayerJoin;
             capi.Event.LevelFinalize += OnClientLevelFinalize;
             tickListenerId = capi.Event.RegisterGameTickListener(OnClientTick, 50, 50);
@@ -4211,11 +6068,13 @@ namespace TheRustweave
                 return;
             }
 
-            capi.Logger.Debug("[TheRustweave] Cast requested from active slot {0}.", currentState.SelectedPreparedSpellIndex);
+            var selectedSlotIndex = GetSelectedPreparedSlotIndex();
+            var displaySlotNumber = RustweaveStateService.ToDisplaySlotNumber(selectedSlotIndex);
+            capi.Logger.Debug("[TheRustweave] Cast requested from prepared slot {0} (internal index {1}).", displaySlotNumber, selectedSlotIndex);
             SendPacket(new RustweaveActionPacket
             {
                 Action = RustweaveActionType.RequestStartCast,
-                SlotIndex = currentState.SelectedPreparedSpellIndex
+                SlotIndex = selectedSlotIndex
             });
         }
 
@@ -4232,7 +6091,7 @@ namespace TheRustweave
         {
             HydrateFromSavedState();
             var player = capi.World?.Player;
-            if (player == null || byEntity == null || currentCastState.IsCasting || !RustweaveStateService.IsRustweaver(player) || !RustweaveStateService.IsHoldingTome(player))
+            if (player == null || byEntity == null || currentCastState.IsCasting || currentTargetLock.IsActive || !RustweaveStateService.IsRustweaver(player) || !RustweaveStateService.IsHoldingTome(player))
             {
                 return;
             }
@@ -4251,8 +6110,6 @@ namespace TheRustweave
 
             activeTargetPreviews[previewKey] = packet;
             activeTargetPreviewRenderTimes[previewKey] = 0;
-            RenderTargetPreview(packet);
-
             if (ShouldSendPreviewPacket(packet))
             {
                 SendPacket(packet.Clone());
@@ -4310,13 +6167,12 @@ namespace TheRustweave
             RequestPreviewStop();
             if (RustweaveStateService.IsValidSlotIndex(slotIndex))
             {
+                localSelectedPreparedSpellIndex = slotIndex;
                 currentState.SelectedPreparedSpellIndex = slotIndex;
                 prepDialog?.SetState(currentState);
-                targetLockHud?.SetState(currentTargetLock, currentCastState, currentState);
-                UpdateTargetLockHud();
             }
 
-            capi.Logger.Debug("[TheRustweave] Client requested prepared slot selection: {0}.", slotIndex);
+            capi.Logger.Debug("[TheRustweave] Client requested prepared slot selection: {0} (internal index {1}).", RustweaveStateService.ToDisplaySlotNumber(slotIndex), slotIndex);
             SendPacket(new RustweaveActionPacket
             {
                 Action = RustweaveActionType.RequestSelectPrepared,
@@ -4326,7 +6182,7 @@ namespace TheRustweave
 
         public void RequestPrepareSpell(string spellCode, int targetSlotIndex)
         {
-            capi.Logger.Debug("[TheRustweave] Client requested prepare for spell '{0}' with target slot {1}.", spellCode, targetSlotIndex);
+            capi.Logger.Debug("[TheRustweave] Client requested prepare for spell '{0}' with target slot {1}.", spellCode, RustweaveStateService.DescribePreparedSlot(targetSlotIndex));
             SendPacket(new RustweaveActionPacket
             {
                 Action = RustweaveActionType.RequestPrepareSpell,
@@ -4342,11 +6198,9 @@ namespace TheRustweave
             {
                 currentState.PreparedSpellCodes[slotIndex] = string.Empty;
                 prepDialog?.SetState(currentState);
-                targetLockHud?.SetState(currentTargetLock, currentCastState, currentState);
-                UpdateTargetLockHud();
             }
 
-            capi.Logger.Debug("[TheRustweave] Client requested clear for prepared slot {0}.", slotIndex);
+            capi.Logger.Debug("[TheRustweave] Client requested clear for prepared slot {0} (internal index {1}).", RustweaveStateService.ToDisplaySlotNumber(slotIndex), slotIndex);
             SendPacket(new RustweaveActionPacket
             {
                 Action = RustweaveActionType.RequestUnprepareSpell,
@@ -4378,14 +6232,12 @@ namespace TheRustweave
         {
             HydrateFromSavedState();
             RequestPreviewStop();
+            ClearTargetedWarnings();
         }
 
         private void OnTargetLockPacket(RustweaveTargetLockPacket packet)
         {
             currentTargetLock = packet?.Clone() ?? new RustweaveTargetLockPacket();
-            EnsureTargetLockHud();
-            targetLockHud?.SetState(currentTargetLock, currentCastState, currentState);
-            UpdateTargetLockHud();
         }
 
         private void OnTargetPreviewPacket(RustweaveTargetPreviewPacket packet)
@@ -4396,6 +6248,11 @@ namespace TheRustweave
             }
 
             var preview = packet.Clone();
+            if (!preview.IsLocked && (currentCastState.IsCasting || currentTargetLock.IsActive))
+            {
+                return;
+            }
+
             var key = GetPreviewKey(preview);
             if (string.IsNullOrWhiteSpace(key))
             {
@@ -4411,7 +6268,25 @@ namespace TheRustweave
 
             activeTargetPreviews[key] = preview;
             activeTargetPreviewRenderTimes[key] = 0;
-            RenderTargetPreview(preview);
+        }
+
+        private void OnTargetedWarningPacket(RustweaveTargetedWarningPacket packet)
+        {
+            if (packet == null || string.IsNullOrWhiteSpace(packet.CastId))
+            {
+                return;
+            }
+
+            var warning = packet.Clone();
+            if (!warning.IsActive)
+            {
+                activeTargetedWarnings.Remove(warning.CastId);
+                activeTargetedWarningRenderTimes.Remove(warning.CastId);
+                return;
+            }
+
+            activeTargetedWarnings[warning.CastId] = warning;
+            activeTargetedWarningRenderTimes[warning.CastId] = 0;
         }
 
         private string GetPreviewKey(RustweaveTargetPreviewPacket packet)
@@ -4449,7 +6324,7 @@ namespace TheRustweave
                 return true;
             }
 
-            if (now - lastSent >= 125)
+            if (now - lastSent >= 200)
             {
                 activeTargetPreviewSendTimes[key] = now;
                 return true;
@@ -4541,6 +6416,9 @@ namespace TheRustweave
                     spellPreviewMode = SpellPreviewModes.Self;
                     break;
                 case SpellTargetTypes.LookEntity:
+                case SpellTargetTypes.LookPlayer:
+                case SpellTargetTypes.LookNonPlayerEntity:
+                case SpellTargetTypes.LookDroppedItem:
                     if (entitySel?.Entity == null || !entitySel.Entity.Alive)
                     {
                         return false;
@@ -4556,18 +6434,70 @@ namespace TheRustweave
                     packetTargetName = entitySel.Entity.GetName() ?? spell.Name;
                     break;
                 case SpellTargetTypes.LookBlock:
+                case SpellTargetTypes.LookBlockEntity:
+                case SpellTargetTypes.LookContainer:
                     if (blockSel == null)
                     {
                         return false;
                     }
 
+                    var previewBlockEntity = capi.World.BlockAccessor.GetBlockEntity(blockSel.Position);
+                    if (spell.TargetType == SpellTargetTypes.LookBlockEntity && previewBlockEntity == null)
+                    {
+                        return false;
+                    }
+
+                    if (spell.TargetType == SpellTargetTypes.LookContainer && !TryGetBlockEntityInventory(previewBlockEntity, out _))
+                    {
+                        return false;
+                    }
+
                     targetX = blockSel.Position.X + 0.5;
-                    targetY = blockSel.Position.Y + 0.5;
+                    targetY = blockSel.Position.Y + 1.0;
                     targetZ = blockSel.Position.Z + 0.5;
                     impactX = blockSel.HitPosition.X;
                     impactY = blockSel.HitPosition.Y;
                     impactZ = blockSel.HitPosition.Z;
-                    packetTargetName = GetBlockDisplayName(blockSel.Position);
+                    packetTargetName = spell.TargetType == SpellTargetTypes.LookBlock
+                        ? GetBlockDisplayName(blockSel.Position)
+                        : GetBlockEntityDisplayName(blockSel.Position);
+                    spellPreviewMode = SpellPreviewModes.Block;
+                    break;
+                case SpellTargetTypes.SelfArea:
+                    targetX = feetPos.X;
+                    targetY = feetPos.Y;
+                    targetZ = feetPos.Z;
+                    impactX = targetX;
+                    impactY = targetY;
+                    impactZ = targetZ;
+                    packetTargetName = SpellTargetTypes.GetDisplayName(SpellTargetTypes.SelfArea);
+                    spellPreviewMode = SpellPreviewModes.Area;
+                    break;
+                case SpellTargetTypes.LookArea:
+                    if (blockSel?.HitPosition != null)
+                    {
+                        impactX = blockSel.HitPosition.X;
+                        impactY = blockSel.HitPosition.Y;
+                        impactZ = blockSel.HitPosition.Z;
+                    }
+                    else if (entitySel?.Entity != null)
+                    {
+                        impactX = entitySel.HitPosition.X;
+                        impactY = entitySel.HitPosition.Y;
+                        impactZ = entitySel.HitPosition.Z;
+                    }
+                    else
+                    {
+                        impactX = toPos.X;
+                        impactY = toPos.Y;
+                        impactZ = toPos.Z;
+                    }
+
+                    targetX = impactX;
+                    targetY = impactY;
+                    targetZ = impactZ;
+                    packetTargetName = SpellTargetTypes.GetDisplayName(SpellTargetTypes.LookArea);
+                    spellPreviewMode = SpellPreviewModes.Area;
                     break;
                 case SpellTargetTypes.LookPosition:
                     if (blockSel?.HitPosition != null)
@@ -4657,15 +6587,13 @@ namespace TheRustweave
             switch (mode)
             {
                 case SpellPreviewModes.Self:
-                    RenderPreviewRing(center, locked ? 0.85d : 0.7d, color, locked ? 24 : 16, locked);
-                    RenderPreviewColumn(center, 1.3d, color, locked);
+                    RenderPreviewSelf(center, color, locked);
                     break;
                 case SpellPreviewModes.Entity:
-                    RenderPreviewRing(center, locked ? 0.9d : 0.75d, color, locked ? 28 : 20, locked);
-                    RenderPreviewColumn(center, 1.4d, color, locked);
+                    RenderPreviewEntity(center, color, locked);
                     break;
                 case SpellPreviewModes.Block:
-                    RenderPreviewBlockMarker(center, impact, color, locked);
+                    RenderPreviewBlock(center, color, locked);
                     break;
                 case SpellPreviewModes.Area:
                     RenderPreviewArea(center, packet.Radius > 0 ? packet.Radius : 2d, color, locked);
@@ -4678,9 +6606,30 @@ namespace TheRustweave
                     break;
                 case SpellPreviewModes.Position:
                 default:
-                    RenderPreviewRing(center, 0.65d, color, locked ? 16 : 10, locked);
+                    RenderPreviewPosition(center, color, locked);
                     break;
             }
+        }
+
+        private void RenderPreviewSelf(Vec3d center, int color, bool locked)
+        {
+            RenderPreviewRing(new Vec3d(center.X, center.Y + 0.02, center.Z), locked ? 0.52d : 0.46d, color, locked ? 6 : 4, locked);
+            SpawnPreviewParticle(new Vec3d(center.X, center.Y + 0.75, center.Z), color, locked ? 0.03f : 0.025f, locked ? 0.34f : 0.28f);
+        }
+
+        private void RenderPreviewEntity(Vec3d center, int color, bool locked)
+        {
+            RenderPreviewRing(new Vec3d(center.X, center.Y + 0.08, center.Z), locked ? 0.48d : 0.42d, color, locked ? 5 : 4, locked);
+            SpawnPreviewParticle(new Vec3d(center.X - 0.14, center.Y + 0.55, center.Z), color, locked ? 0.03f : 0.025f, locked ? 0.3f : 0.25f);
+            SpawnPreviewParticle(new Vec3d(center.X + 0.12, center.Y + 0.95, center.Z), color, locked ? 0.03f : 0.025f, locked ? 0.3f : 0.25f);
+            SpawnPreviewParticle(new Vec3d(center.X, center.Y + 1.22, center.Z), color, locked ? 0.03f : 0.025f, locked ? 0.3f : 0.25f);
+        }
+
+        private void RenderPreviewPosition(Vec3d center, int color, bool locked)
+        {
+            var groundY = center.Y + 0.02;
+            RenderPreviewRing(new Vec3d(center.X, groundY, center.Z), 0.2d, color, locked ? 6 : 4, locked);
+            SpawnPreviewParticle(new Vec3d(center.X, groundY + 0.1, center.Z), color, locked ? 0.028f : 0.022f, locked ? 0.3f : 0.24f);
         }
 
         private void RenderPreviewRing(Vec3d center, double radius, int color, int points, bool locked)
@@ -4690,49 +6639,68 @@ namespace TheRustweave
                 radius = 0.65d;
             }
 
-            var count = Math.Max(8, points);
+            var count = Math.Max(4, points);
             for (var i = 0; i < count; i++)
             {
                 var angle = (Math.PI * 2d * i) / count;
                 var x = center.X + Math.Cos(angle) * radius;
                 var z = center.Z + Math.Sin(angle) * radius;
-                SpawnPreviewParticle(new Vec3d(x, center.Y + 0.05, z), color, locked ? 0.14f : 0.1f, locked ? 0.5f : 0.35f);
+                SpawnPreviewParticle(new Vec3d(x, center.Y + 0.05, z), color, locked ? 0.038f : 0.03f, locked ? 0.38f : 0.32f);
             }
         }
 
-        private void RenderPreviewColumn(Vec3d center, double height, int color, bool locked)
+        private void RenderPreviewBlock(Vec3d topCenter, int color, bool locked)
         {
-            var segments = locked ? 5 : 4;
-            for (var i = 0; i < segments; i++)
-            {
-                var y = center.Y + (height * i / Math.Max(1, segments - 1));
-                SpawnPreviewParticle(new Vec3d(center.X, y, center.Z), color, locked ? 0.12f : 0.09f, locked ? 0.45f : 0.3f);
-            }
-        }
+            var bottomY = topCenter.Y - 1d;
+            var x0 = topCenter.X - 0.48d;
+            var x1 = topCenter.X + 0.48d;
+            var z0 = topCenter.Z - 0.48d;
+            var z1 = topCenter.Z + 0.48d;
 
-        private void RenderPreviewBlockMarker(Vec3d center, Vec3d impact, int color, bool locked)
-        {
-            RenderPreviewRing(new Vec3d(center.X, center.Y + 0.02, center.Z), 0.45d, color, locked ? 18 : 12, locked);
-            RenderPreviewColumn(new Vec3d(center.X, center.Y + 0.1, center.Z), 1.2d, color, locked);
-            if (impact != default)
+            var markers = new[]
             {
-                SpawnPreviewParticle(impact, color, locked ? 0.16f : 0.12f, locked ? 0.45f : 0.3f);
+                new Vec3d(x0, bottomY + 0.02, z0),
+                new Vec3d(x1, bottomY + 0.02, z0),
+                new Vec3d(x1, bottomY + 0.02, z1),
+                new Vec3d(x0, bottomY + 0.02, z1),
+                new Vec3d(x0, topCenter.Y + 0.02, z0),
+                new Vec3d(x1, topCenter.Y + 0.02, z0),
+                new Vec3d(x1, topCenter.Y + 0.02, z1),
+                new Vec3d(x0, topCenter.Y + 0.02, z1),
+                new Vec3d(topCenter.X, topCenter.Y + 0.03, z0),
+                new Vec3d(topCenter.X, topCenter.Y + 0.03, z1),
+                new Vec3d(x0, topCenter.Y + 0.03, topCenter.Z),
+                new Vec3d(x1, topCenter.Y + 0.03, topCenter.Z)
+            };
+
+            foreach (var marker in markers)
+            {
+                SpawnPreviewParticle(marker, color, locked ? 0.03f : 0.024f, locked ? 0.34f : 0.28f);
             }
+
+            RenderPreviewRing(new Vec3d(topCenter.X, topCenter.Y + 0.03, topCenter.Z), 0.28d, color, locked ? 6 : 4, locked);
         }
 
         private void RenderPreviewArea(Vec3d center, double radius, int color, bool locked)
         {
-            RenderPreviewRing(new Vec3d(center.X, center.Y + 0.02, center.Z), radius, color, locked ? 32 : 24, locked);
-            RenderPreviewRing(new Vec3d(center.X, center.Y + 0.12, center.Z), Math.Max(0.2d, radius * 0.55d), color, locked ? 24 : 16, locked);
+            RenderPreviewRing(new Vec3d(center.X, center.Y + 0.02, center.Z), radius, color, locked ? 8 : 6, locked);
+            var points = locked ? 8 : 6;
+            for (var i = 0; i < points; i++)
+            {
+                var angle = (Math.PI * 2d * i) / points;
+                var x = center.X + Math.Cos(angle) * radius;
+                var z = center.Z + Math.Sin(angle) * radius;
+                SpawnPreviewParticle(new Vec3d(x, center.Y + 0.22, z), color, locked ? 0.03f : 0.024f, locked ? 0.32f : 0.26f);
+            }
         }
 
         private void RenderPreviewProjectile(Vec3d source, Vec3d target, Vec3d impact, int color, bool usesGravity, bool showImpactPoint, bool locked)
         {
             var distance = source.DistanceTo(target);
-            var segments = Math.Max(8, (int)Math.Ceiling(distance * 2d));
+            var segments = Math.Max(4, (int)Math.Ceiling(distance / 1.25d));
             if (segments <= 0)
             {
-                segments = 8;
+                segments = 4;
             }
 
             for (var i = 0; i <= segments; i++)
@@ -4747,19 +6715,22 @@ namespace TheRustweave
                     y += arc;
                 }
 
-                SpawnPreviewParticle(new Vec3d(x, y, z), color, locked ? 0.14f : 0.1f, locked ? 0.45f : 0.3f);
+                if (i == 0 || i == segments || i % 2 == 0)
+                {
+                    SpawnPreviewParticle(new Vec3d(x, y, z), color, locked ? 0.032f : 0.026f, locked ? 0.3f : 0.24f);
+                }
             }
 
             if (showImpactPoint)
             {
-                RenderPreviewRing(new Vec3d(impact.X, impact.Y + 0.02, impact.Z), 0.25d, color, locked ? 12 : 8, locked);
+                RenderPreviewRing(new Vec3d(impact.X, impact.Y + 0.02, impact.Z), 0.16d, color, locked ? 5 : 4, locked);
             }
         }
 
         private void RenderPreviewLine(Vec3d source, Vec3d target, Vec3d impact, int color, double width, bool showImpactPoint, bool locked)
         {
             var distance = source.DistanceTo(target);
-            var segments = Math.Max(8, (int)Math.Ceiling(distance * 2d));
+            var segments = Math.Max(4, (int)Math.Ceiling(distance / 1.25d));
             var dx = target.X - source.X;
             var dz = target.Z - source.Z;
             var length = Math.Sqrt((dx * dx) + (dz * dz));
@@ -4770,7 +6741,7 @@ namespace TheRustweave
 
             var perpX = -dz / length;
             var perpZ = dx / length;
-            var halfWidth = Math.Max(0.1d, width * 0.5d);
+            var halfWidth = Math.Max(0.08d, width * 0.5d);
             var offsets = new[] { -halfWidth, 0d, halfWidth };
 
             foreach (var offset in offsets)
@@ -4781,13 +6752,16 @@ namespace TheRustweave
                     var x = source.X + (dx * t) + (perpX * offset);
                     var y = source.Y + ((target.Y - source.Y) * t);
                     var z = source.Z + (dz * t) + (perpZ * offset);
-                    SpawnPreviewParticle(new Vec3d(x, y, z), color, locked ? 0.12f : 0.09f, locked ? 0.45f : 0.3f);
+                    if (i == 0 || i == segments || i % 3 == 0)
+                    {
+                        SpawnPreviewParticle(new Vec3d(x, y, z), color, locked ? 0.03f : 0.024f, locked ? 0.28f : 0.22f);
+                    }
                 }
             }
 
             if (showImpactPoint)
             {
-                RenderPreviewRing(new Vec3d(impact.X, impact.Y + 0.02, impact.Z), Math.Max(0.2d, width * 0.5d), color, locked ? 12 : 8, locked);
+                RenderPreviewRing(new Vec3d(impact.X, impact.Y + 0.02, impact.Z), Math.Max(0.14d, width * 0.35d), color, locked ? 5 : 4, locked);
             }
         }
 
@@ -4802,7 +6776,7 @@ namespace TheRustweave
             var maxPos = new Vec3d(pos.X + 0.03, pos.Y + 0.03, pos.Z + 0.03);
             var minVelocity = new Vec3d(0, 0.01, 0);
             var maxVelocity = new Vec3d(0, 0.02, 0);
-            capi.World.SpawnParticles(1, color, minPos, maxPos, new Vec3f((float)minVelocity.X, (float)minVelocity.Y, (float)minVelocity.Z), new Vec3f((float)maxVelocity.X, (float)maxVelocity.Y, (float)maxVelocity.Z), size, -0.01f, lifeLength, EnumParticleModel.Quad, capi.World.Player);
+            capi.World.SpawnParticles(1, color, minPos, maxPos, new Vec3f((float)minVelocity.X, (float)minVelocity.Y, (float)minVelocity.Z), new Vec3f((float)maxVelocity.X, (float)maxVelocity.Y, (float)maxVelocity.Z), Math.Min(size, 0.045f), -0.01f, Math.Min(lifeLength, 0.38f), EnumParticleModel.Quad, capi.World.Player);
         }
 
         private string GetBlockDisplayName(BlockPos pos)
@@ -4825,6 +6799,66 @@ namespace TheRustweave
             return "Block";
         }
 
+        private string GetBlockEntityDisplayName(BlockPos pos)
+        {
+            if (capi.World?.BlockAccessor == null || pos == null)
+            {
+                return "Block Entity";
+            }
+
+            var blockEntity = capi.World.BlockAccessor.GetBlockEntity(pos);
+            if (blockEntity?.Block?.Code != null)
+            {
+                var code = blockEntity.Block.Code.Path;
+                if (!string.IsNullOrWhiteSpace(code))
+                {
+                    return code;
+                }
+            }
+
+            if (blockEntity != null)
+            {
+                var typeName = blockEntity.GetType().Name;
+                if (!string.IsNullOrWhiteSpace(typeName))
+                {
+                    return typeName;
+                }
+            }
+
+            return "Block Entity";
+        }
+
+        private static bool TryGetBlockEntityInventory(BlockEntity? blockEntity, out IInventory? inventory)
+        {
+            inventory = null;
+            if (blockEntity == null)
+            {
+                return false;
+            }
+
+            var type = blockEntity.GetType();
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+            foreach (var memberName in new[] { "Inventory", "inventory" })
+            {
+                var property = type.GetProperty(memberName, flags);
+                if (property?.GetValue(blockEntity) is IInventory propertyInventory)
+                {
+                    inventory = propertyInventory;
+                    return true;
+                }
+
+                var field = type.GetField(memberName, flags);
+                if (field?.GetValue(blockEntity) is IInventory fieldInventory)
+                {
+                    inventory = fieldInventory;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private static int GetPreviewColor(string colorClass)
         {
             if (string.Equals(colorClass, SpellPreviewColorClasses.Harmful, StringComparison.OrdinalIgnoreCase))
@@ -4839,6 +6873,122 @@ namespace TheRustweave
 
             return unchecked((int)0xFFC58A4A);
         }
+
+        private static int GetTargetedWarningColor(string warningType)
+        {
+            if (string.Equals(warningType, SpellWarningTypes.Hostile, StringComparison.OrdinalIgnoreCase))
+            {
+                return unchecked((int)0xFFFF4B4B);
+            }
+
+            if (string.Equals(warningType, SpellWarningTypes.Beneficial, StringComparison.OrdinalIgnoreCase))
+            {
+                return unchecked((int)0xFF4BE06F);
+            }
+
+            return unchecked((int)0xFFC58A4A);
+        }
+
+        private void UpdateTargetedWarningVisuals()
+        {
+            if (activeTargetedWarnings.Count == 0)
+            {
+                return;
+            }
+
+            var now = capi.World?.ElapsedMilliseconds ?? 0;
+            foreach (var entry in activeTargetedWarnings.ToArray())
+            {
+                var key = entry.Key;
+                var warning = entry.Value;
+                if (warning == null || !warning.IsActive || now >= warning.ExpiresAtMs)
+                {
+                    activeTargetedWarnings.Remove(key);
+                    activeTargetedWarningRenderTimes.Remove(key);
+                    continue;
+                }
+
+                if (!activeTargetedWarningRenderTimes.TryGetValue(key, out var lastRender) || now - lastRender >= 220)
+                {
+                    RenderTargetedWarning(warning);
+                    activeTargetedWarningRenderTimes[key] = now;
+                }
+            }
+        }
+
+          private void RenderTargetedWarning(RustweaveTargetedWarningPacket packet)
+          {
+              if (packet == null || capi.World == null)
+              {
+                  return;
+              }
+
+              var color = GetTargetedWarningColor(packet.WarningType);
+              var personal = packet.IsPersonalWarning;
+              var center = ResolveWarningTargetCenter(packet);
+              var origin = new Vec3d(packet.OriginX, packet.OriginY, packet.OriginZ);
+              var phase = ((capi.World.ElapsedMilliseconds - packet.StartedAtMs) / 220d) * Math.PI * 2d;
+              RenderWarningOrbit(center, personal ? 0.64d : 0.52d, color, personal ? 10 : 6, personal, phase, 0.52d);
+              if (personal)
+              {
+                  RenderWarningOrbit(center, 0.28d, color, 4, true, -phase * 0.8d, 1.08d);
+              }
+              RenderWarningDirectionMarker(center, origin, color, personal);
+          }
+
+        private Vec3d ResolveWarningTargetCenter(RustweaveTargetedWarningPacket packet)
+        {
+            if (packet.TargetEntityId >= 0)
+            {
+                var targetEntity = capi.World?.GetEntityById(packet.TargetEntityId);
+                if (targetEntity != null && targetEntity.Alive)
+                {
+                    return targetEntity.Pos.XYZ;
+                }
+            }
+
+            return new Vec3d(packet.TargetX, packet.TargetY, packet.TargetZ);
+        }
+
+          private void RenderWarningOrbit(Vec3d center, double radius, int color, int points, bool personal, double phase, double heightOffset)
+          {
+              var count = Math.Max(4, points);
+              for (var i = 0; i < count; i++)
+              {
+                  var angle = phase + ((Math.PI * 2d * i) / count);
+                  var x = center.X + Math.Cos(angle) * radius;
+                  var z = center.Z + Math.Sin(angle) * radius;
+                  var y = center.Y + heightOffset + ((i % 2 == 0) ? 0.03d : -0.01d);
+                  SpawnWarningParticle(new Vec3d(x, y, z), color, personal ? 0.03f : 0.024f, personal ? 0.34f : 0.28f);
+              }
+          }
+
+          private void RenderWarningDirectionMarker(Vec3d center, Vec3d origin, int color, bool personal)
+          {
+              var direction = new Vec3d(origin.X - center.X, 0, origin.Z - center.Z);
+              var length = Math.Sqrt((direction.X * direction.X) + (direction.Z * direction.Z));
+            if (length <= 0.001d)
+            {
+                return;
+            }
+
+              direction.X /= length;
+              direction.Z /= length;
+              var offset = personal ? 1.15d : 0.9d;
+              var height = center.Y + 0.15;
+              for (var i = 0; i < 2; i++)
+              {
+                  var t = (i + 1) / 2d;
+                  var x = center.X + (direction.X * offset * t);
+                  var z = center.Z + (direction.Z * offset * t);
+                  SpawnWarningParticle(new Vec3d(x, height + (t * 0.05d), z), color, personal ? 0.028f : 0.022f, personal ? 0.28f : 0.22f);
+              }
+          }
+
+          private void SpawnWarningParticle(Vec3d pos, int color, float size, float lifeLength)
+          {
+              SpawnPreviewParticle(pos, color, Math.Min(size, 0.035f), Math.Min(lifeLength, 0.34f));
+          }
 
         private void UpdateTargetPreviewVisuals()
         {
@@ -4860,7 +7010,12 @@ namespace TheRustweave
                     continue;
                 }
 
-                if (!activeTargetPreviewRenderTimes.TryGetValue(key, out var lastRender) || now - lastRender >= 120)
+                if ((currentCastState.IsCasting || currentTargetLock.IsActive) && !preview.IsLocked)
+                {
+                    continue;
+                }
+
+                if (!activeTargetPreviewRenderTimes.TryGetValue(key, out var lastRender) || now - lastRender >= 200)
                 {
                     RenderTargetPreview(preview);
                     activeTargetPreviewRenderTimes[key] = now;
@@ -4887,12 +7042,13 @@ namespace TheRustweave
                 return true;
             }
 
-            lastStateJson = serialized;
-            currentState = syncedState;
-            capi.Logger.Debug("[TheRustweave] Prepared slot state loaded: {0} slots, active slot {1}.", currentState.PreparedSpellCodes.Count, currentState.SelectedPreparedSpellIndex);
-            corruptionHud?.SetState(currentState);
-            prepDialog?.SetState(currentState);
-            return true;
+                lastStateJson = serialized;
+                currentState = syncedState;
+                ApplyLocalPreparedSelection();
+            capi.Logger.Debug("[TheRustweave] Prepared slot state loaded: {0} slots, active slot {1}.", currentState.PreparedSpellCodes.Count, RustweaveStateService.DescribePreparedSlot(currentState.SelectedPreparedSpellIndex));
+                corruptionHud?.SetState(currentState);
+                prepDialog?.SetState(currentState);
+                return true;
         }
 
         private void OnMouseWheelMove(MouseWheelEventArgs args)
@@ -4932,7 +7088,7 @@ namespace TheRustweave
             }
 
             RequestSelectPreparedSpell(nextSlot);
-            capi.ShowChatMessage(Lang.Get("game:rustweave-selected-spell", RustweaveStateService.GetPreparedSpellCode(currentState, nextSlot)));
+            capi.ShowChatMessage(Lang.Get("game:rustweave-selected-slot", RustweaveStateService.ToDisplaySlotNumber(nextSlot), RustweaveStateService.GetPreparedSlotDisplayText(currentState, nextSlot)));
             args.SetHandled(true);
         }
 
@@ -4956,6 +7112,7 @@ namespace TheRustweave
             UpdateCastHud();
             UpdateTargetLockHud();
             UpdateTargetPreviewVisuals();
+            UpdateTargetedWarningVisuals();
             CancelCastIfGuiOpened();
             CancelCastIfHoldingWrongItem(player);
         }
@@ -4969,10 +7126,10 @@ namespace TheRustweave
                 if (RustweaveStateService.TryDeserializePlayerState(stateJson, out var syncedState))
                 {
                     currentState = syncedState;
+                    ApplyLocalPreparedSelection();
                 }
                 corruptionHud?.SetState(currentState);
                 prepDialog?.SetState(currentState);
-                targetLockHud?.SetState(currentTargetLock, currentCastState, currentState);
             }
 
             if (string.IsNullOrWhiteSpace(stateJson))
@@ -4989,7 +7146,6 @@ namespace TheRustweave
                     currentCastState = syncedCastState;
                 }
                 castHud?.SetState(currentCastState, currentState);
-                targetLockHud?.SetState(currentTargetLock, currentCastState, currentState);
             }
         }
 
@@ -5008,48 +7164,32 @@ namespace TheRustweave
             }
         }
 
+        private int GetSelectedPreparedSlotIndex()
+        {
+            if (RustweaveStateService.IsValidSlotIndex(localSelectedPreparedSpellIndex))
+            {
+                return localSelectedPreparedSpellIndex;
+            }
+
+            return currentState.SelectedPreparedSpellIndex;
+        }
+
+        private void ApplyLocalPreparedSelection()
+        {
+            if (RustweaveStateService.IsValidSlotIndex(localSelectedPreparedSpellIndex))
+            {
+                currentState.SelectedPreparedSpellIndex = localSelectedPreparedSpellIndex;
+            }
+        }
+
         private void UpdateTargetLockHud()
         {
-            EnsureTargetLockHud();
-            var hud = targetLockHud;
-            if (hud == null)
-            {
-                return;
-            }
-
-            var shouldShowPreview = !currentCastState.IsCasting && ShouldShowPreviewTargetLockHud();
-            if ((currentTargetLock == null || !currentTargetLock.IsActive || !currentCastState.IsCasting) && !shouldShowPreview)
-            {
-                if (hud.IsOpened())
-                {
-                    hud.TryClose();
-                }
-
-                return;
-            }
-
-            hud.SetState(shouldShowPreview ? new RustweaveTargetLockPacket() : currentTargetLock, currentCastState, currentState);
-            if (!hud.IsOpened())
-            {
-                hud.TryOpen();
-            }
+            return;
         }
 
         private bool ShouldShowPreviewTargetLockHud()
         {
-            var player = capi.World?.Player;
-            if (player == null || !RustweaveStateService.IsRustweaver(player) || !RustweaveStateService.IsHoldingTome(player))
-            {
-                return false;
-            }
-
-            var selectedSpellCode = RustweaveStateService.GetSelectedPreparedSpellCode(currentState);
-            if (string.IsNullOrWhiteSpace(selectedSpellCode))
-            {
-                return false;
-            }
-
-            return RustweaveRuntime.SpellRegistry.TryGetSpell(selectedSpellCode, out var spell) && spell != null;
+            return false;
         }
 
         private void UpdateCastHud()
@@ -5106,11 +7246,16 @@ namespace TheRustweave
         private void CloseAllDialogs()
         {
             currentTargetLock = new RustweaveTargetLockPacket();
-            targetLockHud?.SetState(currentTargetLock, currentCastState, currentState);
+            ClearTargetedWarnings();
             corruptionHud?.TryClose();
             castHud?.TryClose();
-            targetLockHud?.TryClose();
             prepDialog?.TryClose();
+        }
+
+        private void ClearTargetedWarnings()
+        {
+            activeTargetedWarnings.Clear();
+            activeTargetedWarningRenderTimes.Clear();
         }
 
         private void EnsureCorruptionHud()

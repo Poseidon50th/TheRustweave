@@ -12,7 +12,7 @@
     "cooldownSeconds": 0,
     "corruptionCost": 25,
     "targetType": "self",
-    "range": 0,
+    "range": 16,
     "radius": 0,
     "requiresLineOfSight": false,
     "requiresTome": true,
@@ -39,7 +39,7 @@
     "cooldownSeconds": 8,
     "corruptionCost": 30,
     "targetType": "inventory",
-    "range": 0,
+    "range": 16,
     "radius": 0,
     "requiresLineOfSight": false,
     "requiresTome": true,
@@ -76,8 +76,8 @@
     "castTimeSeconds": 1.5,
     "cooldownSeconds": 12,
     "corruptionCost": 20,
-    "targetType": "self",
-    "range": 0,
+    "targetType": "lookBlock",
+    "range": 16,
     "radius": 0,
     "requiresLineOfSight": false,
     "requiresTome": true,
@@ -238,5 +238,1046 @@
       }
     ],
     "icon": "therustweave:spell/loreweave-glimmer"
+  },
+  {
+    "code": "test-warping-field",
+    "name": "Hidden Test: Warping Field",
+    "description": "Hidden validation spell for warping fields.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Warping",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "selfArea",
+    "range": 0,
+    "radius": 8,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "modifyTemporalStability",
+        "durationSeconds": 12,
+        "amount": -10
+      },
+      {
+        "type": "stabilizeArea",
+        "durationSeconds": 12,
+        "amount": 10
+      },
+      {
+        "type": "modifyCorruptionGain",
+        "durationSeconds": 12,
+        "amount": -10
+      },
+      {
+        "type": "preventDisplacement",
+        "durationSeconds": 12
+      }
+    ]
+  },
+  {
+    "code": "test-warping-entity",
+    "name": "Hidden Test: Warping Entity",
+    "description": "Hidden validation spell for anchoring a living target.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Warping",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookNonPlayerEntity",
+    "range": 16,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "anchorEntity",
+        "durationSeconds": 12
+      },
+      {
+        "type": "preventDisplacement",
+        "durationSeconds": 12
+      }
+    ]
+  },
+  {
+    "code": "test-warping-block",
+    "name": "Hidden Test: Warping Block",
+    "description": "Hidden validation spell for block anchoring.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Warping",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookBlock",
+    "range": 16,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "anchorBlock",
+        "durationSeconds": 12
+      }
+    ]
+  },
+  {
+    "code": "test-wefting-teleport",
+    "name": "Hidden Test: Wefting Step",
+    "description": "Hidden validation spell for destination teleporting.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Wefting",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookBlock",
+    "range": 16,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "teleportToTarget"
+      }
+    ]
+  },
+  {
+    "code": "test-wefting-entity",
+    "name": "Hidden Test: Wefting Entity",
+    "description": "Hidden validation spell for entity repositioning.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Wefting",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1.5,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookNonPlayerEntity",
+    "range": 16,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "teleportEntityToCaster"
+      },
+      {
+        "type": "teleportEntityToPosition"
+      },
+      {
+        "type": "swapPositions"
+      },
+      {
+        "type": "pushEntity",
+        "force": 1.5
+      }
+    ]
+  },
+  {
+    "code": "test-wefting-item",
+    "name": "Hidden Test: Wefting Item",
+    "description": "Hidden validation spell for dropped item movement.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Wefting",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookDroppedItem",
+    "range": 16,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "moveDroppedItem"
+      }
+    ]
+  },
+  {
+    "code": "test-wefting-container",
+    "name": "Hidden Test: Wefting Container",
+    "description": "Hidden validation spell for container inventory movement.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Wefting",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookContainer",
+    "range": 16,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "moveBlockEntityContents"
+      }
+    ]
+  },
+  {
+    "code": "test-shedding-entity",
+    "name": "Hidden Test: Shedding Entity",
+    "description": "Hidden validation spell for releasing and separating entity bindings.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Shedding",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookNonPlayerEntity",
+    "range": 16,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "releaseTarget"
+      },
+      {
+        "type": "breakBinding"
+      },
+      {
+        "type": "separateTarget"
+      }
+    ]
+  },
+  {
+    "code": "test-shedding-block",
+    "name": "Hidden Test: Shedding Block",
+    "description": "Hidden validation spell for passage and rift opening.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Shedding",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookBlock",
+    "range": 16,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "openLock"
+      },
+      {
+        "type": "openPassage"
+      },
+      {
+        "type": "createRift",
+        "durationSeconds": 10,
+        "radius": 4
+      },
+      {
+        "type": "closeRift"
+      }
+    ]
+  },
+  {
+    "code": "test-picking-entity",
+    "name": "Hidden Test: Picking Entity",
+    "description": "Hidden validation spell for marks and precise strikes.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Picking",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookNonPlayerEntity",
+    "range": 16,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "markTarget",
+        "durationSeconds": 12
+      },
+      {
+        "type": "weakPointStrike",
+        "damageAmount": 8
+      }
+    ]
+  },
+  {
+    "code": "test-picking-block",
+    "name": "Hidden Test: Picking Block",
+    "description": "Hidden validation spell for precise block strikes.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Picking",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookBlock",
+    "range": 16,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "precisionBlockStrike"
+      }
+    ]
+  },
+  {
+    "code": "test-beating-area",
+    "name": "Hidden Test: Beating Area",
+    "description": "Hidden validation spell for force pulses and shockwaves.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Beating",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "selfArea",
+    "range": 0,
+    "radius": 8,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "forcePulse",
+        "force": 1.5
+      },
+      {
+        "type": "shockwave",
+        "force": 2
+      },
+      {
+        "type": "pressureBlast",
+        "force": 2.5
+      },
+      {
+        "type": "staggerArea",
+        "durationSeconds": 4
+      }
+    ]
+  },
+  {
+    "code": "test-twining-entity",
+    "name": "Hidden Test: Twining Entity",
+    "description": "Hidden validation spell for entity tethers and charm.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Twining",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1.5,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookNonPlayerEntity",
+    "range": 16,
+    "radius": 4,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "tetherEntity",
+        "durationSeconds": 12,
+        "radius": 4
+      },
+      {
+        "type": "linkEntities",
+        "durationSeconds": 12
+      },
+      {
+        "type": "bindEntityToArea",
+        "durationSeconds": 12,
+        "radius": 4
+      },
+      {
+        "type": "charmEntity",
+        "durationSeconds": 12
+      },
+      {
+        "type": "commandEntity",
+        "durationSeconds": 12
+      }
+    ]
+  },
+  {
+    "code": "test-darning-block",
+    "name": "Hidden Test: Darning Block",
+    "description": "Hidden validation spell for block repair and restoration.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Darning",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookBlock",
+    "range": 16,
+    "radius": 8,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "repairBlock",
+        "blockCode": "game:dirt"
+      },
+      {
+        "type": "repairBlockArea",
+        "radius": 8,
+        "blockCode": "game:dirt"
+      },
+      {
+        "type": "restoreStructure"
+      }
+    ]
+  },
+  {
+    "code": "test-darning-self",
+    "name": "Hidden Test: Darning Self",
+    "description": "Hidden validation spell for healing over time.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Darning",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "self",
+    "range": 0,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "healOverTime",
+        "durationSeconds": 12,
+        "healthAmount": 6
+      }
+    ]
+  },
+  {
+    "code": "test-backstitching-entity",
+    "name": "Hidden Test: Backstitching Entity",
+    "description": "Hidden validation spell for counters, rewind, and canceling effects.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Backstitching",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1.5,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookEntity",
+    "range": 16,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "counterNextHostileEffect",
+        "durationSeconds": 12
+      },
+      {
+        "type": "reflectProjectile",
+        "durationSeconds": 12
+      },
+      {
+        "type": "rewindEntityPosition",
+        "durationSeconds": 12
+      },
+      {
+        "type": "undoRecentEffect"
+      },
+      {
+        "type": "cancelActiveEffect"
+      }
+    ]
+  },
+  {
+    "code": "test-hemming",
+    "name": "Hidden Test: Hemming",
+    "description": "Hidden validation spell for wards, barriers, and containment.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Hemming",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1.5,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "selfArea",
+    "range": 0,
+    "radius": 8,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "createWardArea",
+        "durationSeconds": 12,
+        "radius": 8
+      },
+      {
+        "type": "createBarrier",
+        "durationSeconds": 12,
+        "radius": 8
+      },
+      {
+        "type": "createContainmentArea",
+        "durationSeconds": 12,
+        "radius": 8
+      },
+      {
+        "type": "createBoundaryLine",
+        "durationSeconds": 12,
+        "radius": 8
+      },
+      {
+        "type": "createAntiSpreadArea",
+        "durationSeconds": 12,
+        "radius": 8
+      }
+    ]
+  },
+  {
+    "code": "test-carding",
+    "name": "Hidden Test: Carding",
+    "description": "Hidden validation spell for detection and glyph-reading.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Carding",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookArea",
+    "range": 16,
+    "radius": 8,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "detectBlocks",
+        "radius": 8,
+        "blockCodes": ["game:dirt"]
+      },
+      {
+        "type": "detectEntities",
+        "radius": 8,
+        "entityCodes": ["game:drifter"]
+      },
+      {
+        "type": "detectRustTraces",
+        "radius": 8
+      },
+      {
+        "type": "identifyActiveEffects",
+        "radius": 8
+      },
+      {
+        "type": "readGlyphs",
+        "radius": 8
+      },
+      {
+        "type": "alignNextSpell",
+        "durationSeconds": 12
+      }
+    ]
+  },
+  {
+    "code": "test-scouring-entity",
+    "name": "Hidden Test: Scouring Entity",
+    "description": "Hidden validation spell for cleansing and lifesteal.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Scouring",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1.5,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookNonPlayerEntity",
+    "range": 16,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "purgeTimedEffects",
+        "durationSeconds": 12
+      },
+      {
+        "type": "stripEntityBuffs",
+        "durationSeconds": 12
+      },
+      {
+        "type": "cleanseContamination",
+        "durationSeconds": 12
+      },
+      {
+        "type": "unravelDamage"
+      },
+      {
+        "type": "lifestealEntity",
+        "damageAmount": 4,
+        "healthAmount": 4
+      }
+    ]
+  },
+  {
+    "code": "test-scouring-block",
+    "name": "Hidden Test: Scouring Block",
+    "description": "Hidden validation spell for corrupted matter removal.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Scouring",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookBlock",
+    "range": 16,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "destroyCorruptedMatter"
+      }
+    ]
+  },
+  {
+    "code": "test-fulling-held",
+    "name": "Hidden Test: Fulling Held",
+    "description": "Hidden validation spell for held item conversion.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Fulling",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "heldItem",
+    "range": 0,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "convertHeldItem",
+        "itemCode": "game:stick"
+      }
+    ]
+  },
+  {
+    "code": "test-fulling-block",
+    "name": "Hidden Test: Fulling Block",
+    "description": "Hidden validation spell for block conversion and hardening.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Fulling",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1.5,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookBlockEntity",
+    "range": 16,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "convertBlock",
+        "resultBlockCode": "game:dirt"
+      },
+      {
+        "type": "hardenMaterial",
+        "resultBlockCode": "game:dirt",
+        "durationSeconds": 12
+      },
+      {
+        "type": "heatMaterial",
+        "durationSeconds": 12
+      },
+      {
+        "type": "coolMaterial",
+        "durationSeconds": 12
+      },
+      {
+        "type": "accelerateCraftState",
+        "durationSeconds": 12
+      }
+    ]
+  },
+  {
+    "code": "test-spinning-position",
+    "name": "Hidden Test: Spinning Position",
+    "description": "Hidden validation spell for temporary summons.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Spinning",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1.5,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookPosition",
+    "range": 16,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "summonTemporaryEntity",
+        "entityCode": "game:drifter",
+        "despawnAfterSeconds": 12
+      },
+      {
+        "type": "summonTemporaryProjectile",
+        "entityCode": "game:drifter",
+        "despawnAfterSeconds": 12
+      },
+      {
+        "type": "summonTemporaryConstruct",
+        "blockCode": "game:dirt",
+        "despawnAfterSeconds": 12
+      }
+    ]
+  },
+  {
+    "code": "test-spinning-self",
+    "name": "Hidden Test: Spinning Self",
+    "description": "Hidden validation spell for temporary item creation.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Spinning",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "self",
+    "range": 0,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "summonTemporaryItem",
+        "itemCode": "game:stick",
+        "despawnAfterSeconds": 12
+      }
+    ]
+  },
+  {
+    "code": "test-grafting-area",
+    "name": "Hidden Test: Grafting Area",
+    "description": "Hidden validation spell for crop and soil adjustment.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Grafting",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookArea",
+    "range": 16,
+    "radius": 8,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "modifyCropGrowth",
+        "durationSeconds": 12,
+        "amount": 1
+      },
+      {
+        "type": "modifyFarmlandNutrients",
+        "durationSeconds": 12,
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "code": "test-grafting-entity",
+    "name": "Hidden Test: Grafting Entity",
+    "description": "Hidden validation spell for fertility and vitality.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Grafting",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookNonPlayerEntity",
+    "range": 16,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "modifyAnimalFertility",
+        "durationSeconds": 12,
+        "amount": 1
+      },
+      {
+        "type": "vitalityOverTime",
+        "durationSeconds": 12,
+        "healthAmount": 4
+      }
+    ]
+  },
+  {
+    "code": "test-grafting-self",
+    "name": "Hidden Test: Grafting Self",
+    "description": "Hidden validation spell for satiety and temporary food.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Grafting",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "self",
+    "range": 0,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "modifySatiety",
+        "amount": 6
+      },
+      {
+        "type": "createTemporaryFood",
+        "itemCode": "game:bread",
+        "amount": 1,
+        "despawnAfterSeconds": 12
+      }
+    ]
+  },
+  {
+    "code": "test-scutching",
+    "name": "Hidden Test: Scutching",
+    "description": "Hidden validation spell for block harvesting and extraction.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Scutching",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1.5,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookBlock",
+    "range": 16,
+    "radius": 8,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "mineBlock"
+      },
+      {
+        "type": "excavateBlocks",
+        "maxBlocks": 8
+      },
+      {
+        "type": "extractOre"
+      },
+      {
+        "type": "harvestBlocks"
+      }
+    ]
+  },
+  {
+    "code": "test-tensioning",
+    "name": "Hidden Test: Tensioning",
+    "description": "Hidden validation spell for weather and pressure effects.",
+    "enabled": true,
+    "hidden": true,
+    "school": "Tensioning",
+    "category": "Test",
+    "tier": 1,
+    "castTimeSeconds": 1.5,
+    "cooldownSeconds": 0,
+    "corruptionCost": 0,
+    "targetType": "lookArea",
+    "range": 16,
+    "radius": 8,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "effects": [
+      {
+        "type": "changeWeather",
+        "weatherType": "rain"
+      },
+      {
+        "type": "changeTemperatureArea",
+        "durationSeconds": 12,
+        "amount": 1
+      },
+      {
+        "type": "callLightning",
+        "weatherType": "storm"
+      },
+      {
+        "type": "changeEnvironmentalPressure",
+        "durationSeconds": 12,
+        "amount": 1
+      },
+      {
+        "type": "stormPulse",
+        "durationSeconds": 12,
+        "amount": 1
+      }
+    ]
   }
 ]

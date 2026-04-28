@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using Newtonsoft.Json;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -20,6 +21,7 @@ namespace TheRustweave
         public const string Shedding = "Shedding";
         public const string Picking = "Picking";
         public const string Beating = "Beating";
+        public const string Twining = "Twining";
         public const string Twinning = "Twinning";
         public const string Darning = "Darning";
         public const string Backstitching = "Backstitching";
@@ -41,7 +43,7 @@ namespace TheRustweave
             Shedding,
             Picking,
             Beating,
-            Twinning,
+            Twining,
             Darning,
             Backstitching,
             Hemming,
@@ -53,6 +55,22 @@ namespace TheRustweave
             Scutching,
             Tensioning
         };
+
+        public static string Normalize(string? school)
+        {
+            if (string.IsNullOrWhiteSpace(school))
+            {
+                return string.Empty;
+            }
+
+            var trimmed = school.Trim();
+            if (string.Equals(trimmed, Twinning, StringComparison.OrdinalIgnoreCase))
+            {
+                return Twining;
+            }
+
+            return Recognized.FirstOrDefault(known => string.Equals(known, trimmed, StringComparison.OrdinalIgnoreCase)) ?? trimmed;
+        }
     }
 
     internal static class SpellTargetTypes
@@ -63,6 +81,13 @@ namespace TheRustweave
         public const string LookEntity = "lookEntity";
         public const string LookBlock = "lookBlock";
         public const string LookPosition = "lookPosition";
+        public const string LookPlayer = "lookPlayer";
+        public const string LookNonPlayerEntity = "lookNonPlayerEntity";
+        public const string LookDroppedItem = "lookDroppedItem";
+        public const string LookBlockEntity = "lookBlockEntity";
+        public const string LookContainer = "lookContainer";
+        public const string SelfArea = "selfArea";
+        public const string LookArea = "lookArea";
 
         public static readonly HashSet<string> Supported = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -71,8 +96,103 @@ namespace TheRustweave
             Inventory,
             LookEntity,
             LookBlock,
-            LookPosition
+            LookPosition,
+            LookPlayer,
+            LookNonPlayerEntity,
+            LookDroppedItem,
+            LookBlockEntity,
+            LookContainer,
+            SelfArea,
+            LookArea
         };
+
+        public static string Normalize(string? targetType)
+        {
+            if (string.IsNullOrWhiteSpace(targetType))
+            {
+                return string.Empty;
+            }
+
+            var trimmed = targetType.Trim();
+            return Supported.FirstOrDefault(known => string.Equals(known, trimmed, StringComparison.OrdinalIgnoreCase)) ?? trimmed;
+        }
+
+        public static string GetDisplayName(string targetType)
+        {
+            return targetType switch
+            {
+                Self => "Self",
+                HeldItem => "Held Item",
+                Inventory => "Inventory",
+                LookEntity => "Entity",
+                LookPlayer => "Player",
+                LookNonPlayerEntity => "Creature/NPC",
+                LookDroppedItem => "Dropped Item",
+                LookBlock => "Block",
+                LookBlockEntity => "Block Entity",
+                LookContainer => "Container",
+                SelfArea => "Area Around Self",
+                LookArea => "Targeted Area",
+                LookPosition => "Position",
+                _ => targetType
+            };
+        }
+
+        public static bool IsEntityTarget(string? targetType)
+        {
+            return string.Equals(targetType, LookEntity, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetType, LookPlayer, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetType, LookNonPlayerEntity, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetType, LookDroppedItem, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsLivingEntityTarget(string? targetType)
+        {
+            return string.Equals(targetType, LookEntity, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetType, LookPlayer, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetType, LookNonPlayerEntity, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsPlayerTarget(string? targetType)
+        {
+            return string.Equals(targetType, LookPlayer, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsNonPlayerEntityTarget(string? targetType)
+        {
+            return string.Equals(targetType, LookNonPlayerEntity, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsDroppedItemTarget(string? targetType)
+        {
+            return string.Equals(targetType, LookDroppedItem, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsBlockTarget(string? targetType)
+        {
+            return string.Equals(targetType, LookBlock, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetType, LookBlockEntity, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetType, LookContainer, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool IsAreaTarget(string? targetType)
+        {
+            return string.Equals(targetType, SelfArea, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetType, LookArea, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool RequiresLookRange(string? targetType)
+        {
+            return string.Equals(targetType, LookEntity, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetType, LookPlayer, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetType, LookNonPlayerEntity, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetType, LookDroppedItem, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetType, LookBlock, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetType, LookBlockEntity, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetType, LookContainer, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetType, LookPosition, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(targetType, LookArea, StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     internal static class SpellPreviewModes
@@ -135,6 +255,31 @@ namespace TheRustweave
         }
     }
 
+    internal static class SpellWarningTypes
+    {
+        public const string Neutral = "neutral";
+        public const string Hostile = "hostile";
+        public const string Beneficial = "beneficial";
+
+        public static readonly HashSet<string> Supported = new(StringComparer.OrdinalIgnoreCase)
+        {
+            Neutral,
+            Hostile,
+            Beneficial
+        };
+
+        public static string Normalize(string? warningType)
+        {
+            if (string.IsNullOrWhiteSpace(warningType))
+            {
+                return Neutral;
+            }
+
+            var trimmed = warningType.Trim();
+            return Supported.FirstOrDefault(known => string.Equals(known, trimmed, StringComparison.OrdinalIgnoreCase)) ?? Neutral;
+        }
+    }
+
     internal static class SpellPreviewMarkerStyles
     {
         public const string Ring = "ring";
@@ -191,6 +336,105 @@ namespace TheRustweave
         public const string TeleportForward = "teleportForward";
         public const string SpawnParticles = "spawnParticles";
         public const string PlaySound = "playSound";
+        // Planned Warping effects. Add to Supported only when the runtime can execute them safely.
+        public const string ModifyTemporalStability = "modifyTemporalStability";
+        public const string StabilizeArea = "stabilizeArea";
+        public const string AnchorEntity = "anchorEntity";
+        public const string AnchorBlock = "anchorBlock";
+        public const string PreventDisplacement = "preventDisplacement";
+        public const string ModifyCorruptionGain = "modifyCorruptionGain";
+        // Planned Wefting effects.
+        public const string TeleportToTarget = "teleportToTarget";
+        public const string TeleportEntityToCaster = "teleportEntityToCaster";
+        public const string TeleportEntityToPosition = "teleportEntityToPosition";
+        public const string SwapPositions = "swapPositions";
+        public const string MoveDroppedItem = "moveDroppedItem";
+        public const string MoveBlockEntityContents = "moveBlockEntityContents";
+        public const string PushEntity = "pushEntity";
+        // Planned Shedding effects.
+        public const string ReleaseTarget = "releaseTarget";
+        public const string BreakBinding = "breakBinding";
+        public const string OpenLock = "openLock";
+        public const string OpenPassage = "openPassage";
+        public const string CreateRift = "createRift";
+        public const string SeparateTarget = "separateTarget";
+        // Planned Picking effects.
+        public const string MarkTarget = "markTarget";
+        public const string WeakPointStrike = "weakPointStrike";
+        public const string PrecisionBlockStrike = "precisionBlockStrike";
+        // Planned Beating effects.
+        public const string ForcePulse = "forcePulse";
+        public const string Shockwave = "shockwave";
+        public const string PressureBlast = "pressureBlast";
+        public const string StaggerArea = "staggerArea";
+        // Planned Twining effects.
+        public const string TetherEntity = "tetherEntity";
+        public const string LinkEntities = "linkEntities";
+        public const string BindEntityToArea = "bindEntityToArea";
+        public const string CharmEntity = "charmEntity";
+        public const string CommandEntity = "commandEntity";
+        // Planned Darning effects.
+        public const string RepairBlock = "repairBlock";
+        public const string RepairBlockArea = "repairBlockArea";
+        public const string CloseRift = "closeRift";
+        public const string RestoreStructure = "restoreStructure";
+        public const string HealOverTime = "healOverTime";
+        // Planned Backstitching effects.
+        public const string CounterNextHostileEffect = "counterNextHostileEffect";
+        public const string ReflectProjectile = "reflectProjectile";
+        public const string RewindEntityPosition = "rewindEntityPosition";
+        public const string UndoRecentEffect = "undoRecentEffect";
+        public const string CancelActiveEffect = "cancelActiveEffect";
+        // Planned Hemming effects.
+        public const string CreateWardArea = "createWardArea";
+        public const string CreateBarrier = "createBarrier";
+        public const string CreateContainmentArea = "createContainmentArea";
+        public const string CreateBoundaryLine = "createBoundaryLine";
+        public const string CreateAntiSpreadArea = "createAntiSpreadArea";
+        // Planned Carding effects.
+        public const string DetectBlocks = "detectBlocks";
+        public const string DetectEntities = "detectEntities";
+        public const string DetectRustTraces = "detectRustTraces";
+        public const string IdentifyActiveEffects = "identifyActiveEffects";
+        public const string ReadGlyphs = "readGlyphs";
+        public const string AlignNextSpell = "alignNextSpell";
+        // Planned Scouring effects.
+        public const string PurgeTimedEffects = "purgeTimedEffects";
+        public const string StripEntityBuffs = "stripEntityBuffs";
+        public const string CleanseContamination = "cleanseContamination";
+        public const string UnravelDamage = "unravelDamage";
+        public const string LifestealEntity = "lifestealEntity";
+        public const string DestroyCorruptedMatter = "destroyCorruptedMatter";
+        // Planned Fulling effects.
+        public const string ConvertBlock = "convertBlock";
+        public const string ConvertHeldItem = "convertHeldItem";
+        public const string HardenMaterial = "hardenMaterial";
+        public const string HeatMaterial = "heatMaterial";
+        public const string CoolMaterial = "coolMaterial";
+        public const string AccelerateCraftState = "accelerateCraftState";
+        // Planned Spinning effects.
+        public const string SummonTemporaryEntity = "summonTemporaryEntity";
+        public const string SummonTemporaryItem = "summonTemporaryItem";
+        public const string SummonTemporaryProjectile = "summonTemporaryProjectile";
+        public const string SummonTemporaryConstruct = "summonTemporaryConstruct";
+        // Planned Grafting effects.
+        public const string ModifyCropGrowth = "modifyCropGrowth";
+        public const string ModifyFarmlandNutrients = "modifyFarmlandNutrients";
+        public const string ModifySatiety = "modifySatiety";
+        public const string CreateTemporaryFood = "createTemporaryFood";
+        public const string ModifyAnimalFertility = "modifyAnimalFertility";
+        public const string VitalityOverTime = "vitalityOverTime";
+        // Planned Scutching effects.
+        public const string MineBlock = "mineBlock";
+        public const string ExcavateBlocks = "excavateBlocks";
+        public const string ExtractOre = "extractOre";
+        public const string HarvestBlocks = "harvestBlocks";
+        // Planned Tensioning effects.
+        public const string ChangeWeather = "changeWeather";
+        public const string ChangeTemperatureArea = "changeTemperatureArea";
+        public const string CallLightning = "callLightning";
+        public const string ChangeEnvironmentalPressure = "changeEnvironmentalPressure";
+        public const string StormPulse = "stormPulse";
 
         public static readonly HashSet<string> Supported = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -216,8 +460,206 @@ namespace TheRustweave
             CorruptionTransfer,
             TeleportForward,
             SpawnParticles,
-            PlaySound
+            PlaySound,
+            ModifyTemporalStability,
+            StabilizeArea,
+            AnchorEntity,
+            AnchorBlock,
+            PreventDisplacement,
+            ModifyCorruptionGain,
+            TeleportToTarget,
+            TeleportEntityToCaster,
+            TeleportEntityToPosition,
+            SwapPositions,
+            MoveDroppedItem,
+            MoveBlockEntityContents,
+            PushEntity,
+            ReleaseTarget,
+            BreakBinding,
+            OpenLock,
+            OpenPassage,
+            CreateRift,
+            SeparateTarget,
+            MarkTarget,
+            WeakPointStrike,
+            PrecisionBlockStrike,
+            ForcePulse,
+            Shockwave,
+            PressureBlast,
+            StaggerArea,
+            TetherEntity,
+            LinkEntities,
+            BindEntityToArea,
+            CharmEntity,
+            CommandEntity,
+            RepairBlock,
+            RepairBlockArea,
+            CloseRift,
+            RestoreStructure,
+            HealOverTime,
+            CounterNextHostileEffect,
+            ReflectProjectile,
+            RewindEntityPosition,
+            UndoRecentEffect,
+            CancelActiveEffect,
+            CreateWardArea,
+            CreateBarrier,
+            CreateContainmentArea,
+            CreateBoundaryLine,
+            CreateAntiSpreadArea,
+            DetectBlocks,
+            DetectEntities,
+            DetectRustTraces,
+            IdentifyActiveEffects,
+            ReadGlyphs,
+            AlignNextSpell,
+            PurgeTimedEffects,
+            StripEntityBuffs,
+            CleanseContamination,
+            UnravelDamage,
+            LifestealEntity,
+            DestroyCorruptedMatter,
+            ConvertBlock,
+            ConvertHeldItem,
+            HardenMaterial,
+            HeatMaterial,
+            CoolMaterial,
+            AccelerateCraftState,
+            SummonTemporaryEntity,
+            SummonTemporaryItem,
+            SummonTemporaryProjectile,
+            SummonTemporaryConstruct,
+            ModifyCropGrowth,
+            ModifyFarmlandNutrients,
+            ModifySatiety,
+            CreateTemporaryFood,
+            ModifyAnimalFertility,
+            VitalityOverTime,
+            MineBlock,
+            ExcavateBlocks,
+            ExtractOre,
+            HarvestBlocks,
+            ChangeWeather,
+            ChangeTemperatureArea,
+            CallLightning,
+            ChangeEnvironmentalPressure,
+            StormPulse
         };
+
+        public static readonly HashSet<string> Recognized = new(StringComparer.OrdinalIgnoreCase)
+        {
+            None,
+            HealTarget,
+            HealArea,
+            HealSelf,
+            RepairHeldItem,
+            RepairInventoryItem,
+            DamageRayEntity,
+            DamageArea,
+            ShieldSelf,
+            ShieldTarget,
+            SlowTarget,
+            RootTarget,
+            SpeedBuff,
+            DamageOverTime,
+            StunTarget,
+            KnockbackEntity,
+            PullEntity,
+            WeakenTarget,
+            ProjectileEntity,
+            CorruptionTransfer,
+            TeleportForward,
+            SpawnParticles,
+            PlaySound,
+            ModifyTemporalStability,
+            StabilizeArea,
+            AnchorEntity,
+            AnchorBlock,
+            PreventDisplacement,
+            ModifyCorruptionGain,
+            TeleportToTarget,
+            TeleportEntityToCaster,
+            TeleportEntityToPosition,
+            SwapPositions,
+            MoveDroppedItem,
+            MoveBlockEntityContents,
+            PushEntity,
+            ReleaseTarget,
+            BreakBinding,
+            OpenLock,
+            OpenPassage,
+            CreateRift,
+            SeparateTarget,
+            MarkTarget,
+            WeakPointStrike,
+            PrecisionBlockStrike,
+            ForcePulse,
+            Shockwave,
+            PressureBlast,
+            StaggerArea,
+            TetherEntity,
+            LinkEntities,
+            BindEntityToArea,
+            CharmEntity,
+            CommandEntity,
+            RepairBlock,
+            RepairBlockArea,
+            CloseRift,
+            RestoreStructure,
+            HealOverTime,
+            CounterNextHostileEffect,
+            ReflectProjectile,
+            RewindEntityPosition,
+            UndoRecentEffect,
+            CancelActiveEffect,
+            CreateWardArea,
+            CreateBarrier,
+            CreateContainmentArea,
+            CreateBoundaryLine,
+            CreateAntiSpreadArea,
+            DetectBlocks,
+            DetectEntities,
+            DetectRustTraces,
+            IdentifyActiveEffects,
+            ReadGlyphs,
+            AlignNextSpell,
+            PurgeTimedEffects,
+            StripEntityBuffs,
+            CleanseContamination,
+            UnravelDamage,
+            LifestealEntity,
+            DestroyCorruptedMatter,
+            ConvertBlock,
+            ConvertHeldItem,
+            HardenMaterial,
+            HeatMaterial,
+            CoolMaterial,
+            AccelerateCraftState,
+            SummonTemporaryEntity,
+            SummonTemporaryItem,
+            SummonTemporaryProjectile,
+            SummonTemporaryConstruct,
+            ModifyCropGrowth,
+            ModifyFarmlandNutrients,
+            ModifySatiety,
+            CreateTemporaryFood,
+            ModifyAnimalFertility,
+            VitalityOverTime,
+            MineBlock,
+            ExcavateBlocks,
+            ExtractOre,
+            HarvestBlocks,
+            ChangeWeather,
+            ChangeTemperatureArea,
+            CallLightning,
+            ChangeEnvironmentalPressure,
+            StormPulse
+        };
+
+        public static bool IsSupported(string? effectType)
+        {
+            return !string.IsNullOrWhiteSpace(effectType) && Supported.Contains(effectType);
+        }
 
         public static string? Normalize(string? effectType)
         {
@@ -227,7 +669,7 @@ namespace TheRustweave
             }
 
             var trimmed = effectType.Trim();
-            return Supported.FirstOrDefault(known => string.Equals(known, trimmed, StringComparison.OrdinalIgnoreCase));
+            return Recognized.FirstOrDefault(known => string.Equals(known, trimmed, StringComparison.OrdinalIgnoreCase));
         }
     }
 
@@ -239,6 +681,40 @@ namespace TheRustweave
 
         public double Radius { get; set; }
 
+        public float Amount { get; set; }
+
+        public float SecondaryAmount { get; set; }
+
+        public string Mode { get; set; } = string.Empty;
+
+        public string StatCategory { get; set; } = string.Empty;
+
+        public string ModifierCode { get; set; } = string.Empty;
+
+        public string StatusCode { get; set; } = string.Empty;
+
+        public string BlockCode { get; set; } = string.Empty;
+
+        public string ResultBlockCode { get; set; } = string.Empty;
+
+        public string ItemCode { get; set; } = string.Empty;
+
+        public string EntityCode { get; set; } = string.Empty;
+
+        public string WeatherType { get; set; } = string.Empty;
+
+        public string Message { get; set; } = string.Empty;
+
+        public List<string> BlockCodes { get; set; } = new();
+
+        public List<string> EntityCodes { get; set; } = new();
+
+        public List<string> ItemCodes { get; set; } = new();
+
+        public int MaxBlocks { get; set; }
+
+        public int MaxEntities { get; set; }
+
         public bool IncludeCaster { get; set; }
 
         public bool AllowNoTargets { get; set; }
@@ -248,6 +724,24 @@ namespace TheRustweave
         public int DurabilityAmount { get; set; }
 
         public bool AllowBrokenItems { get; set; }
+
+        public bool PreserveDrops { get; set; }
+
+        public bool ReplaceExisting { get; set; }
+
+        public bool AllowPlayers { get; set; }
+
+        public bool AllowHostiles { get; set; } = true;
+
+        public bool AllowPassives { get; set; } = true;
+
+        public bool RequireContainer { get; set; }
+
+        public bool RequireBlockEntity { get; set; }
+
+        public bool ClearPositive { get; set; }
+
+        public bool ClearNegative { get; set; }
 
         public float HealthAmount { get; set; }
 
@@ -276,6 +770,12 @@ namespace TheRustweave
         public int Count { get; set; }
 
         public string Sound { get; set; } = string.Empty;
+
+        public double DespawnAfterSeconds { get; set; }
+
+        public double TemperatureDelta { get; set; }
+
+        public double StabilityAmount { get; set; }
     }
 
     internal sealed class SpellDefinition
@@ -521,9 +1021,9 @@ namespace TheRustweave
             normalized.Code = (normalized.Code ?? string.Empty).Trim();
             normalized.Name = (normalized.Name ?? string.Empty).Trim();
             normalized.Description = (normalized.Description ?? string.Empty).Trim();
-            normalized.School = (normalized.School ?? string.Empty).Trim();
+            normalized.School = SpellSchoolTypes.Normalize(normalized.School);
             normalized.Category = (normalized.Category ?? string.Empty).Trim();
-            normalized.TargetType = (normalized.TargetType ?? string.Empty).Trim();
+            normalized.TargetType = SpellTargetTypes.Normalize(normalized.TargetType);
             normalized.Icon = (normalized.Icon ?? string.Empty).Trim();
             normalized.UnlockHint = (normalized.UnlockHint ?? string.Empty).Trim();
             normalized.PreviewMode = SpellPreviewModes.Normalize(normalized.PreviewMode);
@@ -593,13 +1093,27 @@ namespace TheRustweave
                 return false;
             }
 
-            if ((string.Equals(normalized.TargetType, SpellTargetTypes.LookEntity, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(normalized.TargetType, SpellTargetTypes.LookBlock, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(normalized.TargetType, SpellTargetTypes.LookPosition, StringComparison.OrdinalIgnoreCase))
+            if (SpellTargetTypes.RequiresLookRange(normalized.TargetType)
                 && GetEffectiveLookTargetRange(normalized) <= 0)
             {
                 validationError = "range must be greater than zero for look targets";
                 return false;
+            }
+
+            if (string.Equals(normalized.TargetType, SpellTargetTypes.SelfArea, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(normalized.TargetType, SpellTargetTypes.LookArea, StringComparison.OrdinalIgnoreCase))
+            {
+                var normalizedRadius = Math.Max(0d, normalized.Radius);
+                if (normalized.Effects.Count > 0)
+                {
+                    normalizedRadius = Math.Max(normalizedRadius, normalized.Effects.Where(effect => effect != null).Select(effect => Math.Max(0d, effect.Radius)).DefaultIfEmpty(0d).Max());
+                }
+
+                if (normalizedRadius <= 0)
+                {
+                    validationError = "radius must be greater than zero for area targets";
+                    return false;
+                }
             }
 
             if (normalized.Effects.Count == 0)
@@ -623,7 +1137,7 @@ namespace TheRustweave
                 var effectiveRange = GetEffectiveLookEntityRange(normalized);
                 if (effectiveRange <= 0)
                 {
-                    validationError = "range must be greater than zero for lookEntity or a damageRayEntity effect must define range";
+                    validationError = "range must be greater than zero for lookEntity, lookPlayer, lookNonPlayerEntity, lookDroppedItem, lookBlock, lookBlockEntity, lookContainer, lookPosition, or lookArea";
                     return false;
                 }
             }
@@ -635,8 +1149,21 @@ namespace TheRustweave
         {
             validationError = string.Empty;
             effect.Type = (effect.Type ?? string.Empty).Trim();
+            effect.Mode = (effect.Mode ?? string.Empty).Trim();
+            effect.StatCategory = (effect.StatCategory ?? string.Empty).Trim();
+            effect.ModifierCode = (effect.ModifierCode ?? string.Empty).Trim();
+            effect.StatusCode = (effect.StatusCode ?? string.Empty).Trim();
+            effect.BlockCode = (effect.BlockCode ?? string.Empty).Trim();
+            effect.ResultBlockCode = (effect.ResultBlockCode ?? string.Empty).Trim();
+            effect.ItemCode = (effect.ItemCode ?? string.Empty).Trim();
+            effect.EntityCode = (effect.EntityCode ?? string.Empty).Trim();
+            effect.WeatherType = (effect.WeatherType ?? string.Empty).Trim();
+            effect.Message = (effect.Message ?? string.Empty).Trim();
             effect.ParticleCode = (effect.ParticleCode ?? string.Empty).Trim();
             effect.Sound = (effect.Sound ?? string.Empty).Trim();
+            effect.BlockCodes = NormalizeStringList(effect.BlockCodes);
+            effect.EntityCodes = NormalizeStringList(effect.EntityCodes);
+            effect.ItemCodes = NormalizeStringList(effect.ItemCodes);
 
             if (string.IsNullOrWhiteSpace(effect.Type))
             {
@@ -653,15 +1180,20 @@ namespace TheRustweave
 
             effect.Type = normalizedEffectType;
 
+            if (!SpellEffectTypes.IsSupported(effect.Type))
+            {
+                validationError = $"effect type '{effect.Type}' is not implemented yet";
+                return false;
+            }
+
             switch (effect.Type)
             {
                 case SpellEffectTypes.None:
                     return true;
                 case SpellEffectTypes.HealTarget:
-                    if (!string.Equals(spell.TargetType, SpellTargetTypes.Self, StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(spell.TargetType, SpellTargetTypes.LookEntity, StringComparison.OrdinalIgnoreCase))
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity))
                     {
-                        validationError = "healTarget requires targetType self or lookEntity";
+                        validationError = "healTarget requires targetType self, lookEntity, lookPlayer, or lookNonPlayerEntity";
                         return false;
                     }
 
@@ -673,12 +1205,9 @@ namespace TheRustweave
 
                     return true;
                 case SpellEffectTypes.HealArea:
-                    if (!string.Equals(spell.TargetType, SpellTargetTypes.Self, StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(spell.TargetType, SpellTargetTypes.LookEntity, StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(spell.TargetType, SpellTargetTypes.LookBlock, StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(spell.TargetType, SpellTargetTypes.LookPosition, StringComparison.OrdinalIgnoreCase))
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.SelfArea, SpellTargetTypes.LookArea, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer, SpellTargetTypes.LookPosition))
                     {
-                        validationError = "healArea requires targetType self, lookEntity, lookBlock, or lookPosition";
+                        validationError = "healArea requires a self, entity, block, position, or area target";
                         return false;
                     }
 
@@ -738,9 +1267,9 @@ namespace TheRustweave
 
                     return true;
                 case SpellEffectTypes.DamageRayEntity:
-                    if (!string.Equals(spell.TargetType, SpellTargetTypes.LookEntity, StringComparison.OrdinalIgnoreCase))
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity))
                     {
-                        validationError = "damageRayEntity requires targetType lookEntity";
+                        validationError = "damageRayEntity requires targetType lookEntity, lookPlayer, or lookNonPlayerEntity";
                         return false;
                     }
 
@@ -752,12 +1281,9 @@ namespace TheRustweave
 
                     return true;
                 case SpellEffectTypes.DamageArea:
-                    if (!string.Equals(spell.TargetType, SpellTargetTypes.Self, StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(spell.TargetType, SpellTargetTypes.LookEntity, StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(spell.TargetType, SpellTargetTypes.LookBlock, StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(spell.TargetType, SpellTargetTypes.LookPosition, StringComparison.OrdinalIgnoreCase))
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.SelfArea, SpellTargetTypes.LookArea, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer, SpellTargetTypes.LookPosition))
                     {
-                        validationError = "damageArea requires targetType self, lookEntity, lookBlock, or lookPosition";
+                        validationError = "damageArea requires a self, entity, block, position, or area target";
                         return false;
                     }
 
@@ -775,7 +1301,7 @@ namespace TheRustweave
 
                     return true;
                 case SpellEffectTypes.ShieldSelf:
-                    if (!string.Equals(spell.TargetType, SpellTargetTypes.Self, StringComparison.OrdinalIgnoreCase))
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self))
                     {
                         validationError = "shieldSelf requires targetType self";
                         return false;
@@ -795,10 +1321,9 @@ namespace TheRustweave
 
                     return true;
                 case SpellEffectTypes.ShieldTarget:
-                    if (!string.Equals(spell.TargetType, SpellTargetTypes.Self, StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(spell.TargetType, SpellTargetTypes.LookEntity, StringComparison.OrdinalIgnoreCase))
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity))
                     {
-                        validationError = "shieldTarget requires targetType self or lookEntity";
+                        validationError = "shieldTarget requires targetType self, lookEntity, lookPlayer, or lookNonPlayerEntity";
                         return false;
                     }
 
@@ -816,8 +1341,7 @@ namespace TheRustweave
 
                     return true;
                 case SpellEffectTypes.SlowTarget:
-                    if (string.Equals(spell.TargetType, SpellTargetTypes.Inventory, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(spell.TargetType, SpellTargetTypes.HeldItem, StringComparison.OrdinalIgnoreCase))
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity))
                     {
                         validationError = "slowTarget requires an entity target";
                         return false;
@@ -837,8 +1361,7 @@ namespace TheRustweave
 
                     return true;
                 case SpellEffectTypes.RootTarget:
-                    if (string.Equals(spell.TargetType, SpellTargetTypes.Inventory, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(spell.TargetType, SpellTargetTypes.HeldItem, StringComparison.OrdinalIgnoreCase))
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity))
                     {
                         validationError = "rootTarget requires an entity target";
                         return false;
@@ -857,7 +1380,7 @@ namespace TheRustweave
 
                     return true;
                 case SpellEffectTypes.SpeedBuff:
-                    if (!string.Equals(spell.TargetType, SpellTargetTypes.Self, StringComparison.OrdinalIgnoreCase))
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self))
                     {
                         validationError = "speedBuff requires targetType self";
                         return false;
@@ -877,8 +1400,7 @@ namespace TheRustweave
 
                     return true;
                 case SpellEffectTypes.DamageOverTime:
-                    if (string.Equals(spell.TargetType, SpellTargetTypes.Inventory, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(spell.TargetType, SpellTargetTypes.HeldItem, StringComparison.OrdinalIgnoreCase))
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity))
                     {
                         validationError = "damageOverTime requires an entity target";
                         return false;
@@ -904,9 +1426,9 @@ namespace TheRustweave
 
                     return true;
                 case SpellEffectTypes.StunTarget:
-                    if (!string.Equals(spell.TargetType, SpellTargetTypes.LookEntity, StringComparison.OrdinalIgnoreCase))
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity))
                     {
-                        validationError = "stunTarget requires targetType lookEntity";
+                        validationError = "stunTarget requires targetType lookEntity, lookPlayer, or lookNonPlayerEntity";
                         return false;
                     }
 
@@ -919,9 +1441,9 @@ namespace TheRustweave
                     return true;
                 case SpellEffectTypes.KnockbackEntity:
                 case SpellEffectTypes.PullEntity:
-                    if (!string.Equals(spell.TargetType, SpellTargetTypes.LookEntity, StringComparison.OrdinalIgnoreCase))
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity))
                     {
-                        validationError = $"{effect.Type} requires targetType lookEntity";
+                        validationError = $"{effect.Type} requires targetType lookEntity, lookPlayer, or lookNonPlayerEntity";
                         return false;
                     }
 
@@ -933,18 +1455,15 @@ namespace TheRustweave
 
                     return true;
                 case SpellEffectTypes.ProjectileEntity:
-                    if (!string.Equals(spell.TargetType, SpellTargetTypes.LookEntity, StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(spell.TargetType, SpellTargetTypes.LookBlock, StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(spell.TargetType, SpellTargetTypes.LookPosition, StringComparison.OrdinalIgnoreCase))
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity, SpellTargetTypes.LookDroppedItem, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer, SpellTargetTypes.LookPosition, SpellTargetTypes.SelfArea, SpellTargetTypes.LookArea))
                     {
-                        validationError = "projectileEntity requires targetType lookEntity, lookBlock, or lookPosition";
+                        validationError = "projectileEntity requires an entity, block, position, or area target";
                         return false;
                     }
 
                     return true;
                 case SpellEffectTypes.WeakenTarget:
-                    if (string.Equals(spell.TargetType, SpellTargetTypes.Inventory, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(spell.TargetType, SpellTargetTypes.HeldItem, StringComparison.OrdinalIgnoreCase))
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity))
                     {
                         validationError = "weakenTarget requires an entity target";
                         return false;
@@ -969,9 +1488,9 @@ namespace TheRustweave
 
                     return true;
                 case SpellEffectTypes.TeleportForward:
-                    if (!string.Equals(spell.TargetType, SpellTargetTypes.Self, StringComparison.OrdinalIgnoreCase))
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer, SpellTargetTypes.LookPosition, SpellTargetTypes.SelfArea, SpellTargetTypes.LookArea))
                     {
-                        validationError = "teleportForward requires targetType self";
+                        validationError = "teleportForward requires targetType self, lookBlock, lookPosition, or area";
                         return false;
                     }
 
@@ -983,10 +1502,9 @@ namespace TheRustweave
 
                     return true;
                 case SpellEffectTypes.CorruptionTransfer:
-                    if (!string.Equals(spell.TargetType, SpellTargetTypes.Self, StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(spell.TargetType, SpellTargetTypes.LookEntity, StringComparison.OrdinalIgnoreCase))
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity))
                     {
-                        validationError = "corruptionTransfer requires targetType self or lookEntity";
+                        validationError = "corruptionTransfer requires targetType self, lookEntity, lookPlayer, or lookNonPlayerEntity";
                         return false;
                     }
 
@@ -1019,6 +1537,315 @@ namespace TheRustweave
                     }
 
                     return true;
+                case SpellEffectTypes.ModifyTemporalStability:
+                case SpellEffectTypes.ModifyCorruptionGain:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.SelfArea, SpellTargetTypes.LookArea, SpellTargetTypes.LookPosition, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity))
+                    {
+                        validationError = $"{effect.Type} requires a self, area, block, position, or entity target";
+                        return false;
+                    }
+
+                    if (effect.DurationSeconds <= 0)
+                    {
+                        validationError = "durationSeconds must be greater than zero";
+                        return false;
+                    }
+
+                    if (effect.Amount == 0f && effect.StabilityAmount == 0d && effect.CorruptionAmount == 0)
+                    {
+                        validationError = "amount, stabilityAmount, or corruptionAmount is required";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.StabilizeArea:
+                case SpellEffectTypes.CreateWardArea:
+                case SpellEffectTypes.CreateBarrier:
+                case SpellEffectTypes.CreateContainmentArea:
+                case SpellEffectTypes.CreateBoundaryLine:
+                case SpellEffectTypes.CreateAntiSpreadArea:
+                case SpellEffectTypes.ChangeTemperatureArea:
+                case SpellEffectTypes.ChangeEnvironmentalPressure:
+                case SpellEffectTypes.StormPulse:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.SelfArea, SpellTargetTypes.LookArea, SpellTargetTypes.LookPosition, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer))
+                    {
+                        validationError = $"{effect.Type} requires a self area, targeted area, or block target";
+                        return false;
+                    }
+
+                    if (!RequireRadius(spell, effect, out validationError) && !string.Equals(effect.Type, SpellEffectTypes.ChangeTemperatureArea, StringComparison.OrdinalIgnoreCase) && !string.Equals(effect.Type, SpellEffectTypes.ChangeEnvironmentalPressure, StringComparison.OrdinalIgnoreCase) && !string.Equals(effect.Type, SpellEffectTypes.StormPulse, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+
+                    if (effect.DurationSeconds <= 0)
+                    {
+                        validationError = "durationSeconds must be greater than zero";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.CallLightning:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.SelfArea, SpellTargetTypes.LookArea, SpellTargetTypes.LookPosition, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer))
+                    {
+                        validationError = "callLightning requires a self area, targeted area, or block target";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.AnchorEntity:
+                case SpellEffectTypes.PreventDisplacement:
+                case SpellEffectTypes.CounterNextHostileEffect:
+                case SpellEffectTypes.ReflectProjectile:
+                case SpellEffectTypes.RewindEntityPosition:
+                case SpellEffectTypes.UndoRecentEffect:
+                case SpellEffectTypes.CancelActiveEffect:
+                case SpellEffectTypes.ReleaseTarget:
+                case SpellEffectTypes.BreakBinding:
+                case SpellEffectTypes.SeparateTarget:
+                case SpellEffectTypes.PurgeTimedEffects:
+                case SpellEffectTypes.StripEntityBuffs:
+                case SpellEffectTypes.CleanseContamination:
+                case SpellEffectTypes.UnravelDamage:
+                case SpellEffectTypes.IdentifyActiveEffects:
+                case SpellEffectTypes.AlignNextSpell:
+                case SpellEffectTypes.HealOverTime:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity, SpellTargetTypes.LookArea, SpellTargetTypes.SelfArea, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer, SpellTargetTypes.LookPosition))
+                    {
+                        validationError = $"{effect.Type} requires a self, entity, block, position, or area target";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.MarkTarget:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer, SpellTargetTypes.LookPosition, SpellTargetTypes.SelfArea, SpellTargetTypes.LookArea))
+                    {
+                        validationError = "markTarget requires a valid entity, block, position, or area target";
+                        return false;
+                    }
+
+                    if (effect.DurationSeconds <= 0)
+                    {
+                        validationError = "durationSeconds must be greater than zero";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.WeakPointStrike:
+                case SpellEffectTypes.LifestealEntity:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity))
+                    {
+                        validationError = $"{effect.Type} requires an entity target";
+                        return false;
+                    }
+
+                    if (effect.DamageAmount <= 0 && effect.HealthAmount <= 0)
+                    {
+                        validationError = "damageAmount or healthAmount must be greater than zero";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.TetherEntity:
+                case SpellEffectTypes.BindEntityToArea:
+                case SpellEffectTypes.CharmEntity:
+                case SpellEffectTypes.CommandEntity:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookEntity, SpellTargetTypes.LookNonPlayerEntity, SpellTargetTypes.Self))
+                    {
+                        validationError = $"{effect.Type} requires a creature or entity target";
+                        return false;
+                    }
+
+                    if (spell.TargetType.Equals(SpellTargetTypes.LookPlayer, StringComparison.OrdinalIgnoreCase))
+                    {
+                        validationError = $"{effect.Type} cannot target players";
+                        return false;
+                    }
+
+                    if (effect.DurationSeconds <= 0)
+                    {
+                        validationError = "durationSeconds must be greater than zero";
+                        return false;
+                    }
+
+                    if (effect.Radius <= 0 && spell.TargetType.Equals(SpellTargetTypes.LookArea, StringComparison.OrdinalIgnoreCase))
+                    {
+                        validationError = "radius must be greater than zero";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.VitalityOverTime:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookEntity, SpellTargetTypes.LookNonPlayerEntity))
+                    {
+                        validationError = "vitalityOverTime requires a living target";
+                        return false;
+                    }
+
+                    if (effect.DurationSeconds <= 0)
+                    {
+                        validationError = "durationSeconds must be greater than zero";
+                        return false;
+                    }
+
+                    if (effect.HealthAmount <= 0 && effect.Amount <= 0f)
+                    {
+                        validationError = "healthAmount or amount must be greater than zero";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.DetectBlocks:
+                case SpellEffectTypes.DetectEntities:
+                case SpellEffectTypes.DetectRustTraces:
+                case SpellEffectTypes.ReadGlyphs:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.SelfArea, SpellTargetTypes.LookArea, SpellTargetTypes.LookPosition, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer))
+                    {
+                        validationError = $"{effect.Type} requires a self, area, or block target";
+                        return false;
+                    }
+
+                    if (effect.Radius <= 0 && !HasTargetType(spell.TargetType, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer))
+                    {
+                        validationError = "radius must be greater than zero";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.ModifyCropGrowth:
+                case SpellEffectTypes.ModifyFarmlandNutrients:
+                case SpellEffectTypes.ModifyAnimalFertility:
+                    if (string.Equals(effect.Type, SpellEffectTypes.ModifyAnimalFertility, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookEntity, SpellTargetTypes.LookNonPlayerEntity))
+                        {
+                            validationError = "modifyAnimalFertility requires a creature target";
+                            return false;
+                        }
+
+                        if (effect.DurationSeconds <= 0)
+                        {
+                            validationError = "durationSeconds must be greater than zero";
+                            return false;
+                        }
+
+                        if (effect.Amount == 0f && effect.SecondaryAmount == 0f)
+                        {
+                            validationError = "amount is required";
+                            return false;
+                        }
+
+                        return true;
+                    }
+
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.SelfArea, SpellTargetTypes.LookArea, SpellTargetTypes.LookPosition, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer))
+                    {
+                        validationError = $"{effect.Type} requires a block, position, or area target";
+                        return false;
+                    }
+
+                    if (effect.DurationSeconds <= 0 && !string.Equals(effect.Type, SpellEffectTypes.CreateTemporaryFood, StringComparison.OrdinalIgnoreCase))
+                    {
+                        validationError = "durationSeconds must be greater than zero";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.SummonTemporaryEntity:
+                case SpellEffectTypes.SummonTemporaryProjectile:
+                case SpellEffectTypes.SummonTemporaryConstruct:
+                    if (!RequireCodeField(effect.EntityCode, "entityCode", out validationError) && string.IsNullOrWhiteSpace(effect.BlockCode))
+                    {
+                        return false;
+                    }
+
+                    if (effect.DespawnAfterSeconds <= 0)
+                    {
+                        validationError = "despawnAfterSeconds must be greater than zero";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.SummonTemporaryItem:
+                case SpellEffectTypes.ConvertHeldItem:
+                    if (!RequireCodeField(effect.ItemCode, "itemCode", out validationError))
+                    {
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.MineBlock:
+                case SpellEffectTypes.ExcavateBlocks:
+                case SpellEffectTypes.ExtractOre:
+                case SpellEffectTypes.HarvestBlocks:
+                case SpellEffectTypes.RepairBlock:
+                case SpellEffectTypes.RepairBlockArea:
+                case SpellEffectTypes.CloseRift:
+                case SpellEffectTypes.RestoreStructure:
+                case SpellEffectTypes.ConvertBlock:
+                case SpellEffectTypes.HardenMaterial:
+                case SpellEffectTypes.HeatMaterial:
+                case SpellEffectTypes.CoolMaterial:
+                case SpellEffectTypes.AccelerateCraftState:
+                case SpellEffectTypes.PrecisionBlockStrike:
+                case SpellEffectTypes.OpenPassage:
+                case SpellEffectTypes.OpenLock:
+                case SpellEffectTypes.AnchorBlock:
+                case SpellEffectTypes.MoveBlockEntityContents:
+                case SpellEffectTypes.DestroyCorruptedMatter:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer, SpellTargetTypes.LookPosition, SpellTargetTypes.LookArea, SpellTargetTypes.SelfArea))
+                    {
+                        validationError = $"{effect.Type} requires a block, container, or area target";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.MoveDroppedItem:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookDroppedItem))
+                    {
+                        validationError = "moveDroppedItem requires targetType lookDroppedItem";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.TeleportToTarget:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer, SpellTargetTypes.LookPosition, SpellTargetTypes.SelfArea, SpellTargetTypes.LookArea))
+                    {
+                        validationError = "teleportToTarget requires a self, block, position, or area target";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.TeleportEntityToCaster:
+                case SpellEffectTypes.TeleportEntityToPosition:
+                case SpellEffectTypes.SwapPositions:
+                case SpellEffectTypes.PushEntity:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity, SpellTargetTypes.Self))
+                    {
+                        validationError = $"{effect.Type} requires an entity target";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.ForcePulse:
+                case SpellEffectTypes.Shockwave:
+                case SpellEffectTypes.PressureBlast:
+                case SpellEffectTypes.StaggerArea:
+                    if (GetEffectiveRadius(spell, effect) <= 0)
+                    {
+                        validationError = "radius must be greater than zero";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.ChangeWeather:
+                    if (string.IsNullOrWhiteSpace(effect.WeatherType) && string.IsNullOrWhiteSpace(effect.Mode))
+                    {
+                        validationError = "weatherType or mode is required";
+                        return false;
+                    }
+
+                    return true;
                 default:
                     validationError = $"unsupported effect type '{effect.Type}'";
                     return false;
@@ -1036,6 +1863,163 @@ namespace TheRustweave
                 .Select(value => (value ?? string.Empty).Trim())
                 .Where(value => !string.IsNullOrWhiteSpace(value))
                 .ToList();
+        }
+
+        private static bool HasTargetType(string targetType, params string[] allowedTargetTypes)
+        {
+            return allowedTargetTypes.Any(allowedTargetType => string.Equals(targetType, allowedTargetType, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static bool RequireDuration(SpellEffectDefinition effect, out string validationError)
+        {
+            if (effect.DurationSeconds <= 0)
+            {
+                validationError = "durationSeconds must be greater than zero";
+                return false;
+            }
+
+            validationError = string.Empty;
+            return true;
+        }
+
+        private static bool RequireRadius(SpellDefinition spell, SpellEffectDefinition effect, out string validationError)
+        {
+            if (GetEffectiveRadius(spell, effect) <= 0)
+            {
+                validationError = "radius must be greater than zero";
+                return false;
+            }
+
+            validationError = string.Empty;
+            return true;
+        }
+
+        private static bool RequireAmount(SpellEffectDefinition effect, out string validationError)
+        {
+            if (Math.Abs(effect.Amount) <= 0f && Math.Abs(effect.SecondaryAmount) <= 0f && Math.Abs(effect.StabilityAmount) <= 0d && Math.Abs(effect.CorruptionAmount) <= 0 && Math.Abs(effect.DamageAmount) <= 0f && Math.Abs(effect.HealthAmount) <= 0f && Math.Abs(effect.DamagePerTick) <= 0f && Math.Abs(effect.Force) <= 0f)
+            {
+                validationError = "an amount, damage, health, stability, or force value is required";
+                return false;
+            }
+
+            validationError = string.Empty;
+            return true;
+        }
+
+        private static bool RequireCodeField(string value, string label, out string validationError)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                validationError = $"{label} is required";
+                return false;
+            }
+
+            validationError = string.Empty;
+            return true;
+        }
+
+        private static bool ValidateAllowedTargets(SpellDefinition spell, string errorMessage, out string validationError, params string[] allowedTargets)
+        {
+            if (!HasTargetType(spell.TargetType, allowedTargets))
+            {
+                validationError = errorMessage;
+                return false;
+            }
+
+            validationError = string.Empty;
+            return true;
+        }
+
+        private static bool RequireCreatureTarget(string targetType, out string validationError)
+        {
+            if (string.Equals(targetType, SpellTargetTypes.LookPlayer, StringComparison.OrdinalIgnoreCase))
+            {
+                validationError = "that spell requires a creature or NPC target";
+                return false;
+            }
+
+            validationError = string.Empty;
+            return true;
+        }
+
+        internal static bool IsDroppedItemEntity(Entity? entity)
+        {
+            if (entity == null)
+            {
+                return false;
+            }
+
+            if (entity is EntityItem)
+            {
+                return true;
+            }
+
+            var type = entity.GetType();
+            var typeName = type.Name ?? string.Empty;
+            var fullName = type.FullName ?? string.Empty;
+            return typeName.Contains("Item", StringComparison.OrdinalIgnoreCase)
+                && typeName.Contains("Entity", StringComparison.OrdinalIgnoreCase)
+                || fullName.Contains("EntityItem", StringComparison.OrdinalIgnoreCase)
+                || fullName.Contains("DroppedItem", StringComparison.OrdinalIgnoreCase);
+        }
+
+        internal static bool IsPlayerEntity(Entity? entity)
+        {
+            return entity is EntityPlayer;
+        }
+
+        internal static bool TryGetBlockEntityInventory(BlockEntity? blockEntity, out IInventory? inventory)
+        {
+            inventory = null;
+            if (blockEntity == null)
+            {
+                return false;
+            }
+
+            var type = blockEntity.GetType();
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+            foreach (var memberName in new[] { "Inventory", "inventory" })
+            {
+                var property = type.GetProperty(memberName, flags);
+                if (property?.GetValue(blockEntity) is IInventory propertyInventory)
+                {
+                    inventory = propertyInventory;
+                    return true;
+                }
+
+                var field = type.GetField(memberName, flags);
+                if (field?.GetValue(blockEntity) is IInventory fieldInventory)
+                {
+                    inventory = fieldInventory;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        internal static string GetBlockEntityDisplayName(BlockEntity? blockEntity, BlockPos? blockPos)
+        {
+            if (blockEntity?.Block?.Code != null)
+            {
+                var path = blockEntity.Block.Code.Path;
+                if (!string.IsNullOrWhiteSpace(path))
+                {
+                    return path;
+                }
+            }
+
+            if (blockEntity != null)
+            {
+                var typeName = blockEntity.GetType().Name;
+                if (!string.IsNullOrWhiteSpace(typeName))
+                {
+                    return typeName;
+                }
+            }
+
+            return blockPos != null ? "Block Entity" : "Block Entity";
         }
 
         internal static double GetEffectiveLookEntityRange(SpellDefinition spell)
@@ -1112,17 +2096,28 @@ namespace TheRustweave
             var hasArea = GetEffectivePreviewRadius(spell) > 0d
                 || spell.Effects.Any(effect => effect != null && (string.Equals(effect.Type, SpellEffectTypes.DamageArea, StringComparison.OrdinalIgnoreCase) || string.Equals(effect.Type, SpellEffectTypes.HealArea, StringComparison.OrdinalIgnoreCase)));
 
+            if (string.Equals(spell.TargetType, SpellTargetTypes.SelfArea, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(spell.TargetType, SpellTargetTypes.LookArea, StringComparison.OrdinalIgnoreCase))
+            {
+                return SpellPreviewModes.Area;
+            }
+
             if (hasProjectile)
             {
                 return SpellPreviewModes.Projectile;
             }
 
-            if (string.Equals(spell.TargetType, SpellTargetTypes.LookEntity, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(spell.TargetType, SpellTargetTypes.LookEntity, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(spell.TargetType, SpellTargetTypes.LookPlayer, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(spell.TargetType, SpellTargetTypes.LookNonPlayerEntity, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(spell.TargetType, SpellTargetTypes.LookDroppedItem, StringComparison.OrdinalIgnoreCase))
             {
                 return hasArea ? SpellPreviewModes.Area : SpellPreviewModes.Entity;
             }
 
-            if (string.Equals(spell.TargetType, SpellTargetTypes.LookBlock, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(spell.TargetType, SpellTargetTypes.LookBlock, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(spell.TargetType, SpellTargetTypes.LookBlockEntity, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(spell.TargetType, SpellTargetTypes.LookContainer, StringComparison.OrdinalIgnoreCase))
             {
                 return hasArea ? SpellPreviewModes.Area : SpellPreviewModes.Block;
             }
@@ -1196,6 +2191,60 @@ namespace TheRustweave
             };
         }
 
+        internal static string ResolveTargetedWarningType(SpellDefinition spell)
+        {
+            if (spell == null)
+            {
+                return SpellWarningTypes.Neutral;
+            }
+
+            if (spell.Effects.Any(effect => effect != null && IsHarmfulEffectType(effect.Type)))
+            {
+                return SpellWarningTypes.Hostile;
+            }
+
+            if (spell.Effects.Any(effect => effect != null && IsBeneficialEffectType(effect.Type)))
+            {
+                return SpellWarningTypes.Beneficial;
+            }
+
+            return SpellWarningTypes.Neutral;
+        }
+
+        internal static string GetSpellSchoolCategoryDisplayName(SpellDefinition? spell)
+        {
+            if (spell == null)
+            {
+                return string.Empty;
+            }
+
+            static string NormalizeDisplayName(string? value)
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    return string.Empty;
+                }
+
+                var text = value.Trim().Replace('_', ' ').Replace('-', ' ');
+                var parts = text.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 0)
+                {
+                    return string.Empty;
+                }
+
+                return string.Join(" ", parts.Select(part => part.Length == 1 ? part.ToUpperInvariant() : char.ToUpperInvariant(part[0]) + part[1..].ToLowerInvariant()));
+            }
+
+            var school = NormalizeDisplayName(spell.School);
+            var category = NormalizeDisplayName(spell.Category);
+            if (!string.IsNullOrWhiteSpace(school) && !string.IsNullOrWhiteSpace(category) && !string.Equals(school, category, StringComparison.OrdinalIgnoreCase))
+            {
+                return $"{school} / {category}";
+            }
+
+            return !string.IsNullOrWhiteSpace(school) ? school : category;
+        }
+
         internal static double GetEffectivePreviewRadius(SpellDefinition spell)
         {
             if (spell == null)
@@ -1263,6 +2312,8 @@ namespace TheRustweave
                 || string.Equals(effectType, SpellEffectTypes.DamageOverTime, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(effectType, SpellEffectTypes.KnockbackEntity, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(effectType, SpellEffectTypes.PullEntity, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(effectType, SpellEffectTypes.SlowTarget, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(effectType, SpellEffectTypes.RootTarget, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(effectType, SpellEffectTypes.WeakenTarget, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(effectType, SpellEffectTypes.StunTarget, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(effectType, SpellEffectTypes.ProjectileEntity, StringComparison.OrdinalIgnoreCase)
@@ -1450,6 +2501,36 @@ namespace TheRustweave
                     target.Position = selection.HitPosition;
                     target.TargetName = selection.Entity?.GetName() ?? spell.Code;
                     return true;
+                case SpellTargetTypes.LookPlayer:
+                    if (!TryResolveLookEntityTarget(caster, SpellRegistry.GetEffectiveLookTargetRange(spell), out var playerSelection, out failureReason, candidate => candidate is EntityPlayer))
+                    {
+                        return false;
+                    }
+
+                    target.Entity = playerSelection.Entity;
+                    target.Position = playerSelection.HitPosition;
+                    target.TargetName = playerSelection.Entity?.GetName() ?? "Player";
+                    return true;
+                case SpellTargetTypes.LookNonPlayerEntity:
+                    if (!TryResolveLookEntityTarget(caster, SpellRegistry.GetEffectiveLookTargetRange(spell), out var nonPlayerSelection, out failureReason, candidate => candidate != null && !SpellRegistry.IsPlayerEntity(candidate) && !SpellRegistry.IsDroppedItemEntity(candidate)))
+                    {
+                        return false;
+                    }
+
+                    target.Entity = nonPlayerSelection.Entity;
+                    target.Position = nonPlayerSelection.HitPosition;
+                    target.TargetName = nonPlayerSelection.Entity?.GetName() ?? "Creature/NPC";
+                    return true;
+                case SpellTargetTypes.LookDroppedItem:
+                    if (!TryResolveLookEntityTarget(caster, SpellRegistry.GetEffectiveLookTargetRange(spell), out var droppedItemSelection, out failureReason, candidate => SpellRegistry.IsDroppedItemEntity(candidate)))
+                    {
+                        return false;
+                    }
+
+                    target.Entity = droppedItemSelection.Entity;
+                    target.Position = droppedItemSelection.HitPosition;
+                    target.TargetName = droppedItemSelection.Entity?.GetName() ?? "Dropped Item";
+                    return true;
                 case SpellTargetTypes.LookBlock:
                     if (!TryResolveLookBlockTarget(caster, SpellRegistry.GetEffectiveLookTargetRange(spell), out var blockPos, out var blockPosition, out failureReason))
                     {
@@ -1457,8 +2538,30 @@ namespace TheRustweave
                     }
 
                     target.Position = blockPosition;
-                    target.BlockPos = blockPos ?? new BlockPos((int)Math.Floor(blockPosition.X), (int)Math.Floor(blockPosition.Y), (int)Math.Floor(blockPosition.Z), entity.Pos.Dimension);
+                    target.BlockPos = blockPos ?? new BlockPos((int)Math.Floor(blockPosition.X), (int)Math.Floor(blockPosition.Y - 1d), (int)Math.Floor(blockPosition.Z), entity.Pos.Dimension);
                     target.TargetName = GetBlockDisplayName(target.BlockPos);
+                    return true;
+                case SpellTargetTypes.LookBlockEntity:
+                    if (!TryResolveLookBlockEntityTarget(caster, SpellRegistry.GetEffectiveLookTargetRange(spell), false, out var blockEntityPos, out var blockEntityPosition, out var blockEntity, out failureReason))
+                    {
+                        return false;
+                    }
+
+                    target.Position = blockEntityPosition;
+                    target.BlockPos = blockEntityPos;
+                    target.BlockEntity = blockEntity;
+                    target.TargetName = SpellRegistry.GetBlockEntityDisplayName(blockEntity, blockEntityPos);
+                    return true;
+                case SpellTargetTypes.LookContainer:
+                    if (!TryResolveLookBlockEntityTarget(caster, SpellRegistry.GetEffectiveLookTargetRange(spell), true, out var containerPos, out var containerPosition, out var containerBlockEntity, out failureReason))
+                    {
+                        return false;
+                    }
+
+                    target.Position = containerPosition;
+                    target.BlockPos = containerPos;
+                    target.BlockEntity = containerBlockEntity;
+                    target.TargetName = SpellRegistry.GetBlockEntityDisplayName(containerBlockEntity, containerPos);
                     return true;
                 case SpellTargetTypes.LookPosition:
                     if (!TryResolveLookPositionTarget(caster, SpellRegistry.GetEffectiveLookTargetRange(spell), out var lookPosition, out failureReason))
@@ -1467,7 +2570,22 @@ namespace TheRustweave
                     }
 
                     target.Position = lookPosition;
-                    target.TargetName = spell.Code;
+                    target.TargetName = SpellTargetTypes.GetDisplayName(SpellTargetTypes.LookPosition);
+                    return true;
+                case SpellTargetTypes.SelfArea:
+                    target.Entity = entity;
+                    target.Position = entity.Pos.XYZ;
+                    target.TargetName = SpellTargetTypes.GetDisplayName(SpellTargetTypes.SelfArea);
+                    return true;
+                case SpellTargetTypes.LookArea:
+                    if (!TryResolveLookAreaTarget(caster, SpellRegistry.GetEffectiveLookTargetRange(spell), out var areaPosition, out failureReason))
+                    {
+                        return false;
+                    }
+
+                    target.Position = areaPosition;
+                    target.BlockPos = new BlockPos((int)Math.Floor(areaPosition.X), (int)Math.Floor(areaPosition.Y), (int)Math.Floor(areaPosition.Z), entity.Pos.Dimension);
+                    target.TargetName = SpellTargetTypes.GetDisplayName(SpellTargetTypes.LookArea);
                     return true;
                 default:
                     failureReason = $"unknown target type '{spell.TargetType}'";
@@ -1575,6 +2693,121 @@ namespace TheRustweave
                     target.TargetName = entity.GetName() ?? spell.Code;
                     return true;
                 }
+                case SpellTargetTypes.LookPlayer:
+                {
+                    if (!castState.HasLockedTarget || !string.Equals(castState.LockedTargetType, SpellTargetTypes.LookPlayer, StringComparison.OrdinalIgnoreCase))
+                    {
+                        failureReason = "The locked target is no longer valid.";
+                        return false;
+                    }
+
+                    var entity = sapi.World.GetEntityById(castState.LockedEntityId);
+                    if (entity is not EntityPlayer playerEntity || !playerEntity.Alive)
+                    {
+                        failureReason = "The locked target is no longer valid.";
+                        return false;
+                    }
+
+                    var effectiveRange = SpellRegistry.GetEffectiveLookTargetRange(spell);
+                    if (effectiveRange > 0)
+                    {
+                        var casterPos = caster.Entity.Pos.XYZ;
+                        var targetPos = playerEntity.Pos.XYZ;
+                        var dx = casterPos.X - targetPos.X;
+                        var dy = casterPos.Y - targetPos.Y;
+                        var dz = casterPos.Z - targetPos.Z;
+                        if ((dx * dx) + (dy * dy) + (dz * dz) > effectiveRange * effectiveRange)
+                        {
+                            failureReason = "The locked target moved out of range.";
+                            return false;
+                        }
+                    }
+
+                    if (spell.RequiresLineOfSight && !TryHasLineOfSight(caster, playerEntity.Pos.XYZ, playerEntity.EntityId, out failureReason))
+                    {
+                        return false;
+                    }
+
+                    target.Entity = playerEntity;
+                    target.Position = playerEntity.Pos.XYZ;
+                    target.TargetName = playerEntity.GetName() ?? spell.Code;
+                    return true;
+                }
+                case SpellTargetTypes.LookNonPlayerEntity:
+                {
+                    if (!castState.HasLockedTarget || !string.Equals(castState.LockedTargetType, SpellTargetTypes.LookNonPlayerEntity, StringComparison.OrdinalIgnoreCase))
+                    {
+                        failureReason = "The locked target is no longer valid.";
+                        return false;
+                    }
+
+                    var entity = sapi.World.GetEntityById(castState.LockedEntityId);
+                    if (entity == null || !entity.Alive || SpellRegistry.IsPlayerEntity(entity) || SpellRegistry.IsDroppedItemEntity(entity))
+                    {
+                        failureReason = "The locked target is no longer valid.";
+                        return false;
+                    }
+
+                    var effectiveRange = SpellRegistry.GetEffectiveLookTargetRange(spell);
+                    if (effectiveRange > 0)
+                    {
+                        var casterPos = caster.Entity.Pos.XYZ;
+                        var targetPos = entity.Pos.XYZ;
+                        var dx = casterPos.X - targetPos.X;
+                        var dy = casterPos.Y - targetPos.Y;
+                        var dz = casterPos.Z - targetPos.Z;
+                        if ((dx * dx) + (dy * dy) + (dz * dz) > effectiveRange * effectiveRange)
+                        {
+                            failureReason = "The locked target moved out of range.";
+                            return false;
+                        }
+                    }
+
+                    if (spell.RequiresLineOfSight && !TryHasLineOfSight(caster, entity.Pos.XYZ, entity.EntityId, out failureReason))
+                    {
+                        return false;
+                    }
+
+                    target.Entity = entity;
+                    target.Position = entity.Pos.XYZ;
+                    target.TargetName = entity.GetName() ?? spell.Code;
+                    return true;
+                }
+                case SpellTargetTypes.LookDroppedItem:
+                {
+                    if (!castState.HasLockedTarget || !string.Equals(castState.LockedTargetType, SpellTargetTypes.LookDroppedItem, StringComparison.OrdinalIgnoreCase))
+                    {
+                        failureReason = "The locked target is no longer valid.";
+                        return false;
+                    }
+
+                    var entity = sapi.World.GetEntityById(castState.LockedEntityId);
+                    if (!SpellRegistry.IsDroppedItemEntity(entity))
+                    {
+                        failureReason = "The locked target is no longer valid.";
+                        return false;
+                    }
+
+                    var effectiveRange = SpellRegistry.GetEffectiveLookTargetRange(spell);
+                    if (effectiveRange > 0)
+                    {
+                        var casterPos = caster.Entity.Pos.XYZ;
+                        var targetPos = entity.Pos.XYZ;
+                        var dx = casterPos.X - targetPos.X;
+                        var dy = casterPos.Y - targetPos.Y;
+                        var dz = casterPos.Z - targetPos.Z;
+                        if ((dx * dx) + (dy * dy) + (dz * dz) > effectiveRange * effectiveRange)
+                        {
+                            failureReason = "The locked target moved out of range.";
+                            return false;
+                        }
+                    }
+
+                    target.Entity = entity;
+                    target.Position = entity.Pos.XYZ;
+                    target.TargetName = entity.GetName() ?? "Dropped Item";
+                    return true;
+                }
                 case SpellTargetTypes.LookBlock:
                 {
                     if (!castState.HasLockedTarget || !string.Equals(castState.LockedTargetType, SpellTargetTypes.LookBlock, StringComparison.OrdinalIgnoreCase))
@@ -1611,6 +2844,39 @@ namespace TheRustweave
                     target.TargetName = !string.IsNullOrWhiteSpace(castState.LockedTargetName) ? castState.LockedTargetName : GetBlockDisplayName(pos);
                     return true;
                 }
+                case SpellTargetTypes.LookBlockEntity:
+                case SpellTargetTypes.LookContainer:
+                {
+                    if (!castState.HasLockedTarget || !string.Equals(castState.LockedTargetType, spell.TargetType, StringComparison.OrdinalIgnoreCase))
+                    {
+                        failureReason = spell.TargetType == SpellTargetTypes.LookContainer
+                            ? "The locked container target is no longer valid."
+                            : "The locked block entity target is no longer valid.";
+                        return false;
+                    }
+
+                    var pos = new BlockPos(castState.LockedBlockX, castState.LockedBlockY, castState.LockedBlockZ, caster.Entity.Pos.Dimension);
+                    var blockEntity = sapi.World.BlockAccessor.GetBlockEntity(pos);
+                    if (blockEntity == null)
+                    {
+                        failureReason = spell.TargetType == SpellTargetTypes.LookContainer
+                            ? "The locked container target is no longer valid."
+                            : "The locked block entity target is no longer valid.";
+                        return false;
+                    }
+
+                    if (string.Equals(spell.TargetType, SpellTargetTypes.LookContainer, StringComparison.OrdinalIgnoreCase) && !SpellRegistry.TryGetBlockEntityInventory(blockEntity, out _))
+                    {
+                        failureReason = "That target requires a container.";
+                        return false;
+                    }
+
+                    target.BlockPos = pos;
+                    target.BlockEntity = blockEntity;
+                    target.Position = new Vec3d(castState.LockedPosX, castState.LockedPosY, castState.LockedPosZ);
+                    target.TargetName = !string.IsNullOrWhiteSpace(castState.LockedTargetName) ? castState.LockedTargetName : SpellRegistry.GetBlockEntityDisplayName(blockEntity, pos);
+                    return true;
+                }
                 case SpellTargetTypes.LookPosition:
                 {
                     if (!castState.HasLockedTarget || !string.Equals(castState.LockedTargetType, SpellTargetTypes.LookPosition, StringComparison.OrdinalIgnoreCase))
@@ -1635,7 +2901,41 @@ namespace TheRustweave
                     }
 
                     target.Position = targetPos;
-                    target.TargetName = !string.IsNullOrWhiteSpace(castState.LockedTargetName) ? castState.LockedTargetName : spell.Code;
+                    target.TargetName = !string.IsNullOrWhiteSpace(castState.LockedTargetName) ? castState.LockedTargetName : SpellTargetTypes.GetDisplayName(SpellTargetTypes.LookPosition);
+                    return true;
+                }
+                case SpellTargetTypes.SelfArea:
+                {
+                    target.Entity = caster.Entity;
+                    target.Position = caster.Entity.Pos.XYZ;
+                    target.TargetName = SpellTargetTypes.GetDisplayName(SpellTargetTypes.SelfArea);
+                    return true;
+                }
+                case SpellTargetTypes.LookArea:
+                {
+                    if (!castState.HasLockedTarget || !string.Equals(castState.LockedTargetType, SpellTargetTypes.LookArea, StringComparison.OrdinalIgnoreCase))
+                    {
+                        failureReason = "The locked target is no longer valid.";
+                        return false;
+                    }
+
+                    var targetPos = new Vec3d(castState.LockedPosX, castState.LockedPosY, castState.LockedPosZ);
+                    var positionRange = SpellRegistry.GetEffectiveLookTargetRange(spell);
+                    if (positionRange > 0)
+                    {
+                        var casterPos = caster.Entity.Pos.XYZ;
+                        var dx = casterPos.X - targetPos.X;
+                        var dy = casterPos.Y - targetPos.Y;
+                        var dz = casterPos.Z - targetPos.Z;
+                        if ((dx * dx) + (dy * dy) + (dz * dz) > positionRange * positionRange)
+                        {
+                            failureReason = "The locked target moved out of range.";
+                            return false;
+                        }
+                    }
+
+                    target.Position = targetPos;
+                    target.TargetName = !string.IsNullOrWhiteSpace(castState.LockedTargetName) ? castState.LockedTargetName : SpellTargetTypes.GetDisplayName(SpellTargetTypes.LookArea);
                     return true;
                 }
                 default:
@@ -1699,7 +2999,7 @@ namespace TheRustweave
                 case SpellEffectTypes.ProjectileEntity:
                     return TryAppendProjectileEntity(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
                 case SpellEffectTypes.TeleportForward:
-                    return TryAppendTeleportForward(gameplayActions, caster, effect, out failureReason);
+                    return TryAppendTeleportForward(gameplayActions, caster, spell, target, effect, out failureReason);
                 case SpellEffectTypes.CorruptionTransfer:
                     return TryAppendCorruptionTransfer(ventActions, caster, spell, target, effect, ref corruptionDelta, out failureReason);
                 case SpellEffectTypes.SpawnParticles:
@@ -1707,9 +3007,7 @@ namespace TheRustweave
                 case SpellEffectTypes.PlaySound:
                     return TryAppendPlaySound(visualActions, caster, target, effect, out failureReason);
                 default:
-                    failureReason = $"unsupported effect type '{effect.Type}'";
-                    sapi.Logger.Warning("[TheRustweave] Spell '{0}' failed because effect type '{1}' is unsupported at runtime.", spell.Code, effect.Type);
-                    return false;
+                    return TryAppendPlannedEffect(gameplayActions, ventActions, visualActions, caster, state, spell, target, effect, ref corruptionDelta, out failureReason);
             }
         }
 
@@ -1945,6 +3243,11 @@ namespace TheRustweave
                 return false;
             }
 
+            if (IsPlayerTargetBlockedByPvp(caster, targetEntity, "damageRayEntity", out failureReason))
+            {
+                return false;
+            }
+
             var damageSource = new DamageSource
             {
                 Source = EnumDamageSource.Internal,
@@ -1988,31 +3291,31 @@ namespace TheRustweave
                 KnockbackStrength = 0f
             };
 
-            var entities = sapi.World.GetEntitiesAround(
-                center,
-                (float)radius,
-                (float)radius,
-                candidate =>
-                {
-                    if (candidate == null || !candidate.Alive)
-                    {
-                        return false;
-                    }
+              var entities = sapi.World.GetEntitiesAround(
+                  center,
+                  (float)radius,
+                  (float)radius,
+                  candidate =>
+                  {
+                      if (candidate == null || !candidate.Alive)
+                      {
+                          return false;
+                      }
 
-                    if (!candidate.IsCreature)
-                    {
-                        return false;
-                    }
+                      if (candidate is not EntityPlayer && !candidate.IsCreature)
+                      {
+                          return false;
+                      }
 
-                    if (!effect.IncludeCaster && candidate == caster.Entity)
-                    {
-                        return false;
-                    }
+                      if (!effect.IncludeCaster && candidate == caster.Entity)
+                      {
+                          return false;
+                      }
 
-                    if (!sapi.Server.Config.AllowPvP && candidate is EntityPlayer && candidate != caster.Entity)
-                    {
-                        return false;
-                    }
+                      if (!sapi.Server.Config.AllowPvP && candidate is EntityPlayer && candidate != caster.Entity)
+                      {
+                          return false;
+                      }
 
                     return true;
                 });
@@ -2126,6 +3429,11 @@ namespace TheRustweave
                 return false;
             }
 
+            if (IsPlayerTargetBlockedByPvp(caster, targetEntity, "stunTarget", out failureReason))
+            {
+                return false;
+            }
+
             var durationMilliseconds = (long)Math.Round(Math.Max(0d, effect.DurationSeconds) * 1000d);
             if (durationMilliseconds <= 0)
             {
@@ -2169,6 +3477,11 @@ namespace TheRustweave
             {
                 if (effect.DamageAmount > 0)
                 {
+                    if (IsPlayerTargetBlockedByPvp(caster, targetEntity, "projectileEntity", out failureReason))
+                    {
+                        return false;
+                    }
+
                     hasGameplayEffect = true;
                     var damageSource = new DamageSource
                     {
@@ -2247,15 +3560,20 @@ namespace TheRustweave
         {
             failureReason = string.Empty;
 
-            var targetEntity = applyToCaster ? caster.Entity : target.Entity;
-            if (targetEntity == null || !targetEntity.Alive)
-            {
-                failureReason = "the targeted entity is unavailable";
-                sapi.Logger.Warning("[TheRustweave] {0} failed because the target entity was unavailable for player '{1}'.", effectLabel, caster.PlayerUID);
-                return false;
-            }
+              var targetEntity = applyToCaster ? caster.Entity : target.Entity;
+              if (targetEntity == null || !targetEntity.Alive)
+              {
+                  failureReason = "the targeted entity is unavailable";
+                  sapi.Logger.Warning("[TheRustweave] {0} failed because the target entity was unavailable for player '{1}'.", effectLabel, caster.PlayerUID);
+                  return false;
+              }
 
-            var durationMilliseconds = (long)Math.Round(Math.Max(0d, effect.DurationSeconds) * 1000d);
+              if (!applyToCaster && IsPlayerTargetBlockedByPvp(caster, targetEntity, effectLabel, out failureReason))
+              {
+                  return false;
+              }
+
+              var durationMilliseconds = (long)Math.Round(Math.Max(0d, effect.DurationSeconds) * 1000d);
             if (durationMilliseconds <= 0)
             {
                 failureReason = "durationSeconds must be greater than zero";
@@ -2289,6 +3607,11 @@ namespace TheRustweave
             {
                 failureReason = "the targeted entity is unavailable";
                 sapi.Logger.Warning("[TheRustweave] weakenTarget failed because the target entity was unavailable for player '{0}'.", caster.PlayerUID);
+                return false;
+            }
+
+            if (IsPlayerTargetBlockedByPvp(caster, targetEntity, "weakenTarget", out failureReason))
+            {
                 return false;
             }
 
@@ -2343,6 +3666,11 @@ namespace TheRustweave
                 return false;
             }
 
+            if (IsPlayerTargetBlockedByPvp(caster, targetEntity, "damageOverTime", out failureReason))
+            {
+                return false;
+            }
+
             if (effect.DamagePerTick <= 0 || effect.TickIntervalSeconds <= 0 || effect.DurationSeconds <= 0)
             {
                 failureReason = "damage over time parameters are invalid";
@@ -2382,6 +3710,11 @@ namespace TheRustweave
             {
                 failureReason = "the targeted entity is unavailable";
                 sapi.Logger.Warning("[TheRustweave] knockbackEntity failed because the target entity was unavailable for player '{0}'.", caster.PlayerUID);
+                return false;
+            }
+
+            if (IsPlayerTargetBlockedByPvp(caster, targetEntity, "knockbackEntity", out failureReason))
+            {
                 return false;
             }
 
@@ -2429,6 +3762,11 @@ namespace TheRustweave
                 return false;
             }
 
+            if (IsPlayerTargetBlockedByPvp(caster, targetEntity, "pullEntity", out failureReason))
+            {
+                return false;
+            }
+
             var force = Math.Max(0f, effect.Force);
             if (force <= 0)
             {
@@ -2466,14 +3804,14 @@ namespace TheRustweave
             return $"therustweave.{spellCode}.{effectType}.{entityId}";
         }
 
-        private bool TryAppendTeleportForward(List<Func<bool>> gameplayActions, IServerPlayer caster, SpellEffectDefinition effect, out string failureReason)
+        private bool TryAppendTeleportForward(List<Func<bool>> gameplayActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
         {
             failureReason = string.Empty;
 
-            if (!TryFindTeleportDestination(caster, effect.TeleportDistance, out var destination))
+            if (!TryFindTeleportDestination(caster, target, effect.TeleportDistance, out var destination))
             {
                 failureReason = "no safe teleport destination could be found";
-                sapi.Logger.Warning("[TheRustweave] teleportForward failed because no safe destination was found for player '{0}'.", caster.PlayerUID);
+                sapi.Logger.Warning("[TheRustweave] teleportForward failed because no safe destination was found for player '{0}' and spell '{1}'.", caster.PlayerUID, spell.Code);
                 return false;
             }
 
@@ -2484,6 +3822,48 @@ namespace TheRustweave
             });
 
             return true;
+        }
+
+        private bool TryFindTeleportDestination(IServerPlayer caster, SpellTargetContext target, float distance, out Vec3d destination)
+        {
+            destination = caster.Entity?.Pos.XYZ ?? new Vec3d();
+            var entity = caster.Entity;
+            if (entity == null || entity.World == null)
+            {
+                return false;
+            }
+
+            Vec3d desired;
+            if (target.BlockPos != null)
+            {
+                desired = new Vec3d(target.BlockPos.X + 0.5, target.BlockPos.Y + 1.0, target.BlockPos.Z + 0.5);
+            }
+            else if (target.Position != default)
+            {
+                desired = target.Position;
+            }
+            else
+            {
+                var viewVector = entity.Pos.GetViewVector();
+                var basePosition = entity.Pos.XYZ;
+                desired = new Vec3d(
+                    basePosition.X + (viewVector.X * distance),
+                    basePosition.Y + (viewVector.Y * distance),
+                    basePosition.Z + (viewVector.Z * distance));
+            }
+
+            var searchStartY = Math.Floor(desired.Y);
+            for (var offset = 0; offset <= 3; offset++)
+            {
+                var candidate = new Vec3d(desired.X, searchStartY + offset, desired.Z);
+                if (IsTeleportPositionSafe(entity.World, entity, candidate))
+                {
+                    destination = candidate;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool TryAppendCorruptionTransfer(List<Func<bool>> ventActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, ref int corruptionDelta, out string failureReason)
@@ -2557,9 +3937,1895 @@ namespace TheRustweave
             return true;
         }
 
+        private bool TryAppendWeakPointStrike(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            var damage = Math.Max(1f, effect.DamageAmount > 0f ? effect.DamageAmount : effect.Amount);
+            if (effect.DamageAmount <= 0f)
+            {
+                effect.DamageAmount = damage;
+            }
+
+            var result = TryAppendDamageRayEntity(gameplayActions, caster, spell, target, effect, out failureReason);
+            if (!result)
+            {
+                return false;
+            }
+
+            visualActions.Add(() =>
+            {
+                var center = target.Entity?.Pos?.XYZ ?? target.Position;
+                sapi.World.SpawnParticles(4, unchecked((int)0xFF8A5137), new Vec3d(center.X - 0.1, center.Y + 0.9, center.Z - 0.1), new Vec3d(center.X + 0.1, center.Y + 1.2, center.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.25f, 0f, 0.35f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendLifeSteal(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (!TryAppendDamageRayEntity(gameplayActions, caster, spell, target, effect, out failureReason))
+            {
+                return false;
+            }
+
+            var healAmount = Math.Max(1f, effect.HealthAmount > 0f ? effect.HealthAmount : effect.DamageAmount > 0f ? effect.DamageAmount : effect.Amount);
+            gameplayActions.Add(() =>
+            {
+                return TryHealEntity(caster.Entity, healAmount);
+            });
+
+            visualActions.Add(() =>
+            {
+                var center = target.Entity?.Pos?.XYZ ?? target.Position;
+                sapi.World.SpawnParticles(4, unchecked((int)0xFF6ACB71), new Vec3d(center.X - 0.1, center.Y + 0.9, center.Z - 0.1), new Vec3d(center.X + 0.1, center.Y + 1.2, center.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.25f, 0f, 0.35f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendControlledEntityField(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            return TryAppendEntityFieldEffect(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+        }
+
+        private bool TryAppendTeleportToTarget(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (caster.Entity == null)
+            {
+                failureReason = "the caster is unavailable";
+                return false;
+            }
+
+            var desired = target.BlockPos != null ? new Vec3d(target.BlockPos.X + 0.5, target.BlockPos.Y + 1.0, target.BlockPos.Z + 0.5) : target.Position;
+            gameplayActions.Add(() => TryTeleportEntitySafely(caster.Entity, desired));
+            visualActions.Add(() =>
+            {
+                sapi.World.SpawnParticles(6, unchecked((int)0xFF8C6A4A), new Vec3d(desired.X - 0.15, desired.Y + 0.05, desired.Z - 0.15), new Vec3d(desired.X + 0.15, desired.Y + 0.2, desired.Z + 0.15), new Vec3f(-0.02f, 0.02f, -0.02f), new Vec3f(0.02f, 0.06f, 0.02f), 0.28f, 0f, 0.45f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendTeleportEntityToCaster(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (target.Entity == null)
+            {
+                failureReason = "the target entity is unavailable";
+                return false;
+            }
+
+            if (IsPlayerTargetBlockedByPvp(caster, target.Entity, effect.Type, out failureReason))
+            {
+                return false;
+            }
+
+            var desired = caster.Entity?.Pos?.XYZ ?? target.Position;
+            gameplayActions.Add(() => TryTeleportEntitySafely(target.Entity, desired));
+            visualActions.Add(() =>
+            {
+                sapi.World.SpawnParticles(6, unchecked((int)0xFF8C6A4A), new Vec3d(desired.X - 0.12, desired.Y + 0.05, desired.Z - 0.12), new Vec3d(desired.X + 0.12, desired.Y + 0.18, desired.Z + 0.12), new Vec3f(-0.02f, 0.02f, -0.02f), new Vec3f(0.02f, 0.06f, 0.02f), 0.28f, 0f, 0.45f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendTeleportEntityToPosition(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (target.Entity == null)
+            {
+                failureReason = "the target entity is unavailable";
+                return false;
+            }
+
+            if (IsPlayerTargetBlockedByPvp(caster, target.Entity, effect.Type, out failureReason))
+            {
+                return false;
+            }
+
+            var desired = target.BlockPos != null ? new Vec3d(target.BlockPos.X + 0.5, target.BlockPos.Y + 1.0, target.BlockPos.Z + 0.5) : target.Position;
+            gameplayActions.Add(() => TryTeleportEntitySafely(target.Entity, desired));
+            visualActions.Add(() =>
+            {
+                sapi.World.SpawnParticles(6, unchecked((int)0xFF8C6A4A), new Vec3d(desired.X - 0.12, desired.Y + 0.05, desired.Z - 0.12), new Vec3d(desired.X + 0.12, desired.Y + 0.18, desired.Z + 0.12), new Vec3f(-0.02f, 0.02f, -0.02f), new Vec3f(0.02f, 0.06f, 0.02f), 0.28f, 0f, 0.45f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendForceEffect(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            var radius = SpellRegistry.GetEffectiveRadius(spell, effect);
+            var center = target.Position;
+            if (effect.Type == SpellEffectTypes.PushEntity && target.Entity != null)
+            {
+                var force = Math.Max(0.5f, effect.Force > 0f ? effect.Force : effect.Amount);
+                if (IsPlayerTargetBlockedByPvp(caster, target.Entity, effect.Type, out failureReason))
+                {
+                    return false;
+                }
+
+                gameplayActions.Add(() =>
+                {
+                    var source = caster.Entity?.Pos?.XYZ ?? center;
+                    var direction = target.Entity.Pos.XYZ - source;
+                    direction.Y = Math.Max(0.2, direction.Y);
+                    direction.Normalize();
+                    target.Entity.Pos.Motion.Add(direction.X * force, direction.Y * force, direction.Z * force);
+                    return true;
+                });
+            }
+            else
+            {
+                if (radius <= 0)
+                {
+                    failureReason = "radius must be greater than zero";
+                    return false;
+                }
+
+                gameplayActions.Add(() =>
+                {
+                    var entities = sapi.World.GetEntitiesAround(center, (float)radius, (float)radius);
+                    if (entities == null)
+                    {
+                        return true;
+                    }
+
+                    var source = caster.Entity?.Pos?.XYZ ?? center;
+                    foreach (var entity in entities.Where(entity => entity != null && entity.Alive))
+                    {
+                        if (entity is EntityPlayer && IsPlayerTargetBlockedByPvp(caster, entity, effect.Type, out _))
+                        {
+                            continue;
+                        }
+
+                        var direction = entity.Pos.XYZ - source;
+                        if (direction.Length() <= 0.001)
+                        {
+                            direction = new Vec3d(0.01, 0.1, 0.01);
+                        }
+
+                        direction.Normalize();
+                        var force = Math.Max(0.35f, effect.Force > 0f ? effect.Force : Math.Max(0.5f, effect.Amount));
+                        entity.Pos.Motion.Add(direction.X * force, direction.Y * force, direction.Z * force);
+                    }
+
+                    return true;
+                });
+            }
+
+            visualActions.Add(() =>
+            {
+                sapi.World.SpawnParticles(6, unchecked((int)0xFF8C6A4A), new Vec3d(center.X - 0.1, center.Y + 0.1, center.Z - 0.1), new Vec3d(center.X + 0.1, center.Y + 0.18, center.Z + 0.1), new Vec3f(-0.02f, 0.02f, -0.02f), new Vec3f(0.02f, 0.06f, 0.02f), 0.28f, 0f, 0.45f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendMoveDroppedItem(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (!SpellRegistry.IsDroppedItemEntity(target.Entity))
+            {
+                failureReason = "the target is not a dropped item";
+                return false;
+            }
+
+            var itemEntity = target.Entity as EntityItem;
+            if (itemEntity?.Itemstack == null)
+            {
+                failureReason = "the dropped item is unavailable";
+                return false;
+            }
+
+            gameplayActions.Add(() =>
+            {
+                var moved = TryGiveItemStackToCaster(caster, itemEntity.Itemstack);
+                if (moved)
+                {
+                    itemEntity.Itemstack = null;
+                    return true;
+                }
+
+                return false;
+            });
+
+            visualActions.Add(() =>
+            {
+                var center = target.Entity.Pos.XYZ;
+                sapi.World.SpawnParticles(4, unchecked((int)0xFF8C6A4A), new Vec3d(center.X - 0.1, center.Y + 0.1, center.Z - 0.1), new Vec3d(center.X + 0.1, center.Y + 0.3, center.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.25f, 0f, 0.4f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendMoveBlockEntityContents(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (!SpellRegistry.TryGetBlockEntityInventory(target.BlockEntity, out var inventory) || inventory == null)
+            {
+                failureReason = "that spell requires a container";
+                return false;
+            }
+
+            gameplayActions.Add(() =>
+            {
+                var movedAny = false;
+                for (var slotIndex = 0; slotIndex < inventory.Count; slotIndex++)
+                {
+                    var slot = inventory[slotIndex];
+                    var stack = slot?.Itemstack;
+                    if (stack == null)
+                    {
+                        continue;
+                    }
+
+                    if (TryGiveItemStackToCaster(caster, stack))
+                    {
+                        slot.Itemstack = null;
+                        slot.MarkDirty();
+                        inventory.MarkSlotDirty(slotIndex);
+                        movedAny = true;
+                    }
+                }
+
+                return movedAny;
+            });
+
+            visualActions.Add(() =>
+            {
+                var center = target.Position;
+                sapi.World.SpawnParticles(4, unchecked((int)0xFF8C6A4A), new Vec3d(center.X - 0.1, center.Y + 0.1, center.Z - 0.1), new Vec3d(center.X + 0.1, center.Y + 0.3, center.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.25f, 0f, 0.4f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendBlockEffect(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (!TryGetTargetBlockPos(target, out var pos))
+            {
+                failureReason = "no valid block target";
+                return false;
+            }
+
+            if (!RustweaveRuntime.Server?.CanModifyBlockAt(pos, caster.PlayerUID) ?? true)
+            {
+                failureReason = "that block is protected";
+                return false;
+            }
+
+            var world = caster.Entity?.World ?? sapi.World;
+            switch (effect.Type)
+            {
+                case SpellEffectTypes.MineBlock:
+                case SpellEffectTypes.ExtractOre:
+                case SpellEffectTypes.HarvestBlocks:
+                case SpellEffectTypes.PrecisionBlockStrike:
+                    gameplayActions.Add(() => TryBreakBlockWithLoot(world, pos, caster));
+                    break;
+                case SpellEffectTypes.ExcavateBlocks:
+                    gameplayActions.Add(() =>
+                    {
+                        var removed = 0;
+                        var radius = Math.Max(1, effect.MaxBlocks > 0 ? effect.MaxBlocks : 1);
+                        for (var dx = -1; dx <= 1 && removed < radius; dx++)
+                        {
+                            for (var dy = 0; dy <= 1 && removed < radius; dy++)
+                            {
+                                for (var dz = -1; dz <= 1 && removed < radius; dz++)
+                                {
+                                var p = new BlockPos(pos.X + dx, pos.Y + dy, pos.Z + dz);
+                                    if (!RustweaveRuntime.Server?.CanModifyBlockAt(p, caster.PlayerUID) ?? true)
+                                    {
+                                        continue;
+                                    }
+
+                                    if (TryBreakBlockWithLoot(world, p, caster))
+                                    {
+                                        removed++;
+                                    }
+                                }
+                            }
+                        }
+
+                        return removed > 0;
+                    });
+                    break;
+                case SpellEffectTypes.ConvertBlock:
+                case SpellEffectTypes.RepairBlock:
+                    gameplayActions.Add(() =>
+                    {
+                        var blockCode = !string.IsNullOrWhiteSpace(effect.ResultBlockCode) ? effect.ResultBlockCode : effect.BlockCode;
+                        if (string.IsNullOrWhiteSpace(blockCode))
+                        {
+                            return false;
+                        }
+
+                        var block = world.GetBlock(new AssetLocation(blockCode));
+                        if (block == null)
+                        {
+                            return false;
+                        }
+
+                        world.BlockAccessor.SetBlock(block.BlockId, pos);
+                        return true;
+                    });
+                    break;
+                case SpellEffectTypes.RepairBlockArea:
+                    gameplayActions.Add(() =>
+                    {
+                        var repaired = 0;
+                        var radius = Math.Max(1, (int)Math.Round(SpellRegistry.GetEffectiveRadius(spell, effect)));
+                        for (var dx = -radius; dx <= radius; dx++)
+                        {
+                            for (var dz = -radius; dz <= radius; dz++)
+                            {
+                                var p = new BlockPos(pos.X + dx, pos.Y, pos.Z + dz);
+                                if (!RustweaveRuntime.Server?.CanModifyBlockAt(p, caster.PlayerUID) ?? true)
+                                {
+                                    continue;
+                                }
+
+                                var blockCode = !string.IsNullOrWhiteSpace(effect.ResultBlockCode) ? effect.ResultBlockCode : effect.BlockCode;
+                                if (string.IsNullOrWhiteSpace(blockCode))
+                                {
+                                    continue;
+                                }
+
+                                var block = world.GetBlock(new AssetLocation(blockCode));
+                                if (block == null)
+                                {
+                                    continue;
+                                }
+
+                                world.BlockAccessor.SetBlock(block.BlockId, p);
+                                repaired++;
+                            }
+                        }
+
+                        return repaired > 0;
+                    });
+                    break;
+                case SpellEffectTypes.OpenPassage:
+                case SpellEffectTypes.CreateRift:
+                    gameplayActions.Add(() =>
+                    {
+                        var snapshots = new List<RustweaveBlockSnapshot>();
+                        var dimension = caster.Entity?.Pos?.Dimension ?? 0;
+                        for (var dy = 0; dy < 2; dy++)
+                        {
+                            var p = new BlockPos(pos.X, pos.Y + dy, pos.Z, dimension);
+                            if (!RustweaveRuntime.Server?.CanModifyBlockAt(p, caster.PlayerUID) ?? true)
+                            {
+                                continue;
+                            }
+
+                            var block = world.BlockAccessor.GetBlock(p);
+                            if (block == null || block.BlockId == 0)
+                            {
+                                continue;
+                            }
+
+                            snapshots.Add(new RustweaveBlockSnapshot
+                            {
+                                X = p.X,
+                                Y = p.Y,
+                                Z = p.Z,
+                                Dimension = dimension,
+                                BlockId = block.BlockId,
+                                BlockCode = block.Code?.ToString() ?? string.Empty
+                            });
+                            world.BlockAccessor.SetBlock(0, p);
+                        }
+
+                        if (snapshots.Count == 0)
+                        {
+                            return false;
+                        }
+
+                        var record = BuildAreaEffectRecord(caster, spell, target, effect, new Vec3d(pos.X + 0.5, pos.Y + 0.5, pos.Z + 0.5));
+                        record.RecordKind = string.Equals(effect.Type, SpellEffectTypes.CreateRift, StringComparison.OrdinalIgnoreCase) ? "rift" : "passage";
+                        record.BlockSnapshots = snapshots;
+                        record.IsBlocking = true;
+                        if (record.DurationMilliseconds <= 0)
+                        {
+                            record.DurationMilliseconds = 10000;
+                            record.ExpiresAtMilliseconds = sapi.World.ElapsedMilliseconds + record.DurationMilliseconds;
+                        }
+                        return RustweaveRuntime.Server?.TryRegisterActiveEffect(record) == true;
+                    });
+                    break;
+                case SpellEffectTypes.CloseRift:
+                    gameplayActions.Add(() =>
+                    {
+                        var nearby = RustweaveRuntime.Server?.GetActiveEffectsNear(target.Position, Math.Max(2d, SpellRegistry.GetEffectiveRadius(spell, effect))) ?? Array.Empty<RustweaveActiveEffectRecord>();
+                        var latest = nearby.LastOrDefault(record => string.Equals(record.EffectType, SpellEffectTypes.CreateRift, StringComparison.OrdinalIgnoreCase) || string.Equals(record.EffectType, SpellEffectTypes.OpenPassage, StringComparison.OrdinalIgnoreCase) || string.Equals(record.RecordKind, "rift", StringComparison.OrdinalIgnoreCase) || string.Equals(record.RecordKind, "passage", StringComparison.OrdinalIgnoreCase));
+                        if (latest == null)
+                        {
+                            return false;
+                        }
+
+                        return RustweaveRuntime.Server?.TryRemoveActiveEffect(latest.EffectId, true) == true;
+                    });
+                    break;
+                case SpellEffectTypes.OpenLock:
+                    gameplayActions.Add(() =>
+                    {
+                        var blockEntity = world.BlockAccessor.GetBlockEntity(pos);
+                        if (blockEntity == null)
+                        {
+                            return false;
+                        }
+
+                        var unlocked = TrySetBooleanMember(blockEntity, false, "Locked", "IsLocked", "locked", "isLocked");
+                        if (unlocked)
+                        {
+                            TryMarkBlockEntityDirty(blockEntity);
+                        }
+
+                        return unlocked;
+                    });
+                    break;
+                case SpellEffectTypes.DestroyCorruptedMatter:
+                    gameplayActions.Add(() => TryBreakBlockWithLoot(world, pos, caster));
+                    break;
+                case SpellEffectTypes.HardenMaterial:
+                case SpellEffectTypes.HeatMaterial:
+                case SpellEffectTypes.CoolMaterial:
+                case SpellEffectTypes.AccelerateCraftState:
+                    gameplayActions.Add(() =>
+                    {
+                        var blockEntity = world.BlockAccessor.GetBlockEntity(pos);
+                        if (blockEntity == null)
+                        {
+                            return false;
+                        }
+
+                        var changed = false;
+                        var amount = effect.Amount != 0f ? effect.Amount : 1f;
+                        if (string.Equals(effect.Type, SpellEffectTypes.HardenMaterial, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(effect.ResultBlockCode))
+                        {
+                            var block = world.GetBlock(new AssetLocation(effect.ResultBlockCode));
+                            if (block != null)
+                            {
+                                world.BlockAccessor.SetBlock(block.BlockId, pos);
+                                changed = true;
+                            }
+                        }
+
+                        if (string.Equals(effect.Type, SpellEffectTypes.HeatMaterial, StringComparison.OrdinalIgnoreCase))
+                        {
+                            changed |= TryAdjustNumericMember(blockEntity, amount, "Temperature", "temperature", "Heat", "heat", "TemperatureLevel", "temperatureLevel");
+                        }
+                        else if (string.Equals(effect.Type, SpellEffectTypes.CoolMaterial, StringComparison.OrdinalIgnoreCase))
+                        {
+                            changed |= TryAdjustNumericMember(blockEntity, -Math.Abs(amount), "Temperature", "temperature", "Heat", "heat", "TemperatureLevel", "temperatureLevel");
+                        }
+                        else if (string.Equals(effect.Type, SpellEffectTypes.AccelerateCraftState, StringComparison.OrdinalIgnoreCase))
+                        {
+                            changed |= TryAdjustNumericMember(blockEntity, Math.Max(0.1d, Math.Abs(amount)), "Progress", "progress", "CraftProgress", "craftProgress", "CookProgress", "cookProgress", "GrowthProgress", "growthProgress");
+                        }
+
+                        if (changed)
+                        {
+                            TryMarkBlockEntityDirty(blockEntity);
+                        }
+
+                        return changed;
+                    });
+                    break;
+                case SpellEffectTypes.AnchorBlock:
+                case SpellEffectTypes.CreateWardArea:
+                case SpellEffectTypes.CreateBarrier:
+                case SpellEffectTypes.CreateContainmentArea:
+                case SpellEffectTypes.CreateBoundaryLine:
+                case SpellEffectTypes.CreateAntiSpreadArea:
+                case SpellEffectTypes.StabilizeArea:
+                case SpellEffectTypes.ChangeTemperatureArea:
+                case SpellEffectTypes.ChangeEnvironmentalPressure:
+                case SpellEffectTypes.StormPulse:
+                    gameplayActions.Add(() =>
+                    {
+                        var record = BuildAreaEffectRecord(caster, spell, target, effect, new Vec3d(pos.X + 0.5, pos.Y + 0.5, pos.Z + 0.5));
+                        return RustweaveRuntime.Server?.TryRegisterActiveEffect(record) == true;
+                    });
+                    break;
+            }
+
+            visualActions.Add(() =>
+            {
+                sapi.World.SpawnParticles(6, unchecked((int)0xFF8C6A4A), new Vec3d(pos.X + 0.25, pos.Y + 0.05, pos.Z + 0.25), new Vec3d(pos.X + 0.75, pos.Y + 0.15, pos.Z + 0.75), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.25f, 0f, 0.4f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendHeldOrInventoryEffect(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            switch (effect.Type)
+            {
+                case SpellEffectTypes.ConvertHeldItem:
+                    gameplayActions.Add(() =>
+                    {
+                        var slot = target.ItemSlot;
+                        var itemCode = effect.ItemCode;
+                        if (slot == null || string.IsNullOrWhiteSpace(itemCode))
+                        {
+                            return false;
+                        }
+
+                        var collectible = sapi.World.GetItem(new AssetLocation(itemCode));
+                        if (collectible == null)
+                        {
+                            return false;
+                        }
+
+                        var stackSize = Math.Max(1, slot.Itemstack?.StackSize ?? 1);
+                        slot.Itemstack = new ItemStack(collectible, stackSize);
+                        slot.MarkDirty();
+                        return true;
+                    });
+                    break;
+                case SpellEffectTypes.SummonTemporaryItem:
+                case SpellEffectTypes.CreateTemporaryFood:
+                    gameplayActions.Add(() =>
+                    {
+                        var stack = CreateStack(effect.ItemCode, effect.Amount > 0 ? (int)Math.Round(effect.Amount) : 1);
+                        if (stack == null)
+                        {
+                            return false;
+                        }
+
+                        if (target.ItemSlot != null)
+                        {
+                            target.ItemSlot.Itemstack = stack;
+                            target.ItemSlot.MarkDirty();
+                            return true;
+                        }
+
+                        return TryGiveItemStackToCaster(caster, stack);
+                    });
+                    break;
+                case SpellEffectTypes.ModifySatiety:
+                    gameplayActions.Add(() => TryModifySatiety(caster, effect.Amount));
+                    break;
+            }
+
+            visualActions.Add(() =>
+            {
+                var center = caster.Entity?.Pos?.XYZ ?? target.Position;
+                sapi.World.SpawnParticles(4, unchecked((int)0xFF8C6A4A), new Vec3d(center.X - 0.1, center.Y + 0.1, center.Z - 0.1), new Vec3d(center.X + 0.1, center.Y + 0.3, center.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.25f, 0f, 0.4f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendSummonEffect(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (effect.DespawnAfterSeconds <= 0)
+            {
+                failureReason = "despawnAfterSeconds must be greater than zero";
+                return false;
+            }
+
+            if (effect.Type == SpellEffectTypes.SummonTemporaryItem)
+            {
+                gameplayActions.Add(() =>
+                {
+                    var stack = CreateStack(effect.ItemCode, effect.Amount > 0 ? (int)Math.Round(effect.Amount) : 1);
+                    if (stack == null)
+                    {
+                        return false;
+                    }
+
+                    var placed = TryGiveItemStackToCaster(caster, stack);
+                    if (!placed && target.ItemSlot != null)
+                    {
+                        target.ItemSlot.Itemstack = stack;
+                        target.ItemSlot.MarkDirty();
+                        placed = true;
+                    }
+
+                    if (!placed)
+                    {
+                        return false;
+                    }
+
+                    var record = BuildAreaEffectRecord(caster, spell, target, effect, caster.Entity?.Pos?.XYZ ?? target.Position);
+                    record.RecordKind = "item";
+                    record.ItemCode = effect.ItemCode;
+                    record.TargetEntityId = caster.Entity?.EntityId ?? -1;
+                    record.Amount = effect.Amount;
+                    record.DurationMilliseconds = (long)Math.Round(effect.DespawnAfterSeconds * 1000d);
+                    record.ExpiresAtMilliseconds = sapi.World.ElapsedMilliseconds + record.DurationMilliseconds;
+                    return RustweaveRuntime.Server?.TryRegisterActiveEffect(record) == true;
+                });
+            }
+            else if (effect.Type == SpellEffectTypes.SummonTemporaryEntity || effect.Type == SpellEffectTypes.SummonTemporaryProjectile)
+            {
+                gameplayActions.Add(() =>
+                {
+                    var summonPosition = target.BlockPos != null ? new Vec3d(target.BlockPos.X + 0.5, target.BlockPos.Y + 1.0, target.BlockPos.Z + 0.5) : target.Position;
+                    if (!TrySpawnEntityByCode(effect.EntityCode, summonPosition, caster, out var spawnedEntity))
+                    {
+                        return false;
+                    }
+
+                    var record = BuildAreaEffectRecord(caster, spell, target, effect, summonPosition);
+                    record.RecordKind = effect.Type == SpellEffectTypes.SummonTemporaryProjectile ? "projectile" : "summon";
+                    record.EntityCode = effect.EntityCode;
+                    record.TargetEntityId = spawnedEntity?.EntityId ?? -1;
+                    record.AffectedEntityIds = spawnedEntity?.EntityId > 0 ? new List<long> { spawnedEntity.EntityId } : new List<long>();
+                    record.Amount = effect.Amount;
+                    record.DurationMilliseconds = (long)Math.Round(effect.DespawnAfterSeconds * 1000d);
+                    record.ExpiresAtMilliseconds = sapi.World.ElapsedMilliseconds + record.DurationMilliseconds;
+                    return RustweaveRuntime.Server?.TryRegisterActiveEffect(record) == true;
+                });
+            }
+            else if (effect.Type == SpellEffectTypes.SummonTemporaryConstruct)
+            {
+                gameplayActions.Add(() =>
+                {
+                    if (!TryGetTargetBlockPos(target, out var pos))
+                    {
+                        return false;
+                    }
+
+                    var dimension = caster.Entity?.Pos?.Dimension ?? 0;
+                    if (!RustweaveRuntime.Server?.CanModifyBlockAt(pos, caster.PlayerUID) ?? true)
+                    {
+                        return false;
+                    }
+
+                    var blockCode = !string.IsNullOrWhiteSpace(effect.BlockCode) ? effect.BlockCode : effect.ResultBlockCode;
+                    if (string.IsNullOrWhiteSpace(blockCode))
+                    {
+                        return false;
+                    }
+
+                    var block = sapi.World.GetBlock(new AssetLocation(blockCode));
+                    if (block == null)
+                    {
+                        return false;
+                    }
+
+                    var snapshot = new RustweaveBlockSnapshot
+                    {
+                        X = pos.X,
+                        Y = pos.Y,
+                        Z = pos.Z,
+                        Dimension = dimension,
+                        BlockId = sapi.World.BlockAccessor.GetBlock(pos)?.BlockId ?? 0,
+                        BlockCode = sapi.World.BlockAccessor.GetBlock(pos)?.Code?.ToString() ?? string.Empty
+                    };
+
+                    sapi.World.BlockAccessor.SetBlock(block.BlockId, pos);
+                    var record = BuildAreaEffectRecord(caster, spell, target, effect, new Vec3d(pos.X + 0.5, pos.Y + 0.5, pos.Z + 0.5));
+                    record.RecordKind = "construct";
+                    record.BlockCode = blockCode;
+                    record.BlockSnapshots = new List<RustweaveBlockSnapshot> { snapshot };
+                    record.DurationMilliseconds = (long)Math.Round(effect.DespawnAfterSeconds * 1000d);
+                    record.ExpiresAtMilliseconds = sapi.World.ElapsedMilliseconds + record.DurationMilliseconds;
+                    return RustweaveRuntime.Server?.TryRegisterActiveEffect(record) == true;
+                });
+            }
+
+            visualActions.Add(() =>
+            {
+                var center = target.Position;
+                sapi.World.SpawnParticles(6, unchecked((int)0xFF8C6A4A), new Vec3d(center.X - 0.1, center.Y + 0.1, center.Z - 0.1), new Vec3d(center.X + 0.1, center.Y + 0.3, center.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.25f, 0f, 0.4f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendDetectionEffect(List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            visualActions.Add(() =>
+            {
+                var center = target.Position;
+                sapi.World.SpawnParticles(8, unchecked((int)0xFF8C6A4A), new Vec3d(center.X - 0.2, center.Y + 0.1, center.Z - 0.2), new Vec3d(center.X + 0.2, center.Y + 0.5, center.Z + 0.2), new Vec3f(-0.02f, 0.02f, -0.02f), new Vec3f(0.02f, 0.06f, 0.02f), 0.25f, 0f, 0.4f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendGraftingEffect(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (effect.Type == SpellEffectTypes.ModifySatiety)
+            {
+                gameplayActions.Add(() => TryModifySatiety(caster, effect.Amount));
+                visualActions.Add(() =>
+                {
+                    var center = caster.Entity?.Pos?.XYZ ?? target.Position;
+                    sapi.World.SpawnParticles(4, unchecked((int)0xFF6ACB71), new Vec3d(center.X - 0.1, center.Y + 0.1, center.Z - 0.1), new Vec3d(center.X + 0.1, center.Y + 0.3, center.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.25f, 0f, 0.4f, EnumParticleModel.Quad, caster);
+                    return true;
+                });
+
+                return true;
+            }
+
+            if (effect.Type == SpellEffectTypes.ModifyCropGrowth || effect.Type == SpellEffectTypes.ModifyFarmlandNutrients)
+            {
+                var center = target.BlockPos != null
+                    ? new Vec3d(target.BlockPos.X + 0.5, target.BlockPos.Y + 0.5, target.BlockPos.Z + 0.5)
+                    : target.Position;
+                var record = BuildAreaEffectRecord(caster, spell, target, effect, center);
+                record.RecordKind = "crop";
+                record.TickIntervalMilliseconds = 1000;
+                record.NextTickAtMilliseconds = sapi.World.ElapsedMilliseconds + 1000;
+                record.IsArea = true;
+                record.IsBeneficial = effect.Amount >= 0f;
+                record.IsHostile = effect.Amount < 0f;
+                gameplayActions.Add(() => RustweaveRuntime.Server?.TryRegisterActiveEffect(record) == true);
+                visualActions.Add(() =>
+                {
+                    var color = effect.Amount >= 0f ? unchecked((int)0xFF6ACB71) : unchecked((int)0xFFC94A4A);
+                    sapi.World.SpawnParticles(6, color, new Vec3d(center.X - 0.15, center.Y + 0.05, center.Z - 0.15), new Vec3d(center.X + 0.15, center.Y + 0.2, center.Z + 0.15), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.05f, 0.01f), 0.3f, 0f, 0.45f, EnumParticleModel.Quad, caster);
+                    return true;
+                });
+                return true;
+            }
+
+            if (effect.Type == SpellEffectTypes.ModifyAnimalFertility)
+            {
+                if (target.Entity == null)
+                {
+                    failureReason = "the target entity is unavailable";
+                    return false;
+                }
+
+                var durationMilliseconds = (long)Math.Round(Math.Max(0d, effect.DurationSeconds) * 1000d);
+                var record = new RustweaveActiveEffectRecord
+                {
+                    EffectId = BuildTimedEffectCode(spell.Code, effect.Type, target.Entity.EntityId),
+                    EffectType = effect.Type,
+                    RecordKind = "entity",
+                    SpellCode = spell.Code,
+                    CasterPlayerUid = caster.PlayerUID,
+                    CasterEntityId = caster.Entity?.EntityId ?? -1,
+                    TargetPlayerUid = target.Entity is EntityPlayer targetPlayer ? targetPlayer.PlayerUID ?? string.Empty : string.Empty,
+                    TargetEntityId = target.Entity.EntityId,
+                    TargetType = spell.TargetType,
+                    Mode = effect.Mode,
+                    CenterX = target.Entity.Pos?.XYZ.X ?? target.Position.X,
+                    CenterY = target.Entity.Pos?.XYZ.Y ?? target.Position.Y,
+                    CenterZ = target.Entity.Pos?.XYZ.Z ?? target.Position.Z,
+                    OriginX = caster.Entity?.Pos?.XYZ.X ?? target.Position.X,
+                    OriginY = caster.Entity?.Pos?.XYZ.Y ?? target.Position.Y,
+                    OriginZ = caster.Entity?.Pos?.XYZ.Z ?? target.Position.Z,
+                    Radius = Math.Max(1d, effect.Radius > 0d ? effect.Radius : 1d),
+                    Amount = effect.Amount,
+                    SecondaryAmount = effect.SecondaryAmount,
+                    DurationMilliseconds = durationMilliseconds,
+                    StartedAtMilliseconds = sapi.World.ElapsedMilliseconds,
+                    ExpiresAtMilliseconds = sapi.World.ElapsedMilliseconds + durationMilliseconds,
+                    StartedAtTotalDays = Math.Max(0d, sapi.World.Calendar?.TotalDays ?? 0d),
+                    ExpiresAtTotalDays = Math.Max(0d, sapi.World.Calendar?.TotalDays ?? 0d) + (Math.Max(1d, effect.DurationSeconds) / 24d),
+                    TickIntervalMilliseconds = Math.Max(250, (long)Math.Round(Math.Max(0.25d, effect.TickIntervalSeconds) * 1000d)),
+                    NextTickAtMilliseconds = sapi.World.ElapsedMilliseconds + Math.Max(250, (long)Math.Round(Math.Max(0.25d, effect.TickIntervalSeconds) * 1000d)),
+                    PersistAcrossRestart = true,
+                    IsArea = false,
+                    IsHostile = false,
+                    IsBeneficial = true
+                };
+
+                gameplayActions.Add(() => RustweaveRuntime.Server?.TryRegisterActiveEffect(record) == true);
+                visualActions.Add(() =>
+                {
+                    var center = target.Entity.Pos?.XYZ ?? target.Position;
+                    sapi.World.SpawnParticles(8, unchecked((int)0xFF6ACB71), new Vec3d(center.X - 0.12, center.Y + 0.1, center.Z - 0.12), new Vec3d(center.X + 0.12, center.Y + 1.2, center.Z + 0.12), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.05f, 0.01f), 0.28f, 0f, 0.45f, EnumParticleModel.Quad, caster);
+                    return true;
+                });
+                return true;
+            }
+
+            failureReason = $"unsupported grafting effect '{effect.Type}'";
+            return false;
+        }
+
+        private bool TryAppendWeatherEffect(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (effect.Type == SpellEffectTypes.CallLightning)
+            {
+                gameplayActions.Add(() => TryCallLightningAt(caster, spell, target.Position, effect));
+                visualActions.Add(() =>
+                {
+                    var center = target.Position;
+                    sapi.World.SpawnParticles(8, unchecked((int)0xFFD9D0FF), new Vec3d(center.X - 0.15, center.Y + 0.2, center.Z - 0.15), new Vec3d(center.X + 0.15, center.Y + 0.9, center.Z + 0.15), new Vec3f(-0.02f, 0.04f, -0.02f), new Vec3f(0.02f, 0.08f, 0.02f), 0.25f, 0f, 0.5f, EnumParticleModel.Quad, caster);
+                    return true;
+                });
+                return true;
+            }
+
+            gameplayActions.Add(() =>
+            {
+                if (string.Equals(effect.Type, SpellEffectTypes.ChangeWeather, StringComparison.OrdinalIgnoreCase))
+                {
+                    TryApplyWeatherChange(target.Position, effect);
+                }
+
+                var record = BuildAreaEffectRecord(caster, spell, target, effect, target.Position);
+                record.RecordKind = effect.Type == SpellEffectTypes.ChangeWeather ? "weather" : "weather-area";
+                record.WeatherType = effect.WeatherType;
+                if (string.Equals(effect.Type, SpellEffectTypes.ChangeWeather, StringComparison.OrdinalIgnoreCase) && record.DurationMilliseconds <= 0)
+                {
+                    record.DurationMilliseconds = 10000;
+                    record.ExpiresAtMilliseconds = sapi.World.ElapsedMilliseconds + record.DurationMilliseconds;
+                }
+                return RustweaveRuntime.Server?.TryRegisterActiveEffect(record) == true;
+            });
+
+            visualActions.Add(() =>
+            {
+                var center = target.Position;
+                sapi.World.SpawnParticles(8, unchecked((int)0xFF8C6A4A), new Vec3d(center.X - 0.2, center.Y + 0.1, center.Z - 0.2), new Vec3d(center.X + 0.2, center.Y + 0.6, center.Z + 0.2), new Vec3f(-0.02f, 0.02f, -0.02f), new Vec3f(0.02f, 0.06f, 0.02f), 0.25f, 0f, 0.4f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryCallLightningAt(IServerPlayer caster, SpellDefinition spell, Vec3d position, SpellEffectDefinition effect)
+        {
+            var radius = Math.Max(1d, SpellRegistry.GetEffectiveRadius(spell, effect));
+            var damage = Math.Max(2f, effect.DamageAmount > 0f ? effect.DamageAmount : Math.Abs(effect.Amount) > 0f ? Math.Abs(effect.Amount) : 4f);
+            var entities = sapi.World.GetEntitiesAround(position, (float)radius, (float)radius);
+            if (entities != null)
+            {
+                foreach (var entity in entities.Where(entity => entity != null && entity.Alive))
+                {
+                    if (entity is EntityPlayer && IsPlayerTargetBlockedByPvp(caster, entity, effect.Type, out _))
+                    {
+                        continue;
+                    }
+
+                    ApplySpellDamage(caster, spell, effect.Type, entity, new DamageSource
+                    {
+                        Source = EnumDamageSource.Internal,
+                        SourceEntity = caster.Entity,
+                        CauseEntity = caster.Entity,
+                        DamageTier = 2,
+                        KnockbackStrength = 0.35f
+                    }, damage);
+                }
+            }
+
+            return true;
+        }
+
+        private bool TryApplyWeatherChange(Vec3d position, SpellEffectDefinition effect)
+        {
+            try
+            {
+                var world = sapi.World;
+                foreach (var method in world.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+                {
+                    if (!method.Name.Contains("Weather", StringComparison.OrdinalIgnoreCase) && !method.Name.Contains("Rain", StringComparison.OrdinalIgnoreCase) && !method.Name.Contains("Storm", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var parameters = method.GetParameters();
+                    if (parameters.Length == 0 || parameters.Length > 4)
+                    {
+                        continue;
+                    }
+
+                    var args = new object?[parameters.Length];
+                    var usable = true;
+                    for (var index = 0; index < parameters.Length; index++)
+                    {
+                        var parameterType = parameters[index].ParameterType;
+                        if (parameterType == typeof(string))
+                        {
+                            args[index] = !string.IsNullOrWhiteSpace(effect.WeatherType) ? effect.WeatherType : effect.Mode;
+                        }
+                        else if (typeof(Vec3d).IsAssignableFrom(parameterType))
+                        {
+                            args[index] = position;
+                        }
+                        else if (parameterType == typeof(bool))
+                        {
+                            args[index] = true;
+                        }
+                        else if (parameterType == typeof(float) || parameterType == typeof(double))
+                        {
+                            args[index] = Math.Max(0f, effect.Amount);
+                        }
+                        else if (parameterType.IsValueType)
+                        {
+                            args[index] = Activator.CreateInstance(parameterType);
+                        }
+                        else
+                        {
+                            usable = false;
+                            break;
+                        }
+                    }
+
+                    if (!usable)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        method.Invoke(world, args);
+                        return true;
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            sapi.World.SpawnParticles(8, unchecked((int)0xFF8C6A4A), new Vec3d(position.X - 0.4, position.Y + 0.2, position.Z - 0.4), new Vec3d(position.X + 0.4, position.Y + 1.0, position.Z + 0.4), new Vec3f(-0.02f, 0.03f, -0.02f), new Vec3f(0.02f, 0.07f, 0.02f), 0.28f, 0f, 0.45f, EnumParticleModel.Quad, null);
+            return true;
+        }
+
+        private bool TryAppendCleanupEffect(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            var entity = target.Entity ?? caster.Entity;
+            gameplayActions.Add(() =>
+            {
+                if (entity == null)
+                {
+                    return false;
+                }
+
+                var effects = RustweaveRuntime.Server?.GetActiveEffectsForEntity(entity.EntityId) ?? Array.Empty<RustweaveActiveEffectRecord>();
+                var removed = false;
+                foreach (var record in effects)
+                {
+                    if (record == null)
+                    {
+                        continue;
+                    }
+
+                    if (string.Equals(effect.Type, SpellEffectTypes.PurgeTimedEffects, StringComparison.OrdinalIgnoreCase) && record.IsHostile)
+                    {
+                        removed |= RustweaveRuntime.Server?.TryRemoveActiveEffect(record.EffectId, false) == true;
+                    }
+                    else if (string.Equals(effect.Type, SpellEffectTypes.StripEntityBuffs, StringComparison.OrdinalIgnoreCase) && record.IsBeneficial)
+                    {
+                        removed |= RustweaveRuntime.Server?.TryRemoveActiveEffect(record.EffectId, false) == true;
+                    }
+                    else if (string.Equals(effect.Type, SpellEffectTypes.CleanseContamination, StringComparison.OrdinalIgnoreCase) && string.Equals(record.EffectType, SpellEffectTypes.ModifyCorruptionGain, StringComparison.OrdinalIgnoreCase))
+                    {
+                        removed |= RustweaveRuntime.Server?.TryRemoveActiveEffect(record.EffectId, false) == true;
+                    }
+                    else if (string.Equals(effect.Type, SpellEffectTypes.UnravelDamage, StringComparison.OrdinalIgnoreCase) && string.Equals(record.EffectType, SpellEffectTypes.DamageOverTime, StringComparison.OrdinalIgnoreCase))
+                    {
+                        removed |= RustweaveRuntime.Server?.TryRemoveActiveEffect(record.EffectId, false) == true;
+                    }
+                }
+
+                return removed;
+            });
+
+            visualActions.Add(() =>
+            {
+                var center = entity.Pos?.XYZ ?? target.Position;
+                sapi.World.SpawnParticles(4, unchecked((int)0xFF6ACB71), new Vec3d(center.X - 0.1, center.Y + 0.1, center.Z - 0.1), new Vec3d(center.X + 0.1, center.Y + 0.3, center.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.25f, 0f, 0.4f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private RustweaveActiveEffectRecord BuildAreaEffectRecord(IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, Vec3d center)
+        {
+            var radius = Math.Max(0d, spell.Radius > 0d ? spell.Radius : effect.Radius);
+            var durationMilliseconds = (long)Math.Round(Math.Max(0d, effect.DurationSeconds) * 1000d);
+            var nowMilliseconds = sapi.World.ElapsedMilliseconds;
+            var nowDays = Math.Max(0d, sapi.World.Calendar?.TotalDays ?? 0d);
+            return new RustweaveActiveEffectRecord
+            {
+                EffectId = $"{spell.Code}:{effect.Type}:{caster.Entity?.EntityId ?? 0}:{Guid.NewGuid():N}",
+                EffectType = effect.Type,
+                RecordKind = "area",
+                SpellCode = spell.Code,
+                CasterPlayerUid = caster.PlayerUID,
+                CasterEntityId = caster.Entity?.EntityId ?? -1,
+                TargetPlayerUid = target.Entity is EntityPlayer targetPlayer ? targetPlayer.PlayerUID ?? string.Empty : string.Empty,
+                TargetEntityId = target.Entity?.EntityId ?? -1,
+                TargetType = spell.TargetType,
+                Mode = effect.Mode,
+                CenterX = center.X,
+                CenterY = center.Y,
+                CenterZ = center.Z,
+                OriginX = caster.Entity?.Pos?.XYZ.X ?? center.X,
+                OriginY = caster.Entity?.Pos?.XYZ.Y ?? center.Y,
+                OriginZ = caster.Entity?.Pos?.XYZ.Z ?? center.Z,
+                Radius = radius,
+                Amount = effect.Amount,
+                SecondaryAmount = effect.SecondaryAmount,
+                DurationMilliseconds = durationMilliseconds,
+                StartedAtMilliseconds = nowMilliseconds,
+                ExpiresAtMilliseconds = nowMilliseconds + durationMilliseconds,
+                StartedAtTotalDays = nowDays,
+                ExpiresAtTotalDays = nowDays + (Math.Max(1d, effect.DurationSeconds) / 24d),
+                TickIntervalMilliseconds = Math.Max(250, (long)Math.Round(Math.Max(0.25d, effect.TickIntervalSeconds) * 1000d)),
+                NextTickAtMilliseconds = nowMilliseconds + Math.Max(250, (long)Math.Round(Math.Max(0.25d, effect.TickIntervalSeconds) * 1000d)),
+                PersistAcrossRestart = true,
+                IsArea = true,
+                IsHostile = effect.Amount < 0f || effect.Type is SpellEffectTypes.ChangeTemperatureArea or SpellEffectTypes.ChangeEnvironmentalPressure or SpellEffectTypes.StormPulse,
+                IsBeneficial = effect.Amount > 0f || effect.Type is SpellEffectTypes.StabilizeArea or SpellEffectTypes.CreateWardArea or SpellEffectTypes.CreateBarrier or SpellEffectTypes.CreateContainmentArea or SpellEffectTypes.CreateBoundaryLine or SpellEffectTypes.CreateAntiSpreadArea
+            };
+        }
+
+        private bool TryHealEntity(Entity? entity, float amount)
+        {
+            if (entity == null || amount <= 0f)
+            {
+                return false;
+            }
+
+            var health = entity.GetBehavior<EntityBehaviorHealth>();
+            if (health == null)
+            {
+                return false;
+            }
+
+            health.Health = Math.Min(health.MaxHealth, health.Health + amount);
+            return true;
+        }
+
+        private bool TryTeleportEntitySafely(Entity entity, Vec3d desired)
+        {
+            if (entity == null)
+            {
+                return false;
+            }
+
+            if (RustweaveRuntime.Server?.TryFindNearestSafeTeleportPosition(entity.World, entity, desired, out var safePosition) == true)
+            {
+                entity.TeleportTo(safePosition);
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryGetTargetBlockPos(SpellTargetContext target, out BlockPos pos)
+        {
+            if (target.BlockPos != null)
+            {
+                pos = target.BlockPos;
+                return true;
+            }
+
+            pos = new BlockPos((int)Math.Floor(target.Position.X), (int)Math.Floor(target.Position.Y), (int)Math.Floor(target.Position.Z), target.Entity?.Pos?.Dimension ?? 0);
+            return true;
+        }
+
+        private bool TryGiveItemStackToCaster(IServerPlayer caster, ItemStack stack)
+        {
+            if (caster?.InventoryManager?.InventoriesOrdered == null || stack == null)
+            {
+                return false;
+            }
+
+            foreach (var inventory in caster.InventoryManager.InventoriesOrdered)
+            {
+                for (var slotIndex = 0; slotIndex < inventory.Count; slotIndex++)
+                {
+                    var slot = inventory[slotIndex];
+                    if (slot == null)
+                    {
+                        continue;
+                    }
+
+                    if (slot.Itemstack == null)
+                    {
+                        slot.Itemstack = stack.Clone();
+                        slot.MarkDirty();
+                        inventory.MarkSlotDirty(slotIndex);
+                        return true;
+                    }
+
+                    if (slot.Itemstack.Collectible?.Code != null && stack.Collectible?.Code != null && slot.Itemstack.Collectible.Code.Path == stack.Collectible.Code.Path)
+                    {
+                        slot.Itemstack.StackSize = Math.Min(slot.Itemstack.StackSize + stack.StackSize, slot.Itemstack.Collectible.MaxStackSize);
+                        slot.MarkDirty();
+                        inventory.MarkSlotDirty(slotIndex);
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private bool TryBreakBlockWithLoot(IWorldAccessor world, BlockPos pos, IServerPlayer caster)
+        {
+            if (world == null || pos == null)
+            {
+                return false;
+            }
+
+            var accessor = world.BlockAccessor;
+            var accessorType = accessor.GetType();
+            var method = accessorType.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .FirstOrDefault(candidate => string.Equals(candidate.Name, "BreakBlock", StringComparison.OrdinalIgnoreCase) || string.Equals(candidate.Name, "BreakBlockWithDrops", StringComparison.OrdinalIgnoreCase));
+
+            if (method != null)
+            {
+                var parameters = method.GetParameters();
+                var args = new object?[parameters.Length];
+                for (var i = 0; i < parameters.Length; i++)
+                {
+                    var parameterType = parameters[i].ParameterType;
+                    if (typeof(BlockPos).IsAssignableFrom(parameterType))
+                    {
+                        args[i] = pos;
+                    }
+                    else if (typeof(IPlayer).IsAssignableFrom(parameterType))
+                    {
+                        args[i] = caster;
+                    }
+                    else if (parameterType == typeof(float) || parameterType == typeof(double))
+                    {
+                        args[i] = 1f;
+                    }
+                    else
+                    {
+                        args[i] = parameterType.IsValueType ? Activator.CreateInstance(parameterType) : null;
+                    }
+                }
+
+                try
+                {
+                    method.Invoke(accessor, args);
+                    return true;
+                }
+                catch
+                {
+                }
+            }
+
+            var block = world.BlockAccessor.GetBlock(pos);
+            if (block == null)
+            {
+                return false;
+            }
+
+            world.BlockAccessor.SetBlock(0, pos);
+            return true;
+        }
+
+        private ItemStack? CreateStack(string itemCode, int quantity)
+        {
+            if (string.IsNullOrWhiteSpace(itemCode) || quantity <= 0)
+            {
+                return null;
+            }
+
+            var item = sapi.World.GetItem(new AssetLocation(itemCode));
+            if (item == null)
+            {
+                return null;
+            }
+
+            return new ItemStack(item, quantity);
+        }
+
+        private bool TryModifySatiety(IServerPlayer caster, float amount)
+        {
+            if (caster?.Entity == null || Math.Abs(amount) <= 0f)
+            {
+                return false;
+            }
+
+            var entity = caster.Entity;
+            var behaviorType = entity.GetType();
+            foreach (var propertyName in new[] { "Satiety", "satiety", "Saturation", "saturation", "Hunger", "hunger" })
+            {
+                var property = behaviorType.GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (property?.CanRead == true && property.CanWrite == true)
+                {
+                    var currentValue = property.GetValue(entity);
+                    if (currentValue is float currentFloat)
+                    {
+                        property.SetValue(entity, Math.Max(0f, currentFloat + amount));
+                        return true;
+                    }
+
+                    if (currentValue is double currentDouble)
+                    {
+                        property.SetValue(entity, Math.Max(0d, currentDouble + amount));
+                        return true;
+                    }
+                }
+            }
+
+            var health = entity.GetBehavior<EntityBehaviorHealth>();
+            if (health != null)
+            {
+                health.Health = Math.Max(1f, Math.Min(health.MaxHealth, health.Health + amount));
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryAdjustNumericMember(object target, double delta, params string[] memberNames)
+        {
+            if (target == null || memberNames == null || memberNames.Length == 0 || delta == 0d)
+            {
+                return false;
+            }
+
+            var type = target.GetType();
+            foreach (var memberName in memberNames.Where(name => !string.IsNullOrWhiteSpace(name)))
+            {
+                var property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (property?.CanRead == true && property.CanWrite == true)
+                {
+                    var current = property.GetValue(target);
+                    if (current is int currentInt)
+                    {
+                        property.SetValue(target, currentInt + (int)Math.Round(delta));
+                        return true;
+                    }
+
+                    if (current is long currentLong)
+                    {
+                        property.SetValue(target, currentLong + (long)Math.Round(delta));
+                        return true;
+                    }
+
+                    if (current is float currentFloat)
+                    {
+                        property.SetValue(target, currentFloat + (float)delta);
+                        return true;
+                    }
+
+                    if (current is double currentDouble)
+                    {
+                        property.SetValue(target, currentDouble + delta);
+                        return true;
+                    }
+                }
+
+                var field = type.GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (field != null)
+                {
+                    var current = field.GetValue(target);
+                    if (current is int currentInt)
+                    {
+                        field.SetValue(target, currentInt + (int)Math.Round(delta));
+                        return true;
+                    }
+
+                    if (current is long currentLong)
+                    {
+                        field.SetValue(target, currentLong + (long)Math.Round(delta));
+                        return true;
+                    }
+
+                    if (current is float currentFloat)
+                    {
+                        field.SetValue(target, currentFloat + (float)delta);
+                        return true;
+                    }
+
+                    if (current is double currentDouble)
+                    {
+                        field.SetValue(target, currentDouble + delta);
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TrySetBooleanMember(object target, bool value, params string[] memberNames)
+        {
+            if (target == null || memberNames == null || memberNames.Length == 0)
+            {
+                return false;
+            }
+
+            var type = target.GetType();
+            foreach (var memberName in memberNames.Where(name => !string.IsNullOrWhiteSpace(name)))
+            {
+                var property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (property?.CanRead == true && property.CanWrite == true && property.PropertyType == typeof(bool))
+                {
+                    property.SetValue(target, value);
+                    return true;
+                }
+
+                var field = type.GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (field != null && field.FieldType == typeof(bool))
+                {
+                    field.SetValue(target, value);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static void TryMarkBlockEntityDirty(BlockEntity? blockEntity)
+        {
+            if (blockEntity == null)
+            {
+                return;
+            }
+
+            var methods = blockEntity.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var method = methods.FirstOrDefault(candidate => string.Equals(candidate.Name, "MarkDirty", StringComparison.OrdinalIgnoreCase));
+            if (method == null)
+            {
+                return;
+            }
+
+            try
+            {
+                var parameters = method.GetParameters();
+                var args = new object?[parameters.Length];
+                for (var index = 0; index < parameters.Length; index++)
+                {
+                    var parameterType = parameters[index].ParameterType;
+                    if (parameterType == typeof(bool))
+                    {
+                        args[index] = true;
+                    }
+                    else
+                    {
+                        args[index] = parameterType.IsValueType ? Activator.CreateInstance(parameterType) : null;
+                    }
+                }
+
+                method.Invoke(blockEntity, args);
+            }
+            catch
+            {
+            }
+        }
+
+        private bool TrySpawnEntityByCode(string entityCode, Vec3d position, IServerPlayer caster, out Entity? spawnedEntity)
+        {
+            spawnedEntity = null;
+            if (string.IsNullOrWhiteSpace(entityCode) || caster?.Entity == null)
+            {
+                return false;
+            }
+
+            var world = caster.Entity.World ?? sapi.World;
+            var beforeEntities = new HashSet<long>(world.GetEntitiesAround(position, 4f, 4f)?.Select(entity => entity?.EntityId ?? -1).Where(entityId => entityId > 0) ?? Array.Empty<long>());
+
+            foreach (var method in world.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+            {
+                if (!string.Equals(method.Name, "SpawnEntity", StringComparison.OrdinalIgnoreCase) && !string.Equals(method.Name, "SpawnEntityAt", StringComparison.OrdinalIgnoreCase) && !string.Equals(method.Name, "SpawnEntityWithCallback", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var parameters = method.GetParameters();
+                if (parameters.Length == 0 || parameters.Length > 6)
+                {
+                    continue;
+                }
+
+                var args = new object?[parameters.Length];
+                var supported = true;
+                for (var index = 0; index < parameters.Length; index++)
+                {
+                    var parameterType = parameters[index].ParameterType;
+                    if (parameterType == typeof(string))
+                    {
+                        args[index] = entityCode;
+                    }
+                    else if (parameterType == typeof(AssetLocation))
+                    {
+                        args[index] = new AssetLocation(entityCode);
+                    }
+                    else if (typeof(Vec3d).IsAssignableFrom(parameterType))
+                    {
+                        args[index] = position;
+                    }
+                    else if (typeof(Vec3f).IsAssignableFrom(parameterType))
+                    {
+                        args[index] = new Vec3f((float)position.X, (float)position.Y, (float)position.Z);
+                    }
+                    else if (typeof(IPlayer).IsAssignableFrom(parameterType))
+                    {
+                        args[index] = caster;
+                    }
+                    else if (parameterType == typeof(bool))
+                    {
+                        args[index] = true;
+                    }
+                    else if (parameterType.IsValueType)
+                    {
+                        args[index] = Activator.CreateInstance(parameterType);
+                    }
+                    else
+                    {
+                        args[index] = null;
+                    }
+                }
+
+                try
+                {
+                    var result = method.Invoke(world, args);
+                    if (result is Entity entityResult)
+                    {
+                        spawnedEntity = entityResult;
+                        return true;
+                    }
+                }
+                catch
+                {
+                    supported = false;
+                }
+
+                if (!supported)
+                {
+                    continue;
+                }
+
+                var afterEntities = world.GetEntitiesAround(position, 4f, 4f);
+                if (afterEntities == null)
+                {
+                    continue;
+                }
+
+                var spawned = afterEntities
+                    .Where(entity => entity != null && entity.EntityId > 0 && !beforeEntities.Contains(entity.EntityId))
+                    .FirstOrDefault(entity => string.IsNullOrWhiteSpace(entityCode) || entity.Code?.ToString().Contains(entityCode, StringComparison.OrdinalIgnoreCase) == true);
+                if (spawned != null)
+                {
+                    spawnedEntity = spawned;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool TryAppendPlannedEffect(
+            List<Func<bool>> gameplayActions,
+            List<Func<bool>> ventActions,
+            List<Func<bool>> visualActions,
+            IServerPlayer caster,
+            RustweavePlayerStateData state,
+            SpellDefinition spell,
+            SpellTargetContext target,
+            SpellEffectDefinition effect,
+            ref int corruptionDelta,
+            out string failureReason)
+        {
+            failureReason = string.Empty;
+
+            switch (effect.Type)
+            {
+                case SpellEffectTypes.ModifyTemporalStability:
+                    return TryAppendAreaCorruptionEffect(gameplayActions, visualActions, caster, spell, target, effect, ref corruptionDelta, false, out failureReason);
+                case SpellEffectTypes.StabilizeArea:
+                    return TryAppendAreaCorruptionEffect(gameplayActions, visualActions, caster, spell, target, effect, ref corruptionDelta, true, out failureReason);
+                case SpellEffectTypes.ModifyCorruptionGain:
+                    return TryAppendCorruptionGainField(gameplayActions, visualActions, caster, spell, target, effect, ref corruptionDelta, out failureReason);
+                case SpellEffectTypes.AnchorEntity:
+                case SpellEffectTypes.PreventDisplacement:
+                case SpellEffectTypes.CounterNextHostileEffect:
+                case SpellEffectTypes.ReflectProjectile:
+                case SpellEffectTypes.MarkTarget:
+                case SpellEffectTypes.ReleaseTarget:
+                case SpellEffectTypes.BreakBinding:
+                case SpellEffectTypes.SeparateTarget:
+                case SpellEffectTypes.IdentifyActiveEffects:
+                case SpellEffectTypes.AlignNextSpell:
+                case SpellEffectTypes.HealOverTime:
+                case SpellEffectTypes.VitalityOverTime:
+                    return TryAppendEntityFieldEffect(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.RewindEntityPosition:
+                    return TryAppendRewindEntity(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.UndoRecentEffect:
+                case SpellEffectTypes.CancelActiveEffect:
+                    return TryAppendCancelActiveEffect(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.WeakPointStrike:
+                    return TryAppendWeakPointStrike(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.LifestealEntity:
+                    return TryAppendLifeSteal(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.TetherEntity:
+                case SpellEffectTypes.BindEntityToArea:
+                case SpellEffectTypes.CharmEntity:
+                case SpellEffectTypes.CommandEntity:
+                    return TryAppendControlledEntityField(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.TeleportToTarget:
+                case SpellEffectTypes.TeleportForward:
+                    return TryAppendTeleportToTarget(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.TeleportEntityToCaster:
+                case SpellEffectTypes.SwapPositions:
+                    return TryAppendTeleportEntityToCaster(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.TeleportEntityToPosition:
+                    return TryAppendTeleportEntityToPosition(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.PushEntity:
+                case SpellEffectTypes.ForcePulse:
+                case SpellEffectTypes.Shockwave:
+                case SpellEffectTypes.PressureBlast:
+                case SpellEffectTypes.StaggerArea:
+                    return TryAppendForceEffect(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.MoveDroppedItem:
+                    return TryAppendMoveDroppedItem(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.MoveBlockEntityContents:
+                    return TryAppendMoveBlockEntityContents(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.OpenLock:
+                case SpellEffectTypes.OpenPassage:
+                case SpellEffectTypes.CreateRift:
+                case SpellEffectTypes.CloseRift:
+                case SpellEffectTypes.RepairBlock:
+                case SpellEffectTypes.RepairBlockArea:
+                case SpellEffectTypes.ConvertBlock:
+                case SpellEffectTypes.DestroyCorruptedMatter:
+                case SpellEffectTypes.PrecisionBlockStrike:
+                case SpellEffectTypes.AnchorBlock:
+                case SpellEffectTypes.HardenMaterial:
+                case SpellEffectTypes.HeatMaterial:
+                case SpellEffectTypes.CoolMaterial:
+                case SpellEffectTypes.AccelerateCraftState:
+                case SpellEffectTypes.MineBlock:
+                case SpellEffectTypes.ExcavateBlocks:
+                case SpellEffectTypes.ExtractOre:
+                case SpellEffectTypes.HarvestBlocks:
+                    return TryAppendBlockEffect(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.ConvertHeldItem:
+                case SpellEffectTypes.SummonTemporaryItem:
+                case SpellEffectTypes.ModifySatiety:
+                case SpellEffectTypes.CreateTemporaryFood:
+                    return TryAppendHeldOrInventoryEffect(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.SummonTemporaryEntity:
+                case SpellEffectTypes.SummonTemporaryProjectile:
+                case SpellEffectTypes.SummonTemporaryConstruct:
+                    return TryAppendSummonEffect(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.DetectBlocks:
+                case SpellEffectTypes.DetectEntities:
+                case SpellEffectTypes.DetectRustTraces:
+                case SpellEffectTypes.ReadGlyphs:
+                    return TryAppendDetectionEffect(visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.ModifyCropGrowth:
+                case SpellEffectTypes.ModifyFarmlandNutrients:
+                case SpellEffectTypes.ModifyAnimalFertility:
+                    return TryAppendGraftingEffect(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.ChangeWeather:
+                case SpellEffectTypes.ChangeTemperatureArea:
+                case SpellEffectTypes.ChangeEnvironmentalPressure:
+                case SpellEffectTypes.CallLightning:
+                case SpellEffectTypes.StormPulse:
+                    return TryAppendWeatherEffect(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.PurgeTimedEffects:
+                case SpellEffectTypes.StripEntityBuffs:
+                case SpellEffectTypes.CleanseContamination:
+                case SpellEffectTypes.UnravelDamage:
+                    return TryAppendCleanupEffect(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                default:
+                    failureReason = $"unsupported effect type '{effect.Type}'";
+                    sapi.Logger.Warning("[TheRustweave] Spell '{0}' failed because effect type '{1}' is unsupported at runtime.", spell.Code, effect.Type);
+                    return false;
+            }
+        }
+
+        private bool TryAppendAreaCorruptionEffect(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, ref int corruptionDelta, bool stabilize, out string failureReason)
+        {
+            failureReason = string.Empty;
+            var radius = SpellRegistry.GetEffectiveRadius(spell, effect);
+            if (radius <= 0)
+            {
+                failureReason = "radius must be greater than zero";
+                return false;
+            }
+
+            var durationMilliseconds = (long)Math.Round(Math.Max(0d, effect.DurationSeconds) * 1000d);
+            if (durationMilliseconds <= 0)
+            {
+                failureReason = "durationSeconds must be greater than zero";
+                return false;
+            }
+
+            var amount = effect.Amount != 0f ? effect.Amount : (float)effect.StabilityAmount;
+            if (amount == 0f && effect.CorruptionAmount != 0)
+            {
+                amount = effect.CorruptionAmount;
+            }
+
+            var center = target.Position;
+            var effectId = BuildTimedEffectCode(spell.Code, effect.Type, caster.Entity?.EntityId ?? 0);
+            var record = new RustweaveActiveEffectRecord
+            {
+                EffectId = effectId,
+                EffectType = effect.Type,
+                RecordKind = "area",
+                SpellCode = spell.Code,
+                CasterPlayerUid = caster.PlayerUID,
+                CasterEntityId = caster.Entity?.EntityId ?? -1,
+                TargetPlayerUid = target.Entity is EntityPlayer targetPlayer ? targetPlayer.PlayerUID ?? string.Empty : string.Empty,
+                TargetEntityId = target.Entity?.EntityId ?? -1,
+                TargetType = spell.TargetType,
+                Mode = effect.Mode,
+                CenterX = center.X,
+                CenterY = center.Y,
+                CenterZ = center.Z,
+                OriginX = caster.Entity?.Pos?.XYZ.X ?? center.X,
+                OriginY = caster.Entity?.Pos?.XYZ.Y ?? center.Y,
+                OriginZ = caster.Entity?.Pos?.XYZ.Z ?? center.Z,
+                Radius = radius,
+                Amount = stabilize ? Math.Abs(amount) : amount,
+                SecondaryAmount = effect.SecondaryAmount,
+                DurationMilliseconds = durationMilliseconds,
+                StartedAtMilliseconds = sapi.World.ElapsedMilliseconds,
+                ExpiresAtMilliseconds = sapi.World.ElapsedMilliseconds + durationMilliseconds,
+                StartedAtTotalDays = Math.Max(0d, sapi.World.Calendar?.TotalDays ?? 0d),
+                ExpiresAtTotalDays = Math.Max(0d, sapi.World.Calendar?.TotalDays ?? 0d) + (durationMilliseconds / 86400000d),
+                TickIntervalMilliseconds = 1000,
+                NextTickAtMilliseconds = sapi.World.ElapsedMilliseconds + 1000,
+                PersistAcrossRestart = true,
+                IsArea = true,
+                IsHostile = !stabilize && amount < 0,
+                IsBeneficial = stabilize || amount > 0,
+                IsBlocking = string.Equals(effect.Type, SpellEffectTypes.CreateWardArea, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(effect.Type, SpellEffectTypes.CreateBarrier, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(effect.Type, SpellEffectTypes.CreateContainmentArea, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(effect.Type, SpellEffectTypes.CreateBoundaryLine, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(effect.Type, SpellEffectTypes.CreateAntiSpreadArea, StringComparison.OrdinalIgnoreCase)
+            };
+
+            gameplayActions.Add(() =>
+            {
+                RustweaveRuntime.Server?.TryRegisterActiveEffect(record);
+                return true;
+            });
+
+            visualActions.Add(() =>
+            {
+                var color = stabilize || amount > 0 ? unchecked((int)0xFF67D46A) : unchecked((int)0xFFC95A4A);
+                sapi.World.SpawnParticles(8, color, new Vec3d(center.X - 0.1, center.Y + 0.1, center.Z - 0.1), new Vec3d(center.X + 0.1, center.Y + 0.2, center.Z + 0.1), new Vec3f(-0.02f, 0.03f, -0.02f), new Vec3f(0.02f, 0.08f, 0.02f), 0.35f, 0f, 0.5f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            if (!stabilize)
+            {
+                corruptionDelta += (int)Math.Round(effect.CorruptionAmount != 0 ? effect.CorruptionAmount : effect.Amount);
+            }
+
+            return true;
+        }
+
+        private bool TryAppendCorruptionGainField(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, ref int corruptionDelta, out string failureReason)
+        {
+            failureReason = string.Empty;
+            var radius = SpellRegistry.GetEffectiveRadius(spell, effect);
+            if (radius <= 0)
+            {
+                failureReason = "radius must be greater than zero";
+                return false;
+            }
+
+            if (!TryAppendAreaCorruptionEffect(gameplayActions, visualActions, caster, spell, target, effect, ref corruptionDelta, effect.Amount < 0f || effect.StabilityAmount < 0d, out failureReason))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool TryAppendEntityFieldEffect(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            var targetEntity = target.Entity;
+            if (targetEntity == null || !targetEntity.Alive)
+            {
+                failureReason = "the targeted entity is unavailable";
+                return false;
+            }
+
+            if (targetEntity is EntityPlayer && (string.Equals(effect.Type, SpellEffectTypes.CharmEntity, StringComparison.OrdinalIgnoreCase) || string.Equals(effect.Type, SpellEffectTypes.CommandEntity, StringComparison.OrdinalIgnoreCase)))
+            {
+                failureReason = "that spell cannot target players";
+                return false;
+            }
+
+            if (IsPlayerTargetBlockedByPvp(caster, targetEntity, effect.Type, out failureReason))
+            {
+                return false;
+            }
+
+            var durationMilliseconds = (long)Math.Round(Math.Max(0d, effect.DurationSeconds) * 1000d);
+            if (durationMilliseconds <= 0 && !string.Equals(effect.Type, SpellEffectTypes.CounterNextHostileEffect, StringComparison.OrdinalIgnoreCase) && !string.Equals(effect.Type, SpellEffectTypes.ReflectProjectile, StringComparison.OrdinalIgnoreCase) && !string.Equals(effect.Type, SpellEffectTypes.UndoRecentEffect, StringComparison.OrdinalIgnoreCase) && !string.Equals(effect.Type, SpellEffectTypes.CancelActiveEffect, StringComparison.OrdinalIgnoreCase))
+            {
+                failureReason = "durationSeconds must be greater than zero";
+                return false;
+            }
+
+            var effectId = BuildTimedEffectCode(spell.Code, effect.Type, targetEntity.EntityId);
+            var record = new RustweaveActiveEffectRecord
+            {
+                EffectId = effectId,
+                EffectType = effect.Type,
+                RecordKind = "entity",
+                SpellCode = spell.Code,
+                CasterPlayerUid = caster.PlayerUID,
+                CasterEntityId = caster.Entity?.EntityId ?? -1,
+                TargetPlayerUid = targetEntity is EntityPlayer targetPlayer ? targetPlayer.PlayerUID ?? string.Empty : string.Empty,
+                TargetEntityId = targetEntity.EntityId,
+                TargetType = spell.TargetType,
+                Mode = effect.Mode,
+                CenterX = targetEntity.Pos?.XYZ.X ?? target.Position.X,
+                CenterY = targetEntity.Pos?.XYZ.Y ?? target.Position.Y,
+                CenterZ = targetEntity.Pos?.XYZ.Z ?? target.Position.Z,
+                OriginX = caster.Entity?.Pos?.XYZ.X ?? target.Position.X,
+                OriginY = caster.Entity?.Pos?.XYZ.Y ?? target.Position.Y,
+                OriginZ = caster.Entity?.Pos?.XYZ.Z ?? target.Position.Z,
+                Radius = Math.Max(1d, effect.Radius),
+                Amount = string.Equals(effect.Type, SpellEffectTypes.HealOverTime, StringComparison.OrdinalIgnoreCase) || string.Equals(effect.Type, SpellEffectTypes.VitalityOverTime, StringComparison.OrdinalIgnoreCase)
+                    ? -Math.Abs(effect.Amount != 0f ? effect.Amount : effect.HealthAmount)
+                    : effect.Amount,
+                SecondaryAmount = effect.SecondaryAmount,
+                DurationMilliseconds = durationMilliseconds,
+                StartedAtMilliseconds = sapi.World.ElapsedMilliseconds,
+                ExpiresAtMilliseconds = durationMilliseconds > 0 ? sapi.World.ElapsedMilliseconds + durationMilliseconds : sapi.World.ElapsedMilliseconds + 1000,
+                StartedAtTotalDays = Math.Max(0d, sapi.World.Calendar?.TotalDays ?? 0d),
+                ExpiresAtTotalDays = Math.Max(0d, sapi.World.Calendar?.TotalDays ?? 0d) + (Math.Max(1d, effect.DurationSeconds) / 24d),
+                TickIntervalMilliseconds = Math.Max(250, (long)Math.Round(Math.Max(0.25d, effect.TickIntervalSeconds) * 1000d)),
+                NextTickAtMilliseconds = sapi.World.ElapsedMilliseconds + Math.Max(250, (long)Math.Round(Math.Max(0.25d, effect.TickIntervalSeconds) * 1000d)),
+                PersistAcrossRestart = true,
+                IsArea = false,
+                IsHostile = effect.Type is SpellEffectTypes.AnchorEntity or SpellEffectTypes.PreventDisplacement or SpellEffectTypes.TetherEntity or SpellEffectTypes.BindEntityToArea or SpellEffectTypes.CharmEntity or SpellEffectTypes.CommandEntity,
+                IsBeneficial = effect.Type is SpellEffectTypes.MarkTarget or SpellEffectTypes.CounterNextHostileEffect or SpellEffectTypes.ReflectProjectile or SpellEffectTypes.ReleaseTarget or SpellEffectTypes.BreakBinding or SpellEffectTypes.PurgeTimedEffects or SpellEffectTypes.StripEntityBuffs or SpellEffectTypes.CleanseContamination or SpellEffectTypes.HealOverTime or SpellEffectTypes.VitalityOverTime or SpellEffectTypes.AlignNextSpell,
+                IsBlocking = effect.Type is SpellEffectTypes.AnchorEntity or SpellEffectTypes.PreventDisplacement or SpellEffectTypes.TetherEntity or SpellEffectTypes.BindEntityToArea
+            };
+
+            gameplayActions.Add(() =>
+            {
+                RustweaveRuntime.Server?.TryRegisterActiveEffect(record);
+                return true;
+            });
+
+            visualActions.Add(() =>
+            {
+                var color = record.IsHostile ? unchecked((int)0xFFC94A4A) : unchecked((int)0xFF6ACB71);
+                sapi.World.SpawnParticles(10, color, new Vec3d(targetEntity.Pos.XYZ.X - 0.15, targetEntity.Pos.XYZ.Y + 0.1, targetEntity.Pos.XYZ.Z - 0.15), new Vec3d(targetEntity.Pos.XYZ.X + 0.15, targetEntity.Pos.XYZ.Y + 1.4, targetEntity.Pos.XYZ.Z + 0.15), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.05f, 0.01f), 0.3f, 0f, 0.45f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendRewindEntity(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            var targetEntity = target.Entity;
+            if (targetEntity == null || !targetEntity.Alive)
+            {
+                failureReason = "the targeted entity is unavailable";
+                return false;
+            }
+
+            var historyPosition = new Vec3d();
+            var hasHistory = RustweaveRuntime.Server != null
+                && RustweaveRuntime.Server.TryGetHistoricalPosition(targetEntity.EntityId, Math.Max(1, (int)Math.Round(Math.Max(1d, effect.DurationSeconds * 2d))), out historyPosition);
+            if (!hasHistory)
+            {
+                failureReason = "the entity has no recent history to rewind";
+                return false;
+            }
+
+            gameplayActions.Add(() =>
+            {
+                if (RustweaveRuntime.Server?.TryFindNearestSafeTeleportPosition(targetEntity.World, targetEntity, historyPosition, out var safePosition) != true)
+                {
+                    return false;
+                }
+
+                targetEntity.TeleportTo(safePosition);
+                return true;
+            });
+
+            visualActions.Add(() =>
+            {
+                sapi.World.SpawnParticles(8, unchecked((int)0xFF8C6A4A), new Vec3d(historyPosition.X - 0.2, historyPosition.Y + 0.1, historyPosition.Z - 0.2), new Vec3d(historyPosition.X + 0.2, historyPosition.Y + 0.5, historyPosition.Z + 0.2), new Vec3f(-0.02f, 0.02f, -0.02f), new Vec3f(0.02f, 0.06f, 0.02f), 0.35f, 0f, 0.5f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendCancelActiveEffect(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            var targetEntity = target.Entity;
+            if (targetEntity == null && target.BlockPos == null)
+            {
+                failureReason = "no valid target";
+                return false;
+            }
+
+            gameplayActions.Add(() =>
+            {
+                if (targetEntity != null)
+                {
+                    var activeEffects = RustweaveRuntime.Server?.GetActiveEffectsForEntity(targetEntity.EntityId) ?? Array.Empty<RustweaveActiveEffectRecord>();
+                    var latest = activeEffects.LastOrDefault(effectRecord => string.Equals(effectRecord.CasterPlayerUid, caster.PlayerUID, StringComparison.OrdinalIgnoreCase) || string.Equals(effectRecord.TargetPlayerUid, caster.PlayerUID, StringComparison.OrdinalIgnoreCase));
+                    if (latest != null)
+                    {
+                        RustweaveRuntime.Server?.TryRemoveActiveEffect(latest.EffectId, true);
+                        return true;
+                    }
+                }
+
+                return true;
+            });
+
+            visualActions.Add(() =>
+            {
+                var center = target.Position;
+                sapi.World.SpawnParticles(6, unchecked((int)0xFF8C6A4A), new Vec3d(center.X - 0.1, center.Y + 0.1, center.Z - 0.1), new Vec3d(center.X + 0.1, center.Y + 0.2, center.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.05f, 0.01f), 0.25f, 0f, 0.35f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
         private bool ApplySpellDamage(IServerPlayer caster, SpellDefinition spell, string effectType, Entity targetEntity, DamageSource damageSource, float damageAmount)
         {
             if (targetEntity == null || !targetEntity.Alive || damageAmount <= 0)
+            {
+                return false;
+            }
+
+            if (!sapi.Server.Config.AllowPvP && targetEntity is EntityPlayer && targetEntity != caster.Entity)
             {
                 return false;
             }
@@ -2585,7 +5851,20 @@ namespace TheRustweave
             return true;
         }
 
-        private bool TryResolveLookEntityTarget(IServerPlayer caster, double range, out EntitySelection selection, out string failureReason)
+        private bool IsPlayerTargetBlockedByPvp(IServerPlayer caster, Entity? targetEntity, string effectLabel, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (targetEntity is EntityPlayer && targetEntity != caster.Entity && !sapi.Server.Config.AllowPvP)
+            {
+                failureReason = "PvP is disabled on this server.";
+                sapi.Logger.Warning("[TheRustweave] {0} failed because PvP is disabled for player '{1}' targeting entity '{2}'.", effectLabel, caster.PlayerUID, targetEntity.EntityId);
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryResolveLookEntityTarget(IServerPlayer caster, double range, out EntitySelection selection, out string failureReason, System.Func<Entity, bool>? entityFilter = null)
         {
             selection = new EntitySelection();
             failureReason = string.Empty;
@@ -2597,39 +5876,19 @@ namespace TheRustweave
                 return false;
             }
 
-            var fromPos = entity.Pos.XYZ;
-            var eyePos = entity.LocalEyePos;
-            fromPos = new Vec3d(entity.Pos.X + eyePos.X, entity.Pos.Y + eyePos.Y, entity.Pos.Z + eyePos.Z);
-
-            var viewVector = entity.Pos.GetViewVector();
-            var rayRange = (float)Math.Max(0d, range);
-            var toPos = new Vec3d(
-                fromPos.X + (viewVector.X * rayRange),
-                fromPos.Y + (viewVector.Y * rayRange),
-                fromPos.Z + (viewVector.Z * rayRange));
-
-            BlockSelection? blockSelection = null;
-            EntitySelection? entitySelection = null;
-            sapi.World.RayTraceForSelection(
-                fromPos,
-                toPos,
-                ref blockSelection,
-                ref entitySelection,
-                null,
-                candidate => candidate != null
-                    && candidate != caster.Entity
-                    && candidate.Alive
-                    && (sapi.Server.Config.AllowPvP || candidate is not EntityPlayer));
+            if (!TryResolveLookSelection(caster, range, out var blockSelection, out var entitySelection, out failureReason, entityFilter))
+            {
+                return false;
+            }
 
             if (entitySelection?.Entity == null)
             {
                 failureReason = "No target struck.";
-                sapi.Logger.Debug("[TheRustweave] Spell look ray range {0} hit no entity.", rayRange);
                 return false;
             }
 
             selection = entitySelection;
-            sapi.Logger.Debug("[TheRustweave] Spell look ray range {0} hit entity '{1}'.", rayRange, entitySelection.Entity.GetName());
+            sapi.Logger.Debug("[TheRustweave] Spell look ray range {0} hit entity '{1}'.", range, entitySelection.Entity.GetName());
             return true;
         }
 
@@ -2651,7 +5910,7 @@ namespace TheRustweave
             }
 
             blockPos = blockSelection.Position;
-            position = blockSelection.HitPosition;
+            position = new Vec3d(blockSelection.Position.X + 0.5, blockSelection.Position.Y + 1.0, blockSelection.Position.Z + 0.5);
             sapi.Logger.Debug("[TheRustweave] Spell look ray range {0} hit block at {1}.", range, position);
             return true;
         }
@@ -2687,8 +5946,7 @@ namespace TheRustweave
                 null,
                 candidate => candidate != null
                     && candidate != caster.Entity
-                    && candidate.Alive
-                    && (sapi.Server.Config.AllowPvP || candidate is not EntityPlayer));
+                    && candidate.Alive);
 
             if (entitySelection?.Entity != null)
             {
@@ -2709,7 +5967,7 @@ namespace TheRustweave
             return true;
         }
 
-        private bool TryResolveLookSelection(IServerPlayer caster, double range, out BlockSelection? blockSelection, out EntitySelection? entitySelection, out string failureReason)
+        private bool TryResolveLookSelection(IServerPlayer caster, double range, out BlockSelection? blockSelection, out EntitySelection? entitySelection, out string failureReason, System.Func<Entity, bool>? entityFilter = null)
         {
             blockSelection = null;
             entitySelection = null;
@@ -2740,7 +5998,7 @@ namespace TheRustweave
                 candidate => candidate != null
                     && candidate != caster.Entity
                     && candidate.Alive
-                    && (sapi.Server.Config.AllowPvP || candidate is not EntityPlayer));
+                    && (entityFilter == null || entityFilter(candidate)));
 
             if (blockSelection == null && entitySelection?.Entity == null)
             {
@@ -2748,6 +6006,80 @@ namespace TheRustweave
                 return false;
             }
 
+            return true;
+        }
+
+        private bool TryResolveLookBlockEntityTarget(IServerPlayer caster, double range, bool requireContainer, out BlockPos? blockPos, out Vec3d position, out BlockEntity? blockEntity, out string failureReason)
+        {
+            blockPos = null;
+            position = new Vec3d();
+            blockEntity = null;
+            failureReason = string.Empty;
+
+            if (!TryResolveLookBlockTarget(caster, range, out blockPos, out position, out failureReason))
+            {
+                return false;
+            }
+
+            if (blockPos == null)
+            {
+                failureReason = "No target struck.";
+                return false;
+            }
+
+            blockEntity = sapi.World.BlockAccessor.GetBlockEntity(blockPos);
+            if (blockEntity == null)
+            {
+                failureReason = requireContainer ? "That target requires a container." : "That target requires a block entity.";
+                return false;
+            }
+
+            if (requireContainer && !SpellRegistry.TryGetBlockEntityInventory(blockEntity, out _))
+            {
+                failureReason = "That target requires a container.";
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool TryResolveLookAreaTarget(IServerPlayer caster, double range, out Vec3d position, out string failureReason)
+        {
+            position = new Vec3d();
+            failureReason = string.Empty;
+
+            if (!TryResolveLookSelection(caster, range, out var blockSelection, out var entitySelection, out failureReason))
+            {
+                return false;
+            }
+
+            if (blockSelection != null)
+            {
+                position = new Vec3d(blockSelection.Position.X + 0.5, blockSelection.Position.Y + 1.0, blockSelection.Position.Z + 0.5);
+                return true;
+            }
+
+            if (entitySelection?.Entity != null)
+            {
+                position = entitySelection.HitPosition;
+                return true;
+            }
+
+            var entity = caster.Entity;
+            if (entity == null)
+            {
+                failureReason = "caster entity is missing";
+                return false;
+            }
+
+            var eyePos = entity.LocalEyePos;
+            var fromPos = new Vec3d(entity.Pos.X + eyePos.X, entity.Pos.Y + eyePos.Y, entity.Pos.Z + eyePos.Z);
+            var viewVector = entity.Pos.GetViewVector();
+            var rayRange = (float)Math.Max(0d, range);
+            position = new Vec3d(
+                fromPos.X + (viewVector.X * rayRange),
+                fromPos.Y + (viewVector.Y * rayRange),
+                fromPos.Z + (viewVector.Z * rayRange));
             return true;
         }
 
@@ -2774,8 +6106,7 @@ namespace TheRustweave
                 null,
                 candidate => candidate != null
                     && candidate.Alive
-                    && candidate != caster.Entity
-                    && (sapi.Server.Config.AllowPvP || candidate is not EntityPlayer));
+                    && candidate != caster.Entity);
 
             if (targetEntityId.HasValue && entitySelection?.Entity != null && entitySelection.Entity.EntityId == targetEntityId.Value)
             {
@@ -2956,14 +6287,21 @@ namespace TheRustweave
             var feetPos = new BlockPos((int)Math.Floor(candidate.X), (int)Math.Floor(candidate.Y), (int)Math.Floor(candidate.Z), dim);
             var headHeight = 1.7;
             var headPos = new BlockPos((int)Math.Floor(candidate.X), (int)Math.Floor(candidate.Y + headHeight), (int)Math.Floor(candidate.Z), dim);
+            var supportPos = new BlockPos((int)Math.Floor(candidate.X), (int)Math.Floor(candidate.Y) - 1, (int)Math.Floor(candidate.Z), dim);
 
-            return IsSpaceClear(world, feetPos) && IsSpaceClear(world, headPos);
+            return IsSpaceClear(world, feetPos) && IsSpaceClear(world, headPos) && IsTeleportSupportSafe(world, supportPos);
         }
 
         private static bool IsSpaceClear(IWorldAccessor world, BlockPos pos)
         {
             var block = world.BlockAccessor.GetBlock(pos);
             return block == null || block.CollisionBoxes == null || block.CollisionBoxes.Length == 0;
+        }
+
+        private static bool IsTeleportSupportSafe(IWorldAccessor world, BlockPos pos)
+        {
+            var block = world.BlockAccessor.GetBlock(pos);
+            return block != null && block.CollisionBoxes != null && block.CollisionBoxes.Length > 0;
         }
 
         private static int GetParticleColor(string particleCode)
@@ -3010,6 +6348,8 @@ namespace TheRustweave
             public ItemSlot? ItemSlot { get; set; }
 
             public BlockPos? BlockPos { get; set; }
+
+            public BlockEntity? BlockEntity { get; set; }
 
             public string TargetName { get; set; } = string.Empty;
 
