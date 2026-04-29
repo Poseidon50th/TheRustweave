@@ -831,6 +831,22 @@ namespace TheRustweave
 
         public int FoundationalFabricDebtAmount { get; set; }
 
+        public double WarpedReachStartedAtTotalDays { get; set; }
+
+        public double WarpedReachExpiresAtTotalDays { get; set; }
+
+        public float WarpedReachBonusBlocks { get; set; }
+
+        public string WarpedReachSourceSpellCode { get; set; } = string.Empty;
+
+        public double UnseenOffsetStartedAtTotalDays { get; set; }
+
+        public double UnseenOffsetExpiresAtTotalDays { get; set; }
+
+        public float UnseenOffsetRadiusBlocks { get; set; }
+
+        public string UnseenOffsetSourceSpellCode { get; set; } = string.Empty;
+
         public Dictionary<string, double> SpellCooldowns { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
         public Dictionary<string, int> DiscoveryResearchProgress { get; set; } = new(StringComparer.OrdinalIgnoreCase);
@@ -875,6 +891,14 @@ namespace TheRustweave
                 FoundationalFabricSourceSpellCode = FoundationalFabricSourceSpellCode,
                 FoundationalFabricReductionPercent = FoundationalFabricReductionPercent,
                 FoundationalFabricDebtAmount = FoundationalFabricDebtAmount,
+                WarpedReachStartedAtTotalDays = WarpedReachStartedAtTotalDays,
+                WarpedReachExpiresAtTotalDays = WarpedReachExpiresAtTotalDays,
+                WarpedReachBonusBlocks = WarpedReachBonusBlocks,
+                WarpedReachSourceSpellCode = WarpedReachSourceSpellCode,
+                UnseenOffsetStartedAtTotalDays = UnseenOffsetStartedAtTotalDays,
+                UnseenOffsetExpiresAtTotalDays = UnseenOffsetExpiresAtTotalDays,
+                UnseenOffsetRadiusBlocks = UnseenOffsetRadiusBlocks,
+                UnseenOffsetSourceSpellCode = UnseenOffsetSourceSpellCode,
                 SpellCooldowns = SpellCooldowns?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase),
                 DiscoveryResearchProgress = DiscoveryResearchProgress?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
                 DiscoveryItemUseCounts = DiscoveryItemUseCounts?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
@@ -1569,7 +1593,9 @@ namespace TheRustweave
                 LegacySelectedPreparedSpellIndex = null,
                 FreezeTemporalStabilityLossSourceSpellCode = string.Empty,
                 BraceNextDisplacementSourceSpellCode = string.Empty,
-                FoundationalFabricSourceSpellCode = string.Empty
+                FoundationalFabricSourceSpellCode = string.Empty,
+                WarpedReachSourceSpellCode = string.Empty,
+                UnseenOffsetSourceSpellCode = string.Empty
             };
 
             while (state.PreparedSpellCodes.Count < RustweaveConstants.PreparedSlotCount)
@@ -1617,6 +1643,15 @@ namespace TheRustweave
             state.FoundationalFabricExpiresAtTotalDays = Math.Max(0d, state.FoundationalFabricExpiresAtTotalDays);
             state.FoundationalFabricReductionPercent = Math.Max(0d, state.FoundationalFabricReductionPercent);
             state.FoundationalFabricDebtAmount = Math.Max(0, state.FoundationalFabricDebtAmount);
+            state.FoundationalFabricSourceSpellCode ??= string.Empty;
+            state.WarpedReachStartedAtTotalDays = Math.Max(0d, state.WarpedReachStartedAtTotalDays);
+            state.WarpedReachExpiresAtTotalDays = Math.Max(0d, state.WarpedReachExpiresAtTotalDays);
+            state.WarpedReachBonusBlocks = Math.Max(0f, state.WarpedReachBonusBlocks);
+            state.WarpedReachSourceSpellCode ??= string.Empty;
+            state.UnseenOffsetStartedAtTotalDays = Math.Max(0d, state.UnseenOffsetStartedAtTotalDays);
+            state.UnseenOffsetExpiresAtTotalDays = Math.Max(0d, state.UnseenOffsetExpiresAtTotalDays);
+            state.UnseenOffsetRadiusBlocks = Math.Max(0f, state.UnseenOffsetRadiusBlocks);
+            state.UnseenOffsetSourceSpellCode ??= string.Empty;
 
             if (state.SpellProgressionVersion < CurrentProgressionVersion)
             {
@@ -1792,6 +1827,55 @@ namespace TheRustweave
             state.BraceNextDisplacementStartedAtTotalDays = 0d;
             state.BraceNextDisplacementExpiresAtTotalDays = 0d;
             state.BraceNextDisplacementSourceSpellCode = string.Empty;
+        }
+
+        public static bool HasActiveWarpedReach(RustweavePlayerStateData state, double nowTotalDays)
+        {
+            return state != null
+                && !string.IsNullOrWhiteSpace(state.WarpedReachSourceSpellCode)
+                && state.WarpedReachStartedAtTotalDays > 0d
+                && state.WarpedReachExpiresAtTotalDays > nowTotalDays
+                && state.WarpedReachBonusBlocks > 0f;
+        }
+
+        public static void ClearWarpedReach(RustweavePlayerStateData state)
+        {
+            if (state == null)
+            {
+                return;
+            }
+
+            state.WarpedReachStartedAtTotalDays = 0d;
+            state.WarpedReachExpiresAtTotalDays = 0d;
+            state.WarpedReachBonusBlocks = 0f;
+            state.WarpedReachSourceSpellCode = string.Empty;
+        }
+
+        public static bool HasActiveUnseenOffset(RustweavePlayerStateData state, double nowTotalDays)
+        {
+            return state != null
+                && !string.IsNullOrWhiteSpace(state.UnseenOffsetSourceSpellCode)
+                && state.UnseenOffsetStartedAtTotalDays > 0d
+                && state.UnseenOffsetExpiresAtTotalDays > nowTotalDays
+                && state.UnseenOffsetRadiusBlocks > 0f;
+        }
+
+        public static void ClearUnseenOffset(RustweavePlayerStateData state)
+        {
+            if (state == null)
+            {
+                return;
+            }
+
+            state.UnseenOffsetStartedAtTotalDays = 0d;
+            state.UnseenOffsetExpiresAtTotalDays = 0d;
+            state.UnseenOffsetRadiusBlocks = 0f;
+            state.UnseenOffsetSourceSpellCode = string.Empty;
+        }
+
+        public static int GetWarpedReachBonusBlocks(RustweavePlayerStateData state, double nowTotalDays)
+        {
+            return HasActiveWarpedReach(state, nowTotalDays) ? Math.Max(0, (int)Math.Round(state.WarpedReachBonusBlocks)) : 0;
         }
 
         public static bool TryReadNumericMemberValue(object target, out double value, params string[] memberNames)
@@ -2894,7 +2978,7 @@ namespace TheRustweave
             }
         }
 
-        public static void SaveServerState(IServerPlayer player, RustweavePlayerStateData state)
+        public static void SaveServerState(IServerPlayer player, RustweavePlayerStateData state, bool syncWatchedState = true, bool broadcastPlayerData = true)
         {
             if (player == null)
             {
@@ -2910,8 +2994,15 @@ namespace TheRustweave
                 NextWorldSaveFlushMilliseconds = 0;
             }
 
-            SyncWatchedPlayerState(player, state);
-            player.BroadcastPlayerData(false);
+            if (syncWatchedState)
+            {
+                SyncWatchedPlayerState(player, state);
+            }
+
+            if (broadcastPlayerData)
+            {
+                player.BroadcastPlayerData(false);
+            }
         }
 
         public static RustweavePlayerStateData LoadServerState(IServerPlayer player)
@@ -2926,13 +3017,6 @@ namespace TheRustweave
             var cacheKey = GetWorldCacheKey(player.PlayerUID);
             if (CachedServerStates.TryGetValue(cacheKey, out var cached))
             {
-                var watchedCachedStateJson = player.Entity?.WatchedAttributes?.GetString(RustweaveConstants.WatchedPlayerStateKey, string.Empty) ?? string.Empty;
-                var cachedJson = SerializePlayerState(cached);
-                if (!string.Equals(watchedCachedStateJson, cachedJson, StringComparison.Ordinal))
-                {
-                    SyncWatchedPlayerState(player, cached);
-                }
-
                 return cached;
             }
 
@@ -2973,12 +3057,6 @@ namespace TheRustweave
                 CurrentWorldSaveData.PlayerStatesByUid[player.PlayerUID] = state.Clone();
                 CurrentWorldSaveDirty = true;
                 NextWorldSaveFlushMilliseconds = 0;
-            }
-
-            var watchedStateJson = player.Entity?.WatchedAttributes?.GetString(RustweaveConstants.WatchedPlayerStateKey, string.Empty) ?? string.Empty;
-            if (!string.Equals(watchedStateJson, normalizedJson, StringComparison.Ordinal))
-            {
-                SyncWatchedPlayerState(player, state);
             }
 
             return state;
@@ -3130,6 +3208,7 @@ namespace TheRustweave
                 CurrentWorldSaveLoaded = true;
 
                 api.Logger.Notification("[TheRustweave] Loaded world-scoped Rustweave state for save '{0}'.", CurrentWorldScopeLabel);
+                api.Logger.Notification("[TheRustweave] Sanitizing Rustweave world state: playerCount={0}.", CurrentWorldSaveData.PlayerStatesByUid.Count);
                 api.Logger.Notification("[TheRustweave] Loaded Rustweave player state for {0} player(s) in this world.", CurrentWorldSaveData.PlayerStatesByUid.Count);
             }
         }
@@ -3372,6 +3451,7 @@ namespace TheRustweave
             catch (Exception exception)
             {
                 api.Logger.Warning("[TheRustweave] Failed to load world-scoped Rustweave state, using defaults: {0}", exception.Message);
+                TryBackupCorruptWorldState(api, filePath);
                 data = new RustweaveWorldSaveData();
             }
 
@@ -3394,7 +3474,15 @@ namespace TheRustweave
             var normalizedPlayers = new Dictionary<string, RustweavePlayerStateData>(StringComparer.OrdinalIgnoreCase);
             foreach (var entry in data.PlayerStatesByUid.Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value != null))
             {
-                normalizedPlayers[entry.Key] = NormalizeState(entry.Value);
+                var originalJson = SerializePlayerState(entry.Value!);
+                var sanitized = SanitizePlayerState(entry.Key, entry.Value!);
+                var sanitizedJson = SerializePlayerState(sanitized);
+                if (!string.Equals(originalJson, sanitizedJson, StringComparison.Ordinal))
+                {
+                    CurrentServerApi?.Logger.Warning("[TheRustweave] Repaired invalid Rustweave state for player '{0}' while loading world '{1}'.", entry.Key, CurrentWorldScopeLabel);
+                }
+
+                normalizedPlayers[entry.Key] = sanitized;
             }
 
             data.PlayerStatesByUid = normalizedPlayers;
@@ -3403,8 +3491,117 @@ namespace TheRustweave
             data.ActiveEffects = data.ActiveEffects
                 .Where(effect => effect != null)
                 .Select(effect => effect!.Clone())
+                .Where(effect => IsValidActiveEffectRecord(effect))
                 .Where(effect => effect.ExpiresAtTotalDays <= 0d || effect.ExpiresAtTotalDays >= nowDays)
                 .ToList();
+        }
+
+        private static RustweavePlayerStateData SanitizePlayerState(string playerUid, RustweavePlayerStateData state)
+        {
+            var sanitized = NormalizeState(state?.Clone());
+            sanitized.LearnedSpellCodes = sanitized.LearnedSpellCodes
+                .Where(code => !string.IsNullOrWhiteSpace(code))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            sanitized.PreparedSpellCodes = sanitized.PreparedSpellCodes
+                .Where(code => code != null)
+                .Select(code => code ?? string.Empty)
+                .Take(RustweaveConstants.PreparedSlotCount)
+                .ToList();
+            while (sanitized.PreparedSpellCodes.Count < RustweaveConstants.PreparedSlotCount)
+            {
+                sanitized.PreparedSpellCodes.Add(string.Empty);
+            }
+
+            sanitized.SpellCooldowns = sanitized.SpellCooldowns
+                .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value >= 0d && !double.IsNaN(pair.Value) && !double.IsInfinity(pair.Value))
+                .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.Min(pair => pair.Value), StringComparer.OrdinalIgnoreCase);
+
+            sanitized.CurrentTemporalCorruption = Math.Max(RustweaveConstants.DefaultCorruption, sanitized.CurrentTemporalCorruption);
+            sanitized.EffectiveTemporalCorruptionThreshold = Math.Max(1, sanitized.EffectiveTemporalCorruptionThreshold);
+            sanitized.AbsoluteTemporalCorruptionCap = Math.Max(sanitized.EffectiveTemporalCorruptionThreshold, sanitized.AbsoluteTemporalCorruptionCap);
+            sanitized.FoundationalFabricDebtAmount = Math.Max(0, sanitized.FoundationalFabricDebtAmount);
+            sanitized.FreezeTemporalStabilityLossStartedAtTotalDays = Math.Max(0d, sanitized.FreezeTemporalStabilityLossStartedAtTotalDays);
+            sanitized.FreezeTemporalStabilityLossExpiresAtTotalDays = Math.Max(0d, sanitized.FreezeTemporalStabilityLossExpiresAtTotalDays);
+            sanitized.BraceNextDisplacementStartedAtTotalDays = Math.Max(0d, sanitized.BraceNextDisplacementStartedAtTotalDays);
+            sanitized.BraceNextDisplacementExpiresAtTotalDays = Math.Max(0d, sanitized.BraceNextDisplacementExpiresAtTotalDays);
+            sanitized.FoundationalFabricStartedAtTotalDays = Math.Max(0d, sanitized.FoundationalFabricStartedAtTotalDays);
+            sanitized.FoundationalFabricExpiresAtTotalDays = Math.Max(0d, sanitized.FoundationalFabricExpiresAtTotalDays);
+            sanitized.FoundationalFabricReductionPercent = Math.Max(0d, sanitized.FoundationalFabricReductionPercent);
+            sanitized.WarpedReachStartedAtTotalDays = Math.Max(0d, sanitized.WarpedReachStartedAtTotalDays);
+            sanitized.WarpedReachExpiresAtTotalDays = Math.Max(0d, sanitized.WarpedReachExpiresAtTotalDays);
+            sanitized.WarpedReachBonusBlocks = Math.Max(0f, sanitized.WarpedReachBonusBlocks);
+            sanitized.WarpedReachSourceSpellCode = sanitized.WarpedReachSourceSpellCode ?? string.Empty;
+            sanitized.UnseenOffsetStartedAtTotalDays = Math.Max(0d, sanitized.UnseenOffsetStartedAtTotalDays);
+            sanitized.UnseenOffsetExpiresAtTotalDays = Math.Max(0d, sanitized.UnseenOffsetExpiresAtTotalDays);
+            sanitized.UnseenOffsetRadiusBlocks = Math.Max(0f, sanitized.UnseenOffsetRadiusBlocks);
+            sanitized.UnseenOffsetSourceSpellCode = sanitized.UnseenOffsetSourceSpellCode ?? string.Empty;
+            sanitized.ActivePreparedSlotId = RustweaveStateService.NormalizeActiveSlotId(sanitized.ActivePreparedSlotId, sanitized.PreparedSpellCodes);
+
+            return sanitized;
+        }
+
+        private static bool IsValidActiveEffectRecord(RustweaveActiveEffectRecord? effect)
+        {
+            if (effect == null)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(effect.EffectId) || string.IsNullOrWhiteSpace(effect.EffectType))
+            {
+                return false;
+            }
+
+            if (!SpellEffectTypes.Recognized.Contains(effect.EffectType))
+            {
+                return false;
+            }
+
+            if (effect.DurationMilliseconds < 0 || effect.StartedAtMilliseconds < 0 || effect.ExpiresAtMilliseconds < 0)
+            {
+                return false;
+            }
+
+            if (double.IsNaN(effect.CenterX) || double.IsNaN(effect.CenterY) || double.IsNaN(effect.CenterZ))
+            {
+                return false;
+            }
+
+            if (double.IsInfinity(effect.CenterX) || double.IsInfinity(effect.CenterY) || double.IsInfinity(effect.CenterZ))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static void TryBackupCorruptWorldState(ICoreAPI api, string filePath)
+        {
+            if (api == null || string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+            {
+                return;
+            }
+
+            try
+            {
+                var directory = System.IO.Path.GetDirectoryName(filePath);
+                if (string.IsNullOrWhiteSpace(directory))
+                {
+                    directory = TryGetDataPath(api, "therustweave");
+                }
+
+                Directory.CreateDirectory(directory);
+                var backupName = $"therustweave-worldstate-corrupt-backup-{DateTime.UtcNow:yyyyMMddHHmmssfff}.json";
+                var backupPath = System.IO.Path.Combine(directory, backupName);
+                File.Copy(filePath, backupPath, true);
+                api.Logger.Warning("[TheRustweave] Backed up corrupt world state to '{0}'.", backupPath);
+            }
+            catch (Exception backupException)
+            {
+                api.Logger.Warning("[TheRustweave] Failed to back up corrupt Rustweave world state: {0}", backupException.Message);
+            }
         }
 
         private static void SaveWorldStateInternal(ICoreServerAPI api, bool force)
@@ -3458,6 +3655,7 @@ namespace TheRustweave
         private readonly Dictionary<string, RustweaveTargetPreviewPacket> activeTargetPreviews = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, RustweaveActiveCastRecord> activeTargetedCastRecords = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, RustweaveActiveEffectRecord> activeEffectRecords = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, long> pendingPlayerStateSyncs = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<long, LinkedList<RustweaveEntityHistorySample>> entityHistory = new();
         private readonly Dictionary<long, long> nextHistorySampleMilliseconds = new();
         private IServerNetworkChannel? channel;
@@ -3487,6 +3685,7 @@ namespace TheRustweave
             sapi.Event.PlayerJoin += OnServerPlayerJoin;
             sapi.Event.PlayerNowPlaying += OnServerPlayerNowPlaying;
             sapi.Event.PlayerLeave += OnServerPlayerLeave;
+            sapi.Event.DidUseBlock += OnServerDidUseBlock;
             RegisterCommands();
             tickListenerId = sapi.Event.RegisterGameTickListener(OnServerTick, 50, 50);
         }
@@ -3515,6 +3714,7 @@ namespace TheRustweave
             sapi.Event.PlayerJoin -= OnServerPlayerJoin;
             sapi.Event.PlayerNowPlaying -= OnServerPlayerNowPlaying;
             sapi.Event.PlayerLeave -= OnServerPlayerLeave;
+            sapi.Event.DidUseBlock -= OnServerDidUseBlock;
             if (tickListenerId > 0)
             {
                 sapi.Event.UnregisterGameTickListener(tickListenerId);
@@ -4089,7 +4289,9 @@ namespace TheRustweave
             }
 
             var state = GetState(player);
-            SaveAndSyncState(player, state);
+            RustweaveStateService.SaveServerState(player, state, false, false);
+            QueuePlayerStateSync(player, 1500);
+            sapi.Logger.Debug("[TheRustweave] Player state loaded: uid={0}, corruption={1}, learned={2}, preparedSlots={3}, activeSlot={4}.", player.PlayerUID, state.CurrentTemporalCorruption, state.LearnedSpellCodes.Count, state.PreparedSpellCodes.Count, RustweaveStateService.DescribePreparedSlot(state.ActivePreparedSlotId));
             sapi.Logger.Debug("[TheRustweave] Loaded Rustweave state for {0}: corruption={1}", player.PlayerName, state.CurrentTemporalCorruption);
             ScheduleTabletDecayScan(player, 1500);
         }
@@ -4107,7 +4309,9 @@ namespace TheRustweave
             }
 
             var state = GetState(player);
-            SaveAndSyncState(player, state);
+            RustweaveStateService.SaveServerState(player, state, false, false);
+            QueuePlayerStateSync(player, 1500);
+            sapi.Logger.Debug("[TheRustweave] Player state loaded: uid={0}, corruption={1}, learned={2}, preparedSlots={3}, activeSlot={4}.", player.PlayerUID, state.CurrentTemporalCorruption, state.LearnedSpellCodes.Count, state.PreparedSpellCodes.Count, RustweaveStateService.DescribePreparedSlot(state.ActivePreparedSlotId));
             sapi.Logger.Debug("[TheRustweave] Loaded Rustweave state for {0}: corruption={1}", player.PlayerName, state.CurrentTemporalCorruption);
             ProcessMentorStudies(player, state);
             ScheduleTabletDecayScan(player, 1500);
@@ -4123,7 +4327,7 @@ namespace TheRustweave
             if (RustweaveStateService.IsRustweaver(player) || RustweaveStateService.HasStoredServerState(player.PlayerUID))
             {
                 var state = GetState(player);
-                SaveAndSyncState(player, state);
+                RustweaveStateService.SaveServerState(player, state, false, false);
                 sapi.Logger.Debug("[TheRustweave] Saved Rustweave state for {0}: corruption={1}", player.PlayerName, state.CurrentTemporalCorruption);
             }
 
@@ -4134,6 +4338,46 @@ namespace TheRustweave
             RemoveActiveEffectsForPlayer(player.PlayerUID);
             activeTabletVents.Remove(player.PlayerUID);
             pendingTabletDecayScans.Remove(player.PlayerUID);
+            pendingPlayerStateSyncs.Remove(player.PlayerUID);
+        }
+
+        private void QueuePlayerStateSync(IServerPlayer player, long delayMilliseconds)
+        {
+            if (player == null || string.IsNullOrWhiteSpace(player.PlayerUID))
+            {
+                return;
+            }
+
+            pendingPlayerStateSyncs[player.PlayerUID] = sapi.World.ElapsedMilliseconds + Math.Max(0, delayMilliseconds);
+            sapi.Logger.Debug("[TheRustweave] Queued Rustweave state sync for player '{0}' after player entity is ready.", player.PlayerName ?? player.PlayerUID);
+        }
+
+        private void ProcessPendingPlayerStateSyncs()
+        {
+            if (pendingPlayerStateSyncs.Count == 0)
+            {
+                return;
+            }
+
+            var now = sapi.World.ElapsedMilliseconds;
+            foreach (var entry in pendingPlayerStateSyncs.ToArray())
+            {
+                if (now < entry.Value)
+                {
+                    continue;
+                }
+
+                var player = sapi.World.AllOnlinePlayers.OfType<IServerPlayer>().FirstOrDefault(online => string.Equals(online.PlayerUID, entry.Key, StringComparison.OrdinalIgnoreCase));
+                if (player?.Entity == null || !player.Entity.Alive)
+                {
+                    continue;
+                }
+
+                var state = GetState(player);
+                SaveAndSyncState(player, state);
+                pendingPlayerStateSyncs.Remove(entry.Key);
+                sapi.Logger.Debug("[TheRustweave] Applied queued Rustweave state sync for player '{0}'.", player.PlayerName ?? player.PlayerUID);
+            }
         }
 
         public bool TryStartTabletVenting(EntityPlayer entityPlayer)
@@ -4375,6 +4619,7 @@ namespace TheRustweave
             ProcessTimedSpellEffects();
             ProcessActiveEffectRecords();
             RustweaveStateService.ProcessWorldStatePersistence(sapi.World.ElapsedMilliseconds);
+            ProcessPendingPlayerStateSyncs();
             SampleEntityHistory();
             ProcessTargetPreviewStates();
             ProcessActiveTargetedWarningRecords();
@@ -4555,7 +4800,11 @@ namespace TheRustweave
                     continue;
                 }
 
-                if (record.IsArea)
+                if (string.Equals(record.EffectType, SpellEffectTypes.WardwarpRiftSuppression, StringComparison.OrdinalIgnoreCase))
+                {
+                    ProcessWardwarpSuppressionEffect(record);
+                }
+                else if (record.IsArea)
                 {
                     ProcessActiveAreaEffect(record);
                 }
@@ -4567,7 +4816,14 @@ namespace TheRustweave
 
             foreach (var effectId in expired)
             {
-                TryRemoveActiveEffect(effectId, true);
+                if (activeEffectRecords.TryGetValue(effectId, out var record) && string.Equals(record?.EffectType, SpellEffectTypes.WardwarpRiftSuppression, StringComparison.OrdinalIgnoreCase))
+                {
+                    TryRemoveActiveEffect(effectId, false);
+                }
+                else
+                {
+                    TryRemoveActiveEffect(effectId, true);
+                }
             }
         }
 
@@ -4577,6 +4833,12 @@ namespace TheRustweave
             var radius = Math.Max(0d, record.Radius);
             if (radius <= 0d)
             {
+                return;
+            }
+
+            if (string.Equals(record.EffectType, SpellEffectTypes.WardwarpRiftSuppression, StringComparison.OrdinalIgnoreCase))
+            {
+                ProcessWardwarpSuppressionEffect(record);
                 return;
             }
 
@@ -4603,6 +4865,21 @@ namespace TheRustweave
                         break;
                     case SpellEffectTypes.ModifyCorruptionGain:
                         AdjustEntityCorruption(entity, (int)Math.Round(record.Amount));
+                        break;
+                    case SpellEffectTypes.ModifyReach:
+                        if (sapi.World.ElapsedMilliseconds >= record.NextTickAtMilliseconds)
+                        {
+                            record.NextTickAtMilliseconds = sapi.World.ElapsedMilliseconds + Math.Max(1500, record.TickIntervalMilliseconds > 0 ? record.TickIntervalMilliseconds : 1500);
+                            sapi.World.SpawnParticles(4, unchecked((int)0xFF6FCBD3), new Vec3d(entity.Pos.XYZ.X - 0.1, entity.Pos.XYZ.Y + 0.05, entity.Pos.XYZ.Z - 0.1), new Vec3d(entity.Pos.XYZ.X + 0.1, entity.Pos.XYZ.Y + 1.3, entity.Pos.XYZ.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.18f, 0f, 0.3f, EnumParticleModel.Quad, GetOnlineServerPlayer(record.CasterPlayerUid));
+                        }
+                        break;
+                    case SpellEffectTypes.UnseenOffset:
+                        if (sapi.World.ElapsedMilliseconds >= record.NextTickAtMilliseconds)
+                        {
+                            record.NextTickAtMilliseconds = sapi.World.ElapsedMilliseconds + Math.Max(500, record.TickIntervalMilliseconds > 0 ? record.TickIntervalMilliseconds : 1000);
+                            ClearCreatureAggroAroundEntity(entity, Math.Max(1d, record.Radius), record.CasterEntityId);
+                            sapi.World.SpawnParticles(3, unchecked((int)0xFF6FCBD3), new Vec3d(entity.Pos.XYZ.X - 0.15, entity.Pos.XYZ.Y + 0.1, entity.Pos.XYZ.Z - 0.15), new Vec3d(entity.Pos.XYZ.X + 0.15, entity.Pos.XYZ.Y + 1.1, entity.Pos.XYZ.Z + 0.15), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.16f, 0f, 0.25f, EnumParticleModel.Quad, GetOnlineServerPlayer(record.CasterPlayerUid));
+                        }
                         break;
                     case SpellEffectTypes.ChangeTemperatureArea:
                     case SpellEffectTypes.ChangeEnvironmentalPressure:
@@ -4635,6 +4912,74 @@ namespace TheRustweave
                         break;
                 }
             }
+        }
+
+        private void ProcessWardwarpSuppressionEffect(RustweaveActiveEffectRecord record)
+        {
+            if (record == null || record.BlockSnapshots == null || record.BlockSnapshots.Count == 0)
+            {
+                return;
+            }
+
+            var anchor = record.BlockSnapshots[0];
+            if (anchor == null)
+            {
+                TryRemoveActiveEffect(record.EffectId, false);
+                return;
+            }
+
+            var anchorPos = new BlockPos(anchor.X, anchor.Y, anchor.Z, anchor.Dimension);
+            var currentBlock = sapi.World.BlockAccessor.GetBlock(anchorPos);
+            if (currentBlock == null || currentBlock.BlockId != anchor.BlockId || !string.Equals(currentBlock.Code?.ToString() ?? string.Empty, anchor.BlockCode ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+            {
+                TryRemoveActiveEffect(record.EffectId, false);
+                return;
+            }
+
+            var center = new Vec3d(anchorPos.X + 0.5, anchorPos.Y + 0.5, anchorPos.Z + 0.5);
+            var cubeRadius = Math.Max(1d, record.Radius);
+            var entities = sapi.World.GetEntitiesAround(center, (float)cubeRadius, (float)cubeRadius) ?? Array.Empty<Entity>();
+            var removedAny = false;
+            foreach (var entity in entities)
+            {
+                if (entity == null || !entity.Alive || !IsNaturalTemporalRiftEntity(entity))
+                {
+                    continue;
+                }
+
+                var entityPos = entity.Pos?.XYZ ?? new Vec3d();
+                if (Math.Abs(entityPos.X - center.X) > cubeRadius || Math.Abs(entityPos.Y - center.Y) > cubeRadius || Math.Abs(entityPos.Z - center.Z) > cubeRadius)
+                {
+                    continue;
+                }
+
+                removedAny |= TryDespawnEntity(entity);
+            }
+
+            if (removedAny)
+            {
+                sapi.World.SpawnParticles(12, unchecked((int)0xFF6FCBD3), new Vec3d(center.X - 0.3, center.Y + 0.05, center.Z - 0.3), new Vec3d(center.X + 0.3, center.Y + 0.8, center.Z + 0.3), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.18f, 0f, 0.3f, EnumParticleModel.Quad, GetOnlineServerPlayer(record.CasterPlayerUid));
+            }
+        }
+
+        private bool IsNaturalTemporalRiftEntity(Entity entity)
+        {
+            if (entity == null)
+            {
+                return false;
+            }
+
+            var code = entity.Code?.ToString() ?? string.Empty;
+            var typeName = entity.GetType().Name;
+            if ((code.IndexOf("rift", StringComparison.OrdinalIgnoreCase) >= 0 || typeName.IndexOf("rift", StringComparison.OrdinalIgnoreCase) >= 0)
+                && !code.Contains("wardwarp", StringComparison.OrdinalIgnoreCase)
+                && !code.Contains("therustweave", StringComparison.OrdinalIgnoreCase)
+                && !typeName.Contains("wardwarp", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private void ProcessActiveEntityEffect(RustweaveActiveEffectRecord record)
@@ -4709,6 +5054,25 @@ namespace TheRustweave
 
                     record.NextTickAtMilliseconds = sapi.World.ElapsedMilliseconds + Math.Max(250, record.TickIntervalMilliseconds > 0 ? record.TickIntervalMilliseconds : 350);
                     SpawnLinkEffectParticles(record);
+                    break;
+                case SpellEffectTypes.ModifyReach:
+                    if (sapi.World.ElapsedMilliseconds < record.NextTickAtMilliseconds)
+                    {
+                        return;
+                    }
+
+                    record.NextTickAtMilliseconds = sapi.World.ElapsedMilliseconds + Math.Max(1500, record.TickIntervalMilliseconds > 0 ? record.TickIntervalMilliseconds : 1500);
+                    sapi.World.SpawnParticles(4, unchecked((int)0xFF6FCBD3), new Vec3d(entity.Pos.XYZ.X - 0.1, entity.Pos.XYZ.Y + 0.05, entity.Pos.XYZ.Z - 0.1), new Vec3d(entity.Pos.XYZ.X + 0.1, entity.Pos.XYZ.Y + 1.3, entity.Pos.XYZ.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.18f, 0f, 0.3f, EnumParticleModel.Quad, GetOnlineServerPlayer(record.CasterPlayerUid));
+                    break;
+                case SpellEffectTypes.UnseenOffset:
+                    if (sapi.World.ElapsedMilliseconds < record.NextTickAtMilliseconds)
+                    {
+                        return;
+                    }
+
+                    record.NextTickAtMilliseconds = sapi.World.ElapsedMilliseconds + Math.Max(500, record.TickIntervalMilliseconds > 0 ? record.TickIntervalMilliseconds : 1000);
+                    ClearCreatureAggroAroundEntity(entity, Math.Max(1d, record.Radius), record.CasterEntityId);
+                    sapi.World.SpawnParticles(3, unchecked((int)0xFF6FCBD3), new Vec3d(entity.Pos.XYZ.X - 0.15, entity.Pos.XYZ.Y + 0.1, entity.Pos.XYZ.Z - 0.15), new Vec3d(entity.Pos.XYZ.X + 0.15, entity.Pos.XYZ.Y + 1.1, entity.Pos.XYZ.Z + 0.15), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.16f, 0f, 0.25f, EnumParticleModel.Quad, GetOnlineServerPlayer(record.CasterPlayerUid));
                     break;
             }
         }
@@ -4878,6 +5242,35 @@ namespace TheRustweave
             return false;
         }
 
+        private static bool TryCallNoArgMember(object target, params string[] memberNames)
+        {
+            if (target == null || memberNames == null || memberNames.Length == 0)
+            {
+                return false;
+            }
+
+            var type = target.GetType();
+            foreach (var memberName in memberNames.Where(name => !string.IsNullOrWhiteSpace(name)))
+            {
+                var method = type.GetMethod(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+                if (method == null)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    method.Invoke(target, Array.Empty<object>());
+                    return true;
+                }
+                catch
+                {
+                }
+            }
+
+            return false;
+        }
+
         private static void TryMarkBlockEntityDirty(BlockEntity? blockEntity)
         {
             if (blockEntity == null)
@@ -4981,6 +5374,137 @@ namespace TheRustweave
                     creature.TeleportTo(safePosition);
                 }
             }
+        }
+
+        private void ClearCreatureAggroAroundEntity(Entity entity, double radius, long casterEntityId)
+        {
+            if (entity?.World == null || entity is EntityPlayer || radius <= 0d)
+            {
+                return;
+            }
+
+            var center = entity.Pos?.XYZ ?? new Vec3d();
+            var nearby = entity.World.GetEntitiesAround(center, (float)radius, (float)radius) ?? Array.Empty<Entity>();
+            foreach (var nearbyEntity in nearby)
+            {
+                if (nearbyEntity == null || !nearbyEntity.Alive || nearbyEntity is EntityPlayer)
+                {
+                    continue;
+                }
+
+                if (!IsTargetingEntity(nearbyEntity, entity, casterEntityId))
+                {
+                    continue;
+                }
+
+                TryClearAggroMembers(nearbyEntity);
+            }
+        }
+
+        private static bool IsTargetingEntity(Entity nearbyEntity, Entity targetEntity, long casterEntityId)
+        {
+            if (nearbyEntity == null || targetEntity == null)
+            {
+                return false;
+            }
+
+            var type = nearbyEntity.GetType();
+            var memberNames = new[]
+            {
+                "TargetEntity",
+                "AttackTarget",
+                "Target",
+                "CurrentTarget",
+                "CurrentAttackTarget",
+                "AngerTarget",
+                "TargetedEntity",
+                "FollowTarget",
+                "Enemy"
+            };
+
+            foreach (var memberName in memberNames)
+            {
+                var property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var value = property?.CanRead == true ? property.GetValue(nearbyEntity) : null;
+                if (value is Entity entityValue)
+                {
+                    if (entityValue.EntityId == targetEntity.EntityId || (casterEntityId > 0 && entityValue.EntityId == casterEntityId))
+                    {
+                        return true;
+                    }
+                }
+                else if (value is long longValue && (longValue == targetEntity.EntityId || (casterEntityId > 0 && longValue == casterEntityId)))
+                {
+                    return true;
+                }
+                else if (value is int intValue && (intValue == targetEntity.EntityId || (casterEntityId > 0 && intValue == casterEntityId)))
+                {
+                    return true;
+                }
+                else if (value is string stringValue)
+                {
+                    var targetUid = targetEntity is EntityPlayer targetPlayer ? targetPlayer.PlayerUID ?? string.Empty : string.Empty;
+                    if (!string.IsNullOrWhiteSpace(targetUid) && string.Equals(stringValue, targetUid, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static void TryClearAggroMembers(Entity creature)
+        {
+            if (creature == null)
+            {
+                return;
+            }
+
+            var type = creature.GetType();
+            var memberNames = new[]
+            {
+                "TargetEntity",
+                "AttackTarget",
+                "Target",
+                "CurrentTarget",
+                "CurrentAttackTarget",
+                "AngerTarget",
+                "TargetedEntity",
+                "FollowTarget",
+                "Enemy"
+            };
+
+            foreach (var memberName in memberNames)
+            {
+                var property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (property?.CanWrite == true && (property.PropertyType == typeof(Entity) || property.PropertyType == typeof(EntityAgent) || property.PropertyType == typeof(EntityPlayer) || property.PropertyType == typeof(object)))
+                {
+                    try
+                    {
+                        property.SetValue(creature, null);
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                var field = type.GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (field != null && (field.FieldType == typeof(Entity) || field.FieldType == typeof(EntityAgent) || field.FieldType == typeof(EntityPlayer) || field.FieldType == typeof(object)))
+                {
+                    try
+                    {
+                        field.SetValue(creature, null);
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+
+            TrySetBooleanMember(creature, false, "HasTarget", "hasTarget", "Aggressive", "aggressive", "IsAggressive", "isAggressive", "Hostile", "hostile", "Alerted", "alerted");
+            RustweaveStateService.TrySetNumericMemberValue(creature, 0d, "Anger", "anger", "Aggro", "aggro", "AngerLevel", "angerLevel", "Targeting", "targeting");
+            TryCallNoArgMember(creature, "StopTargeting", "StopAttack", "StopAttacking", "ClearTarget", "ClearTargetEntity", "ResetAi", "StopFollowing", "ForgetTarget");
         }
 
         private void ApplyBlockEntityAreaPulse(RustweaveActiveEffectRecord record, double delta, params string[] memberNames)
@@ -5201,11 +5725,11 @@ namespace TheRustweave
             }
         }
 
-        private static void TryDespawnEntity(Entity entity)
+        private static bool TryDespawnEntity(Entity entity)
         {
             if (entity == null)
             {
-                return;
+                return false;
             }
 
             try
@@ -5215,7 +5739,7 @@ namespace TheRustweave
                 if (despawnMethod != null && despawnMethod.GetParameters().Length == 0)
                 {
                     despawnMethod.Invoke(entity, Array.Empty<object>());
-                    return;
+                    return true;
                 }
 
                 var dieMethod = entity.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
@@ -5230,11 +5754,14 @@ namespace TheRustweave
                     }
 
                     dieMethod.Invoke(entity, args);
+                    return true;
                 }
             }
             catch
             {
             }
+
+            return false;
         }
 
         public IReadOnlyList<RustweaveActiveEffectRecord> GetActiveEffectsForEntity(long entityId)
@@ -5667,6 +6194,8 @@ namespace TheRustweave
                 if (state.FreezeTemporalStabilityLossStartedAtTotalDays > 0d
                     || state.BraceNextDisplacementStartedAtTotalDays > 0d
                     || state.FoundationalFabricStartedAtTotalDays > 0d
+                    || state.WarpedReachStartedAtTotalDays > 0d
+                    || state.UnseenOffsetStartedAtTotalDays > 0d
                     || state.FoundationalFabricDebtAmount > 0)
                 {
                     if (state.FoundationalFabricStartedAtTotalDays > 0d || state.FoundationalFabricDebtAmount > 0)
@@ -5677,9 +6206,13 @@ namespace TheRustweave
                     RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.FreezeTemporalStabilityLoss, state.FreezeTemporalStabilityLossSourceSpellCode);
                     RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.BraceNextDisplacement, state.BraceNextDisplacementSourceSpellCode);
                     RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.DeferSpellCorruptionCost, state.FoundationalFabricSourceSpellCode);
+                    RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.ModifyReach, state.WarpedReachSourceSpellCode);
+                    RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.UnseenOffset, state.UnseenOffsetSourceSpellCode);
                     RustweaveStateService.ClearFreezeTemporalStabilityLoss(state);
                     RustweaveStateService.ClearBraceNextDisplacement(state);
                     RustweaveStateService.ClearFoundationalFabric(state);
+                    RustweaveStateService.ClearWarpedReach(state);
+                    RustweaveStateService.ClearUnseenOffset(state);
                     changed = true;
                 }
 
@@ -5737,6 +6270,23 @@ namespace TheRustweave
                 }
             }
 
+            if (state.WarpedReachStartedAtTotalDays > 0d && state.WarpedReachExpiresAtTotalDays > 0d && state.WarpedReachExpiresAtTotalDays <= nowDays)
+            {
+                RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.ModifyReach, state.WarpedReachSourceSpellCode);
+                RustweaveStateService.ClearWarpedReach(state);
+                changed = true;
+            }
+
+            if (state.UnseenOffsetStartedAtTotalDays > 0d && state.UnseenOffsetExpiresAtTotalDays > 0d)
+            {
+                if (state.UnseenOffsetExpiresAtTotalDays <= nowDays)
+                {
+                    RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.UnseenOffset, state.UnseenOffsetSourceSpellCode);
+                    RustweaveStateService.ClearUnseenOffset(state);
+                    changed = true;
+                }
+            }
+
             if (state.BraceNextDisplacementStartedAtTotalDays > 0d && state.BraceNextDisplacementExpiresAtTotalDays > 0d && state.BraceNextDisplacementExpiresAtTotalDays <= nowDays)
             {
                 RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.BraceNextDisplacement, state.BraceNextDisplacementSourceSpellCode);
@@ -5750,6 +6300,56 @@ namespace TheRustweave
             }
 
             return changed;
+        }
+
+        private void OnServerDidUseBlock(IPlayer byPlayer, BlockSelection blockSel)
+        {
+            if (byPlayer is not IServerPlayer serverPlayer || blockSel?.Position == null)
+            {
+                return;
+            }
+
+            if (serverPlayer.Entity?.Controls?.ShiftKey != true)
+            {
+                return;
+            }
+
+            var slot = serverPlayer.InventoryManager?.ActiveHotbarSlot;
+            if (slot?.Itemstack != null)
+            {
+                return;
+            }
+
+            TryRemoveWardwarpMarkerAt(serverPlayer, blockSel.Position);
+        }
+
+        private void TryRemoveWardwarpMarkerAt(IServerPlayer player, BlockPos pos)
+        {
+            if (player == null || pos == null)
+            {
+                return;
+            }
+
+            var effects = GetActiveEffectsNear(new Vec3d(pos.X + 0.5, pos.Y + 0.5, pos.Z + 0.5), 1.5d);
+            foreach (var record in effects.Where(record => record != null && string.Equals(record.EffectType, SpellEffectTypes.WardwarpRiftSuppression, StringComparison.OrdinalIgnoreCase)).ToArray())
+            {
+                if (record.BlockSnapshots == null || record.BlockSnapshots.Count == 0)
+                {
+                    continue;
+                }
+
+                var anchor = record.BlockSnapshots[0];
+                if (anchor == null || anchor.X != pos.X || anchor.Y != pos.Y || anchor.Z != pos.Z)
+                {
+                    continue;
+                }
+
+                if (TryRemoveActiveEffect(record.EffectId, false))
+                {
+                    sapi.Logger.Debug("[TheRustweave] Wardwarp marker removed by player '{0}' at {1}.", player.PlayerUID, pos);
+                }
+                return;
+            }
         }
 
         private void ProcessTabletDecayForInventories(IServerPlayer player)
@@ -6278,6 +6878,18 @@ namespace TheRustweave
                 return;
             }
 
+            if (string.Equals(failureReason, "You can only sustain 4 Wardwarp markers at once.", StringComparison.Ordinal))
+            {
+                player.SendMessage(0, Lang.Get("game:rustweave-wardwarp-max-player"), EnumChatType.Notification, null);
+                return;
+            }
+
+            if (string.Equals(failureReason, "This chunk already holds too many Wardwarp markers.", StringComparison.Ordinal))
+            {
+                player.SendMessage(0, Lang.Get("game:rustweave-wardwarp-max-chunk"), EnumChatType.Notification, null);
+                return;
+            }
+
             player.SendMessage(0, Lang.Get("game:rustweave-spell-target-fail"), EnumChatType.Notification, null);
         }
 
@@ -6355,6 +6967,14 @@ namespace TheRustweave
             }
 
             sapi.Logger.Debug("[TheRustweave] Cast start requested by player '{0}' from prepared slot {1} for spell '{2}' with targetType '{3}'.", player.PlayerUID, RustweaveStateService.DescribePreparedSlot(slotId), spell.Code, spell.TargetType);
+
+            if (!string.Equals(spell.Code, SpellEffectTypes.UnseenOffset, StringComparison.OrdinalIgnoreCase) && RustweaveStateService.HasActiveUnseenOffset(state, nowDays))
+            {
+                RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.UnseenOffset, state.UnseenOffsetSourceSpellCode);
+                RustweaveStateService.ClearUnseenOffset(state);
+                SaveAndSyncState(player, state);
+            }
+
             var selfTargetSpell = string.Equals(spell.TargetType, SpellTargetTypes.Self, StringComparison.OrdinalIgnoreCase);
             SpellEffectExecutor.SpellTargetContext? lockedTarget = null;
 
@@ -6379,7 +6999,7 @@ namespace TheRustweave
                     sapi.Logger.Debug("[TheRustweave] Still Thread resolved self target: caster={0}, entityId={1}", player.PlayerName ?? player.PlayerUID, player.Entity.EntityId);
                 }
             }
-            else if (!spellExecutor.TryResolveTarget(player, spell, out lockedTarget, out var lockFailureReason))
+            else if (!spellExecutor.TryResolveTarget(player, state, spell, nowDays, out lockedTarget, out var lockFailureReason))
             {
                 sapi.Logger.Warning("[TheRustweave] Spell '{0}' could not resolve a cast-start target for player '{1}': {2}", spell.Code, player.PlayerUID, lockFailureReason);
                 SendSpellTargetFailure(player, lockFailureReason);
@@ -6465,7 +7085,8 @@ namespace TheRustweave
                 return;
             }
 
-            if (!spellExecutor.TryResolveLockedTarget(player, spell, castState, out var lockedTarget, out var lockFailureReason))
+            var nowDays = sapi.World.Calendar?.TotalDays ?? 0d;
+            if (!spellExecutor.TryResolveLockedTarget(player, state, spell, castState, nowDays, out var lockedTarget, out var lockFailureReason))
             {
                 sapi.Logger.Warning("[TheRustweave] Spell '{0}' failed at completion for player '{1}' because the locked target was invalid: {2}", spell.Code, player.PlayerUID, lockFailureReason);
                 SendSpellTargetFailure(player, lockFailureReason);
@@ -7345,6 +7966,7 @@ namespace TheRustweave
         private readonly Dictionary<string, RustweaveTargetedWarningPacket> activeTargetedWarnings = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, long> activeTargetedWarningRenderTimes = new(StringComparer.OrdinalIgnoreCase);
         private int? localSelectedPreparedSlotId;
+        private bool pendingClientStateHydrate;
         private string lastStateJson = string.Empty;
         private string lastCastJson = string.Empty;
         private RustweaveCorruptionHud? corruptionHud;
@@ -7588,7 +8210,8 @@ namespace TheRustweave
                 return;
             }
 
-            HydrateFromSavedState();
+            pendingClientStateHydrate = true;
+            capi.Logger.Debug("[TheRustweave] Deferred Rustweave state sync until client level finalize.");
         }
 
         private void OnClientLevelFinalize()
@@ -7596,6 +8219,7 @@ namespace TheRustweave
             RequestPreviewStop();
             ClearTargetedWarnings();
             ResetClientRuntimeState();
+            pendingClientStateHydrate = true;
         }
 
         private void ResetClientRuntimeState()
@@ -7609,6 +8233,7 @@ namespace TheRustweave
             activeTargetedWarnings.Clear();
             activeTargetedWarningRenderTimes.Clear();
             localSelectedPreparedSlotId = null;
+            pendingClientStateHydrate = false;
             lastStateJson = string.Empty;
             lastCastJson = string.Empty;
             corruptionHud = null;
@@ -7747,7 +8372,7 @@ namespace TheRustweave
             var fromPos = new Vec3d(byEntity.Pos.X + eyePos.X, byEntity.Pos.Y + eyePos.Y, byEntity.Pos.Z + eyePos.Z);
             var feetPos = byEntity.Pos.XYZ;
             var viewVector = byEntity.Pos.GetViewVector();
-            var range = Math.Max(1d, SpellRegistry.GetEffectiveLookTargetRange(spell));
+            var range = Math.Max(1d, SpellRegistry.GetEffectiveLookTargetRange(spell, currentState, world.Calendar?.TotalDays ?? 0d));
             var toPos = new Vec3d(
                 fromPos.X + (viewVector.X * range),
                 fromPos.Y + (viewVector.Y * range),
@@ -7801,7 +8426,13 @@ namespace TheRustweave
                         SpellTargetTypes.Inventory => "Inventory",
                         _ => spell.Name
                     };
-                    spellPreviewMode = SpellPreviewModes.Self;
+                    spellPreviewMode = preview.Mode;
+                    if (string.Equals(spellPreviewMode, SpellPreviewModes.Line, StringComparison.OrdinalIgnoreCase))
+                    {
+                        impactX = toPos.X;
+                        impactY = toPos.Y;
+                        impactZ = toPos.Z;
+                    }
                     break;
                 case SpellTargetTypes.LookEntity:
                 case SpellTargetTypes.LookPlayer:
@@ -8439,6 +9070,25 @@ namespace TheRustweave
             return true;
         }
 
+        private void TryApplyPendingClientStateHydrate()
+        {
+            if (!pendingClientStateHydrate)
+            {
+                return;
+            }
+
+            if (capi?.World?.Player?.Entity == null)
+            {
+                return;
+            }
+
+            if (HydrateFromSavedState())
+            {
+                pendingClientStateHydrate = false;
+                capi.Logger.Debug("[TheRustweave] Applied Rustweave state sync: corruption={0}, preparedSlots={1}, activeSlot={2}.", currentState.CurrentTemporalCorruption, currentState.PreparedSpellCodes.Count, RustweaveStateService.DescribePreparedSlot(currentState.ActivePreparedSlotId));
+            }
+        }
+
         private void OnMouseWheelMove(MouseWheelEventArgs args)
         {
             HydrateFromSavedState();
@@ -8495,6 +9145,7 @@ namespace TheRustweave
                 return;
             }
 
+            TryApplyPendingClientStateHydrate();
             RefreshSnapshots(player);
             UpdateCorruptionHud();
             UpdateCastHud();

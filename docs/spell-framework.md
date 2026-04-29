@@ -84,6 +84,10 @@ This document is the persistent reference for Rustweave spell vocabulary, valida
 - Persistent per-player Warping effect state for Still Thread, Warping Brace, and Foundational Fabric
 - Stable Sense reports exact forecast hours when available and uses Light / Medium / Heavy intensity bands derived from forecast timing instead of depending on unavailable vanilla storm-strength access.
 - Foundational Fabric defers 10% of future base corruption costs, rounds deferred debt up, persists the debt world-specifically, and repays it all at once on expiry or on next join after offline expiry.
+- Warped Reach currently guarantees the Rustweave spell-range bonus; any additional vanilla block/melee reach adjustments are engine-dependent and only applied when a safe hook is available.
+- Unseen Offset clears hostile creature aggro in range, skips players, and is canceled by later Rustweave spell casts; attack-cancel remains engine-dependent if no reliable attack hook is exposed.
+- Arranged Step is motion-based, not a teleport, so collision stays authoritative.
+- Wardwarp I uses the wardwarpRiftSuppression active effect and falls back to a bounded six-second scan if no direct temporal-rift spawn interception hook is available.
 - World-scoped player progression and runtime state:
   - learned spells
   - prepared slots
@@ -94,8 +98,10 @@ This document is the persistent reference for Rustweave spell vocabulary, valida
   - active self effects
   - active areas/wards/rifts/barriers
 - Rustweave player runtime state is stored per world/save, not in global mod config.
+- World/player state is sanitized on load before it is cached or synced to the client.
 - Legacy global player state is ignored for normal gameplay and must not leak into a different save.
-- Corruption and prepared-slot state are loaded on join and synced immediately rather than waiting for another spell cast.
+- Corruption and prepared-slot state are loaded on join and synced after the player entity is ready rather than waiting for another spell cast.
+- In practice, early join sync may be deferred until the client player entity is ready to avoid vanilla own-player-data crashes.
 - Prepared-slot selection is authoritative on the server; the client mirrors server state rather than inventing empty-slot semantics.
 
 ## Active area effects
@@ -107,6 +113,7 @@ Active area records are persisted in mod config and ticked on the server. They s
 - containment areas
 - boundary lines
 - anti-spread areas
+- wardwarp suppression markers
 - stabilization/corruption modifiers
 - temperature/environment pressure fields
 - rift markers
@@ -161,6 +168,7 @@ They are queryable by purge/cancel/counter/identify effects and expire automatic
 | `anchorBlock` | Marks a block as anchored for Rustweave interactions. |
 | `preventDisplacement` | Blocks teleport/push/pull/swap displacement. |
 | `modifyCorruptionGain` | Timed corruption gain modifier. |
+| `modifyReach` | Adds a timed +2 Rustweave targeting-range bonus; vanilla reach hooks are used only when the engine exposes them safely. |
 | `senseTemporalStorm` | Reports the next readable temporal storm. |
 | `deferSpellCorruptionCost` | Defers part of future spell corruption cost and repays the debt later. |
 

@@ -191,6 +191,138 @@
     "icon": "therustweave:spell/stable-sense"
   },
   {
+    "code": "warped-reach",
+    "name": "Warped Reach",
+    "description": "Tightens the local frame so the caster's Rustweave actions reach farther along stable Rust-strands.",
+    "enabled": true,
+    "school": "Warping",
+    "category": "Warping",
+    "tier": 1,
+    "castTimeSeconds": 6,
+    "cooldownSeconds": 6,
+    "corruptionCost": 24,
+    "targetType": "self",
+    "range": 0,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "unlockHint": "Discovery required.",
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "previewMode": "self",
+    "previewMarkerStyle": "ring",
+    "effects": [
+      {
+        "type": "modifyReach",
+        "durationSeconds": 120,
+        "amount": 2
+      }
+    ],
+    "icon": "therustweave:spell/warped-reach"
+  },
+  {
+    "code": "unseen-offset",
+    "name": "Unseen Offset",
+    "description": "Briefly misregisters the caster's position, breaking hostile creature attention without hiding them.",
+    "enabled": true,
+    "school": "Warping",
+    "category": "Warping",
+    "tier": 1,
+    "castTimeSeconds": 6,
+    "cooldownSeconds": 24,
+    "corruptionCost": 22,
+    "targetType": "self",
+    "range": 0,
+    "radius": 12,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "unlockHint": "Discovery required.",
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "previewMode": "area",
+    "previewRadius": 12,
+    "previewMarkerStyle": "ring",
+    "effects": [
+      {
+        "type": "unseenOffset",
+        "durationSeconds": 6,
+        "radius": 12
+      }
+    ],
+    "icon": "therustweave:spell/unseen-offset"
+  },
+  {
+    "code": "arranged-step",
+    "name": "Arranged Step",
+    "description": "Aligns the next few foundation threads underfoot, causing a fast corrected step in the direction the caster is looking.",
+    "enabled": true,
+    "school": "Warping",
+    "category": "Warping",
+    "tier": 1,
+    "castTimeSeconds": 6,
+    "cooldownSeconds": 10,
+    "corruptionCost": 30,
+    "targetType": "self",
+    "range": 0,
+    "radius": 0,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "unlockHint": "Discovery required.",
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "previewMode": "line",
+    "previewLength": 4,
+    "previewWidth": 0.35,
+    "previewMarkerStyle": "strip",
+    "effects": [
+      {
+        "type": "arrangedStep",
+        "teleportDistance": 4
+      }
+    ],
+    "icon": "therustweave:spell/arranged-step"
+  },
+  {
+    "code": "wardwarp-1",
+    "name": "Wardwarp I",
+    "description": "Places a weak block-bound Warping ward that suppresses basic natural temporal rifts in a 6-block cube.",
+    "enabled": true,
+    "school": "Warping",
+    "category": "Warping",
+    "tier": 1,
+    "castTimeSeconds": 6,
+    "cooldownSeconds": 45,
+    "corruptionCost": 75,
+    "targetType": "lookBlock",
+    "range": 16,
+    "radius": 6,
+    "requiresLineOfSight": false,
+    "requiresTome": true,
+    "requiresHeldFocus": false,
+    "unlockHint": "Discovery required.",
+    "requiredGlyphs": [],
+    "allowedGlyphs": [],
+    "glyphSlots": 0,
+    "previewMode": "area",
+    "previewRadius": 6,
+    "previewMarkerStyle": "ring",
+    "effects": [
+      {
+        "type": "wardwarpRiftSuppression",
+        "durationSeconds": 3600,
+        "radius": 6,
+        "tickIntervalSeconds": 6
+      }
+    ],
+    "icon": "therustweave:spell/wardwarp-1"
+  },
+  {
     "code": "foundational-fabric",
     "name": "Foundational Fabric",
     "description": "Defers a portion of future spell corruption costs, then returns the debt when the working unravels.",
