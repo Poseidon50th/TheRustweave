@@ -50,7 +50,7 @@ This document is the persistent reference for Rustweave spell vocabulary, valida
 
 - Look targets require positive range.
 - Area targets require positive radius.
-- `self` targets always resolve to the caster entity and do not require range, line of sight, or raycasts.
+- `self` targets always resolve to the caster entity before any raycast/look-target logic and do not require range, line of sight, or raycasts.
 - `self` target casting should resolve from the caster directly, not through look-target lookup.
 - `lookBlockEntity` and `lookContainer` must fail cleanly if the block entity is missing or not container-capable.
 - `lookDroppedItem` must use safe entity detection and must not crash on unknown entity types.
@@ -82,7 +82,7 @@ This document is the persistent reference for Rustweave spell vocabulary, valida
 - Summon tracking and expiry
 - Safe teleport helpers
 - Persistent per-player Warping effect state for Still Thread, Warping Brace, and Foundational Fabric
-- Stable Sense attempts an exact Temporal Storm hour lookup first and falls back to an unavailable message when the runtime does not expose usable storm data.
+- Stable Sense reports exact forecast hours when available and uses Light / Medium / Heavy intensity bands derived from forecast timing instead of depending on unavailable vanilla storm-strength access.
 - Foundational Fabric defers 10% of future base corruption costs, rounds deferred debt up, persists the debt world-specifically, and repays it all at once on expiry or on next join after offline expiry.
 - World-scoped player progression and runtime state:
   - learned spells

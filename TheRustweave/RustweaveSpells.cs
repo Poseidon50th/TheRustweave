@@ -5576,22 +5576,22 @@ namespace TheRustweave
             failureReason = string.Empty;
             gameplayActions.Add(() =>
             {
-                if (TryReadTemporalStormInfo(sapi.World, out var hoursUntilStorm, out var severity))
+                if (TryReadTemporalStormForecast(sapi.World, out var hoursUntilStorm, out var intensity, out var intensitySource))
                 {
                     var clampedHours = Math.Max(0d, hoursUntilStorm);
-                    sapi.Logger.Debug("[TheRustweave] Stable Sense storm lookup: available={0}, hours={1}, severity={2}", true, clampedHours.ToString("0.0", CultureInfo.InvariantCulture), severity);
+                    sapi.Logger.Debug("[TheRustweave] Stable Sense forecast: timingAvailable={0}, hoursUntil={1}, intensity={2}, intensitySource={3}", true, clampedHours.ToString("0.0", CultureInfo.InvariantCulture), intensity, intensitySource);
                     if (clampedHours <= 0.01d)
                     {
-                        caster.SendMessage(0, Lang.Get("game:rustweave-stable-sense-active", severity), EnumChatType.Notification, null);
+                        caster.SendMessage(0, Lang.Get("game:rustweave-stable-sense-active", intensity), EnumChatType.Notification, null);
                     }
                     else
                     {
-                        caster.SendMessage(0, Lang.Get("game:rustweave-stable-sense-result", clampedHours.ToString("0.0", CultureInfo.InvariantCulture), severity), EnumChatType.Notification, null);
+                        caster.SendMessage(0, Lang.Get("game:rustweave-stable-sense-result", clampedHours.ToString("0.0", CultureInfo.InvariantCulture), intensity), EnumChatType.Notification, null);
                     }
                 }
                 else
                 {
-                    sapi.Logger.Debug("[TheRustweave] Stable Sense storm lookup: available={0}, hours={1}, severity={2}", false, "0.0", "Unknown");
+                    sapi.Logger.Debug("[TheRustweave] Stable Sense forecast: timingAvailable={0}, hoursUntil={1}, intensity={2}, intensitySource={3}", false, "0.0", "Unknown", "unavailable");
                     caster.SendMessage(0, Lang.Get("game:rustweave-stable-sense-unavailable"), EnumChatType.Notification, null);
                 }
 
@@ -5830,10 +5830,11 @@ namespace TheRustweave
             return false;
         }
 
-        private bool TryReadTemporalStormInfo(IWorldAccessor world, out double hoursUntilStorm, out string severity)
+        private bool TryReadTemporalStormForecast(IWorldAccessor world, out double hoursUntilStorm, out string intensity, out string intensitySource)
         {
             hoursUntilStorm = 0d;
-            severity = "Unknown";
+            intensity = "Unknown";
+            intensitySource = "unavailable";
             if (world == null)
             {
                 return false;
@@ -5878,7 +5879,12 @@ namespace TheRustweave
                 "HoursToNextStorm",
                 "HoursUntilStorm",
                 "HoursRemainingUntilNextStorm",
-                "StormHoursLeft"
+                "StormHoursLeft",
+                "nextStormHours",
+                "nextStormTime",
+                "stormTimeRemaining",
+                "stormHoursRemaining",
+                "nextStormRemainingHours"
             };
 
             var absoluteHourNames = new[]
@@ -5888,7 +5894,10 @@ namespace TheRustweave
                 "NextStormTotalHours",
                 "NextStormStartTotalHours",
                 "StormStartTotalHours",
-                "StormTotalHours"
+                "StormTotalHours",
+                "nextStormTotalHours",
+                "stormStartTotalHours",
+                "nextStormAtTotalHours"
             };
 
             var dayNames = new[]
@@ -5912,20 +5921,10 @@ namespace TheRustweave
                 "NextStormTotalDays",
                 "NextStormStartTotalDays",
                 "StormStartTotalDays",
-                "StormTotalDays"
-            };
-
-            var severityNames = new[]
-            {
-                "TemporalStormStrength",
-                "StormStrength",
-                "NextStormStrength",
-                "StormSeverity",
-                "TemporalStormSeverity",
-                "TemporalStormIntensity",
-                "StormIntensity",
-                "NextStormIntensity",
-                "TemporalStormPower"
+                "StormTotalDays",
+                "nextStormTotalDays",
+                "stormStartTotalDays",
+                "nextStormAtTotalDays"
             };
 
             var currentHoursKnown = TryReadCurrentInGameHours(world, out var currentHours);
@@ -5964,21 +5963,8 @@ namespace TheRustweave
                 hoursUntilStorm = 0d;
             }
 
-            foreach (var probe in probes)
-            {
-                if (TryReadNumericMemberValue(probe, out var strengthValue, severityNames))
-                {
-                    severity = GetStormSeverityLabel(strengthValue);
-                    return true;
-                }
-
-                if (TryReadStringMemberValue(probe, out var severityText, severityNames))
-                {
-                    severity = string.IsNullOrWhiteSpace(severityText) ? "Unknown" : severityText;
-                    return true;
-                }
-            }
-
+            intensity = GetStormIntensityLabel(hoursUntilStorm);
+            intensitySource = "time-band";
             return true;
         }
 
@@ -6057,7 +6043,12 @@ namespace TheRustweave
                 "CurrentStorm",
                 "StormState",
                 "TemporalStormData",
-                "StormInfo"
+                "StormInfo",
+                "nextStorm",
+                "stormStart",
+                "temporalStorm",
+                "stormForecast",
+                "stormSchedule"
             };
 
             foreach (var memberName in memberNames)
@@ -6085,24 +6076,19 @@ namespace TheRustweave
             }
         }
 
-        private static string GetStormSeverityLabel(double stormStrength)
+        private static string GetStormIntensityLabel(double hoursUntilStorm)
         {
-            if (stormStrength <= 0.2d)
+            if (hoursUntilStorm > 72d)
             {
-                return "Weak";
+                return "Light";
             }
 
-            if (stormStrength <= 0.45d)
+            if (hoursUntilStorm > 24d)
             {
-                return "Moderate";
+                return "Medium";
             }
 
-            if (stormStrength <= 0.75d)
-            {
-                return "Heavy";
-            }
-
-            return "Severe";
+            return "Heavy";
         }
 
         private RustweaveActiveEffectRecord BuildAreaEffectRecord(IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, Vec3d center)

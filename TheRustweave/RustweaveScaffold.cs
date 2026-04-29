@@ -6355,19 +6355,35 @@ namespace TheRustweave
             }
 
             sapi.Logger.Debug("[TheRustweave] Cast start requested by player '{0}' from prepared slot {1} for spell '{2}' with targetType '{3}'.", player.PlayerUID, RustweaveStateService.DescribePreparedSlot(slotId), spell.Code, spell.TargetType);
-            SpellEffectExecutor.SpellTargetContext? lockedTarget = null;
             var selfTargetSpell = string.Equals(spell.TargetType, SpellTargetTypes.Self, StringComparison.OrdinalIgnoreCase);
-            if (!spellExecutor.TryResolveTarget(player, spell, out lockedTarget, out var lockFailureReason))
+            SpellEffectExecutor.SpellTargetContext? lockedTarget = null;
+
+            if (selfTargetSpell)
             {
-                if (!selfTargetSpell)
+                if (player.Entity == null || !player.Entity.Alive)
                 {
-                    sapi.Logger.Warning("[TheRustweave] Spell '{0}' could not resolve a cast-start target for player '{1}': {2}", spell.Code, player.PlayerUID, lockFailureReason);
-                    SendSpellTargetFailure(player, lockFailureReason);
+                    sapi.Logger.Warning("[TheRustweave] Still Thread self target failed for player '{0}' because the caster entity is unavailable.", player.PlayerUID);
+                    SendSpellTargetFailure(player, "caster is not available");
                     return;
                 }
 
-                sapi.Logger.Debug("[TheRustweave] Self-target spell '{0}' will continue after initial target lookup failed for player '{1}': {2}", spell.Code, player.PlayerUID, lockFailureReason);
-                lockedTarget = null;
+                lockedTarget = new SpellEffectExecutor.SpellTargetContext
+                {
+                    Entity = player.Entity,
+                    Position = player.Entity.Pos.XYZ,
+                    TargetName = player.Entity.GetName() ?? spell.Code
+                };
+
+                if (string.Equals(spell.Code, "still-thread", StringComparison.OrdinalIgnoreCase))
+                {
+                    sapi.Logger.Debug("[TheRustweave] Still Thread resolved self target: caster={0}, entityId={1}", player.PlayerName ?? player.PlayerUID, player.Entity.EntityId);
+                }
+            }
+            else if (!spellExecutor.TryResolveTarget(player, spell, out lockedTarget, out var lockFailureReason))
+            {
+                sapi.Logger.Warning("[TheRustweave] Spell '{0}' could not resolve a cast-start target for player '{1}': {2}", spell.Code, player.PlayerUID, lockFailureReason);
+                SendSpellTargetFailure(player, lockFailureReason);
+                return;
             }
 
             if (!spellExecutor.TryBuildPlan(player, state, spell, lockedTarget, out var previewPlan, out var previewFailureReason))
@@ -6375,16 +6391,6 @@ namespace TheRustweave
                 sapi.Logger.Warning("[TheRustweave] Spell '{0}' could not start for player '{1}': {2}", spell.Code, player.PlayerUID, previewFailureReason);
                 SendSpellTargetFailure(player, previewFailureReason);
                 return;
-            }
-
-            if (lockedTarget == null && selfTargetSpell)
-            {
-                lockedTarget = new SpellEffectExecutor.SpellTargetContext
-                {
-                    Entity = player.Entity,
-                    Position = player.Entity?.Pos?.XYZ ?? new Vec3d(),
-                    TargetName = player.Entity?.GetName() ?? spell.Code
-                };
             }
 
             RustweaveStateService.TryApplyFoundationalFabricDiscount(state, spell.Code, spell.CorruptionCost, nowDays, out var adjustedSpellCorruptionCost, out var deferredSpellDebt);
