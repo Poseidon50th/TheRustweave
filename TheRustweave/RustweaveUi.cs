@@ -433,6 +433,22 @@ namespace TheRustweave
         private static CairoFont TomeButtonFont => CairoFont.WhiteSmallText().WithFontSize(9.5f);
         private static CairoFont TomeListFont => CairoFont.WhiteSmallText().WithFontSize(9.5f);
         private static CairoFont TomeDetailFont => CairoFont.WhiteSmallText().WithFontSize(9.5f);
+        private const int TomeSpellRowHeight = 44;
+        private const int TomeSpellRowGap = 6;
+        private const int TomeSpellRowStride = TomeSpellRowHeight + TomeSpellRowGap;
+        private const int TomeSpellListTopPadding = 8;
+        private const int TomeSpellListBottomPadding = 8;
+        private const int TomeBrowseListLeft = 36;
+        private const int TomeBrowseListTop = 188;
+        private const int TomeBrowseListWidth = 500;
+        private const int TomeBrowseListHeight = 470;
+        private const int TomeBrowseDetailsLeft = 552;
+        private const int TomeBrowseDetailsWidth = 520;
+        private const int TomeSearchInputHeight = 22;
+        private const int TomeSearchHeaderGap = 8;
+        private const int TomeScrollbarWidth = 14;
+        private const int TomeSearchRefreshDelayMs = 700;
+        private const string MainComposerKey = "rustweave-tome-main";
 
         private enum TomeTab
         {
@@ -447,19 +463,32 @@ namespace TheRustweave
         private RustweavePlayerStateData state = RustweaveStateService.CreateDefaultState();
         private TomeTab activeTab = TomeTab.Learned;
         private string selectedSpellCode = string.Empty;
-        private bool rebuildPending;
-        private bool rebuildInProgress;
+        private string allSearchText = string.Empty;
+        private string learnedSearchText = string.Empty;
+        private string lockedSearchText = string.Empty;
+        private string loreSearchText = string.Empty;
+        private float allScrollY;
+        private float learnedScrollY;
+        private float lockedScrollY;
+        private float loreScrollY;
+        private bool rebuildQueued;
+        private bool rebuilding;
+        private bool suppressSearchCallbacks;
+        private TomeTab? pendingSearchRefreshTab;
+        private long lastSearchChangeAtMs;
+        private readonly long searchRefreshTickListenerId;
 
         public RustweaveSpellPrepDialog(ICoreClientAPI capi) : base(capi)
         {
             capi.Gui.RegisterDialog(this);
+            searchRefreshTickListenerId = capi.Event.RegisterGameTickListener(OnSearchRefreshTick, 100, 100);
         }
 
         public override string ToggleKeyCombinationCode => string.Empty;
 
         public override bool Focusable => true;
 
-        public override bool PrefersUngrabbedMouse => false;
+        public override bool PrefersUngrabbedMouse => true;
 
         public override bool UnregisterOnClose => false;
 
@@ -529,28 +558,23 @@ namespace TheRustweave
 
         private void RequestRebuild()
         {
-            if (rebuildPending || rebuildInProgress)
+            if (rebuildQueued || rebuilding)
             {
                 return;
             }
 
-            rebuildPending = true;
+            rebuildQueued = true;
             capi.Event.EnqueueMainThreadTask(() =>
             {
-                rebuildPending = false;
-                if (rebuildInProgress)
-                {
-                    return;
-                }
-
-                rebuildInProgress = true;
+                rebuildQueued = false;
+                rebuilding = true;
                 try
                 {
-                    RebuildDialog();
+                    RebuildDialogNow();
                 }
                 finally
                 {
-                    rebuildInProgress = false;
+                    rebuilding = false;
                 }
             }, "therustweave-tome-rebuild");
         }
@@ -573,28 +597,108 @@ namespace TheRustweave
             RequestRebuild();
         }
 
-        private void RebuildDialog()
+        public override void OnGuiClosed()
         {
-            var wasOpened = IsOpened();
-            if (wasOpened)
+            DisposeMainComposer();
+            rebuildQueued = false;
+            rebuilding = false;
+            base.OnGuiClosed();
+        }
+
+        private GuiComposer? GetMainComposerSafe()
+        {
+            if (Composers == null || !Composers.ContainsKey(MainComposerKey))
             {
-                TryClose();
+                return null;
             }
 
-            ClearComposers();
-            EnsureComposer();
+            return Composers[MainComposerKey];
+        }
 
-            if (wasOpened)
+        private void DisposeMainComposer()
+        {
+            try
             {
-                TryOpen();
+                var composer = GetMainComposerSafe();
+                if (composer != null)
+                {
+                    composer.Dispose();
+                }
+
+                if (Composers != null && Composers.ContainsKey(MainComposerKey))
+                {
+                    Composers.Remove(MainComposerKey);
+                }
+            }
+            catch (Exception ex)
+            {
+                capi?.Logger?.Warning("[TheRustweave] Failed while disposing Tome composer: {0}", ex);
+            }
+        }
+
+        private void RebuildDialogNow()
+        {
+            try
+            {
+                var newComposer = BuildMainComposer();
+                if (newComposer == null)
+                {
+                    capi.Logger.Error("[TheRustweave] Tome rebuild failed: BuildMainComposer returned null.");
+                    return;
+                }
+
+                newComposer.Compose();
+
+                if (Composers == null)
+                {
+                    capi.Logger.Error("[TheRustweave] Tome rebuild failed: Composers dictionary is null.");
+                    newComposer.Dispose();
+                    return;
+                }
+
+                DisposeMainComposer();
+                Composers[MainComposerKey] = newComposer;
+                capi.Logger.Debug("[TheRustweave] Tome UI compose complete.");
+            }
+            catch (Exception ex)
+            {
+                capi.Logger.Error("[TheRustweave] Tome rebuild crashed: {0}", ex);
+                capi.ShowChatMessage("The Rustweaver's Tome failed to rebuild. Check the client log.");
             }
         }
 
         private void EnsureComposer()
         {
-            if (capi?.Gui == null || HasMainComposer())
+            if (capi?.Gui == null || GetMainComposerSafe() != null)
             {
                 return;
+            }
+
+            NormalizeSelectedSpellForActiveTab();
+            var composer = BuildMainComposer();
+            if (composer == null)
+            {
+                capi.Logger.Error("[TheRustweave] Tome build failed: BuildMainComposer returned null.");
+                return;
+            }
+
+            composer.Compose();
+
+            if (Composers == null)
+            {
+                capi.Logger.Error("[TheRustweave] Tome build failed: Composers dictionary is null.");
+                composer.Dispose();
+                return;
+            }
+
+            Composers[MainComposerKey] = composer;
+        }
+
+        private GuiComposer? BuildMainComposer()
+        {
+            if (capi?.Gui == null)
+            {
+                return null;
             }
 
             NormalizeSelectedSpellForActiveTab();
@@ -618,7 +722,7 @@ namespace TheRustweave
             var tabPreparedBounds = ElementBounds.Fixed(tabX, TomeTabRowY, TomeTabButtonWidth, TomeTabButtonHeight);
             var contentBounds = ElementBounds.Fixed(18, 126, 1104, 676);
 
-            var composer = capi.Gui.CreateCompo("therustweave-spell-prep", rootBounds);
+            var composer = capi.Gui.CreateCompo(MainComposerKey, rootBounds);
             composer.AddDialogBG(backgroundBounds, true, 1f);
             composer.AddInset(contentBounds, 6, 0.94f);
             composer.AddStaticText(Lang.Get("game:rustweave-prep-title"), TomeTitleFont, titleBounds, "tome-title");
@@ -638,36 +742,23 @@ namespace TheRustweave
             switch (activeTab)
             {
                 case TomeTab.All:
-                    AddSpellBrowseTab(composer, Lang.Get("game:rustweave-all-spells"), GetAllSpells(), allowPrepare: true, allowUnlockHint: true, showLoreNote: false, showStateLabel: true, showTierLabel: false, pageName: "all");
+                    AddSpellBrowseTab(composer, TomeTab.All, Lang.Get("game:rustweave-all-spells"), GetAllSpells(), allowPrepare: true, allowUnlockHint: true, showLoreNote: false, showStateLabel: true, showTierLabel: false, pageName: "all");
                     break;
                 case TomeTab.Learned:
-                    AddSpellBrowseTab(composer, Lang.Get("game:rustweave-learned-spells"), GetLearnedSpells(), allowPrepare: true, allowUnlockHint: false, showLoreNote: false, showStateLabel: false, showTierLabel: true, pageName: "learned");
+                    AddSpellBrowseTab(composer, TomeTab.Learned, Lang.Get("game:rustweave-learned-spells"), GetLearnedSpells(), allowPrepare: true, allowUnlockHint: false, showLoreNote: false, showStateLabel: false, showTierLabel: true, pageName: "learned");
                     break;
                 case TomeTab.Locked:
-                    AddSpellBrowseTab(composer, Lang.Get("game:rustweave-locked-spells"), GetLockedSpells(), allowPrepare: false, allowUnlockHint: true, showLoreNote: false, showStateLabel: true, showTierLabel: false, pageName: "locked");
+                    AddSpellBrowseTab(composer, TomeTab.Locked, Lang.Get("game:rustweave-locked-spells"), GetLockedSpells(), allowPrepare: false, allowUnlockHint: true, showLoreNote: false, showStateLabel: true, showTierLabel: false, pageName: "locked");
                     break;
                 case TomeTab.Loreweave:
-                    AddSpellBrowseTab(composer, Lang.Get("game:rustweave-loreweave-spells"), GetLoreweaveSpells(), allowPrepare: true, allowUnlockHint: false, showLoreNote: true, showStateLabel: true, showTierLabel: false, pageName: "lore");
+                    AddSpellBrowseTab(composer, TomeTab.Loreweave, Lang.Get("game:rustweave-loreweave-spells"), GetLoreweaveSpells(), allowPrepare: true, allowUnlockHint: false, showLoreNote: true, showStateLabel: true, showTierLabel: false, pageName: "lore");
                     break;
                 case TomeTab.Prepared:
                     AddPreparedTab(composer);
                     break;
             }
 
-            composer.Compose();
-            if (Composers == null)
-            {
-                capi.Logger.Error("[TheRustweave] Tome dialog composer map was null; cannot register main composer.");
-                composer.Dispose();
-                return;
-            }
-
-            Composers["main"] = composer;
-        }
-
-        private bool HasMainComposer()
-        {
-            return Composers != null && Composers.ContainsKey("main");
+            return composer;
         }
 
         private void AddTabButton(GuiComposer composer, ElementBounds bounds, TomeTab tab, string name, string label)
@@ -681,52 +772,240 @@ namespace TheRustweave
             }, bounds, TomeButtonFont, EnumButtonStyle.Normal, name);
         }
 
-        private void AddSpellBrowseTab(GuiComposer composer, string pageTitle, List<SpellDefinition> spells, bool allowPrepare, bool allowUnlockHint, bool showLoreNote, bool showStateLabel, bool showTierLabel, string pageName)
+        private string GetSearchTextForTab(TomeTab tab)
         {
+            return tab switch
+            {
+                TomeTab.All => allSearchText,
+                TomeTab.Learned => learnedSearchText,
+                TomeTab.Locked => lockedSearchText,
+                TomeTab.Loreweave => loreSearchText,
+                _ => string.Empty
+            };
+        }
+
+        private void SetSearchTextForTab(TomeTab tab, string value)
+        {
+            var normalized = value?.Trim() ?? string.Empty;
+            if (string.Equals(GetSearchTextForTab(tab), normalized, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            switch (tab)
+            {
+                case TomeTab.All:
+                    allSearchText = normalized;
+                    break;
+                case TomeTab.Learned:
+                    learnedSearchText = normalized;
+                    break;
+                case TomeTab.Locked:
+                    lockedSearchText = normalized;
+                    break;
+                case TomeTab.Loreweave:
+                    loreSearchText = normalized;
+                    break;
+            }
+
+            pendingSearchRefreshTab = tab;
+            lastSearchChangeAtMs = capi.World?.ElapsedMilliseconds ?? 0;
+        }
+
+        private float GetScrollYForTab(TomeTab tab)
+        {
+            return tab switch
+            {
+                TomeTab.All => allScrollY,
+                TomeTab.Learned => learnedScrollY,
+                TomeTab.Locked => lockedScrollY,
+                TomeTab.Loreweave => loreScrollY,
+                _ => 0f
+            };
+        }
+
+        private void SetScrollYForTab(TomeTab tab, float value)
+        {
+            var normalized = Math.Max(0f, value);
+            switch (tab)
+            {
+                case TomeTab.All:
+                    allScrollY = normalized;
+                    break;
+                case TomeTab.Learned:
+                    learnedScrollY = normalized;
+                    break;
+                case TomeTab.Locked:
+                    lockedScrollY = normalized;
+                    break;
+                case TomeTab.Loreweave:
+                    loreScrollY = normalized;
+                    break;
+            }
+        }
+
+        private void ResetScrollForTab(TomeTab tab)
+        {
+            SetScrollYForTab(tab, 0f);
+        }
+
+        private void OnSearchRefreshTick(float dt)
+        {
+            if (!IsOpened() || pendingSearchRefreshTab == null)
+            {
+                return;
+            }
+
+            var now = capi.World?.ElapsedMilliseconds ?? 0;
+            if (now - lastSearchChangeAtMs < TomeSearchRefreshDelayMs)
+            {
+                return;
+            }
+
+            pendingSearchRefreshTab = null;
+            RequestRebuild();
+        }
+
+        private List<SpellDefinition> FilterSpellsForSearch(IEnumerable<SpellDefinition> spells, string searchText)
+        {
+            var list = spells.Where(spell => spell != null).ToList();
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                return list;
+            }
+
+            var normalized = searchText.Trim();
+            return list.Where(spell => SpellMatchesSearch(spell, normalized)).ToList();
+        }
+
+        private static bool SpellMatchesSearch(SpellDefinition spell, string searchText)
+        {
+            static bool Contains(string? value, string search) => !string.IsNullOrWhiteSpace(value) && value.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;
+
+            if (spell == null)
+            {
+                return false;
+            }
+
+            if (Contains(spell.Name, searchText) || Contains(spell.Code, searchText) || Contains(spell.School, searchText) || Contains(spell.Category, searchText) || Contains(spell.Description, searchText) || Contains(spell.TargetType, searchText))
+            {
+                return true;
+            }
+
+            return spell.Effects?.Any(effect => effect != null && Contains(effect.Type, searchText)) == true;
+        }
+
+        private void AddSpellBrowseTab(GuiComposer composer, TomeTab tab, string pageTitle, List<SpellDefinition> spells, bool allowPrepare, bool allowUnlockHint, bool showLoreNote, bool showStateLabel, bool showTierLabel, string pageName)
+        {
+            var searchText = GetSearchTextForTab(tab);
+            var filteredSpells = FilterSpellsForSearch(spells, searchText);
+            NormalizeSelectedSpellForActiveTab(filteredSpells);
+            var selectedSpell = GetDisplayedSpell(filteredSpells);
+
             var listPanelBounds = ElementBounds.Fixed(28, 142, 520, 580);
-            var detailsPanelBounds = ElementBounds.Fixed(552, 142, 560, 580);
+            var detailsPanelBounds = ElementBounds.Fixed(TomeBrowseDetailsLeft, 142, TomeBrowseDetailsWidth, 580);
             composer.AddInset(listPanelBounds, 3, 0.9f);
             composer.AddInset(detailsPanelBounds, 3, 0.9f);
             composer.AddStaticText(pageTitle, TomeTitleFont, ElementBounds.Fixed(36, 146, 480, 20), $"{pageName}-header");
 
-            if (showLoreNote)
+            composer.AddStaticText(Lang.Get("game:rustweave-search") + ":", TomeListFont, ElementBounds.Fixed(36, 170, 58, 18), $"{pageName}-search-label");
+            composer.AddTextInput(ElementBounds.Fixed(94, 168, 382, TomeSearchInputHeight), value =>
             {
-                composer.AddStaticTextAutoBoxSize(Lang.Get("game:rustweave-loreweave-note"), TomeListFont, EnumTextOrientation.Left, ElementBounds.Fixed(36, 170, 470, 32), $"{pageName}-note");
+                if (suppressSearchCallbacks)
+                {
+                    return;
+                }
+
+                SetSearchTextForTab(tab, value);
+                ResetScrollForTab(tab);
+            }, TomeListFont, $"{pageName}-search");
+
+            var searchInput = composer.GetTextInput($"{pageName}-search");
+            if (searchInput != null)
+            {
+                suppressSearchCallbacks = true;
+                try
+                {
+                    searchInput.SetPlaceHolderText(Lang.Get("game:rustweave-search-placeholder"));
+                    searchInput.SetValue(searchText ?? string.Empty, false);
+                }
+                finally
+                {
+                    suppressSearchCallbacks = false;
+                }
             }
 
-            NormalizeSelectedSpellForActiveTab(spells);
-            var selectedSpell = GetDisplayedSpell(spells);
-
-            var listTop = showLoreNote ? 212 : 188;
-            var listBounds = ElementBounds.Fixed(36, listTop, 500, 470);
-            composer.BeginChildElements(listBounds);
-            if (spells.Count == 0)
+            if (showLoreNote)
             {
-                composer.AddStaticText(Lang.Get("game:rustweave-slot-empty"), TomeListFont.WithColor(GuiStyle.DisabledTextColor), ElementBounds.Fixed(0, 0, 340, 18), $"{pageName}-empty");
+                composer.AddStaticTextAutoBoxSize(Lang.Get("game:rustweave-loreweave-note"), TomeListFont, EnumTextOrientation.Left, ElementBounds.Fixed(36, 196, 470, 28), $"{pageName}-note");
+            }
+
+            var listTop = showLoreNote ? 228 : 204;
+            var visibleListHeight = 468;
+            var listBounds = ElementBounds.Fixed(TomeBrowseListLeft, listTop, TomeBrowseListWidth, visibleListHeight);
+            var clipBounds = ElementBounds.Fixed(0, 0, TomeBrowseListWidth - TomeScrollbarWidth - 14, visibleListHeight);
+            var scrollKey = $"{pageName}-scroll";
+            var totalListHeight = Math.Max(visibleListHeight, TomeSpellListTopPadding + (filteredSpells.Count * TomeSpellRowStride) + TomeSpellListBottomPadding);
+            var scrollY = Math.Min(GetScrollYForTab(tab), Math.Max(0, totalListHeight - visibleListHeight));
+            SetScrollYForTab(tab, scrollY);
+
+            composer.AddVerticalScrollbar(value =>
+            {
+                if (suppressSearchCallbacks)
+                {
+                    return;
+                }
+
+                SetScrollYForTab(tab, value);
+                RequestRebuild();
+            }, ElementBounds.Fixed(TomeBrowseListLeft + TomeBrowseListWidth - TomeScrollbarWidth, listTop, TomeScrollbarWidth, visibleListHeight), scrollKey);
+
+            composer.BeginChildElements(listBounds);
+            composer.BeginClip(clipBounds);
+            var scrollbar = composer.GetScrollbar(scrollKey);
+            scrollbar?.SetHeights(visibleListHeight, totalListHeight);
+            if (scrollbar != null)
+            {
+                scrollbar.CurrentYPosition = scrollY;
+                scrollbar.Enabled = totalListHeight > visibleListHeight;
+            }
+
+            if (filteredSpells.Count == 0)
+            {
+                composer.AddStaticText(Lang.Get("game:rustweave-no-matches"), TomeListFont.WithColor(GuiStyle.DisabledTextColor), ElementBounds.Fixed(0, 12, 340, 18), $"{pageName}-empty");
             }
             else
             {
-                for (var index = 0; index < spells.Count; index++)
+                var firstVisible = Math.Max(0, (int)Math.Floor(scrollY / TomeSpellRowStride) - 1);
+                var visibleCount = (int)Math.Ceiling(visibleListHeight / (double)TomeSpellRowStride) + 2;
+                var lastVisible = Math.Min(filteredSpells.Count, firstVisible + visibleCount);
+                for (var index = firstVisible; index < lastVisible; index++)
                 {
-                    AddSpellRow(composer, spells[index], index, allowPrepare, showStateLabel, showTierLabel, pageName);
+                    AddSpellRow(composer, filteredSpells[index], index, allowPrepare, showStateLabel, showTierLabel, pageName, scrollY, visibleListHeight);
                 }
             }
+            composer.EndClip();
             composer.EndChildElements();
 
             AddSpellDetailsPanel(composer, selectedSpell, allowUnlockHint, pageName);
         }
 
-        private void AddSpellRow(GuiComposer composer, SpellDefinition spell, int index, bool allowPrepare, bool showStateLabel, bool showTierLabel, string pageName)
+        private void AddSpellRow(GuiComposer composer, SpellDefinition spell, int index, bool allowPrepare, bool showStateLabel, bool showTierLabel, string pageName, float scrollY, int visibleListHeight)
         {
             var code = spell.Code ?? string.Empty;
-            var rowTop = index * 36;
+            var rowTop = TomeSpellListTopPadding + (index * TomeSpellRowStride) - scrollY;
+            if (rowTop < -TomeSpellRowStride || rowTop > visibleListHeight + TomeSpellRowStride)
+            {
+                return;
+            }
+
             var isSelected = string.Equals(code, selectedSpellCode, StringComparison.OrdinalIgnoreCase);
             var name = string.IsNullOrWhiteSpace(spell.Name) ? code : spell.Name;
             var stateLabel = GetSpellStateLabel(spell);
             var tierLabel = GetTierDisplayLabel(spell.Tier);
             var displayName = isSelected ? $"> {name} <" : name;
             var canPrepare = allowPrepare && CanPrepareSpell(spell);
-            var nameWidth = showStateLabel || showTierLabel ? 292 : 316;
+            var nameWidth = showStateLabel || showTierLabel ? 260 : 296;
 
             composer.AddButton(displayName, () =>
             {
@@ -738,21 +1017,20 @@ namespace TheRustweave
 
             if (showStateLabel)
             {
-                composer.AddStaticText(stateLabel, TomeListFont, ElementBounds.Fixed(300, rowTop + 2, 118, 18), $"{pageName}-state-{index}");
+                composer.AddStaticText(stateLabel, TomeListFont, ElementBounds.Fixed(272, rowTop + 2, 118, 18), $"{pageName}-state-{index}");
             }
             else if (showTierLabel)
             {
-                composer.AddStaticText(tierLabel, TomeListFont, ElementBounds.Fixed(300, rowTop + 2, 118, 18), $"{pageName}-tier-{index}");
+                composer.AddStaticText(tierLabel, TomeListFont, ElementBounds.Fixed(272, rowTop + 2, 118, 18), $"{pageName}-tier-{index}");
             }
 
             if (canPrepare)
             {
                 composer.AddButton("Prep", () =>
                 {
-                    RustweaveRuntime.Client?.RequestPrepareSpell(code, -1);
-                    RequestRebuild();
+                    RustweaveRuntime.Client?.RequestPrepareSpell(code, null);
                     return true;
-                }, ElementBounds.Fixed(438, rowTop, 48, 21), TomeButtonFont, EnumButtonStyle.Normal, $"{pageName}-prep-{index}");
+                }, ElementBounds.Fixed(402, rowTop, 48, 21), TomeButtonFont, EnumButtonStyle.Normal, $"{pageName}-prep-{index}");
             }
         }
 
@@ -819,19 +1097,18 @@ namespace TheRustweave
 
             var listBounds = ElementBounds.Fixed(36, 172, 1048, 506);
             composer.BeginChildElements(listBounds);
-            for (var slotIndex = 0; slotIndex < RustweaveConstants.PreparedSlotCount; slotIndex++)
+            for (var slotId = 1; slotId <= RustweaveConstants.PreparedSlotCount; slotId++)
             {
-                AddPreparedSlotRow(composer, slotIndex);
+                AddPreparedSlotRow(composer, slotId);
             }
             composer.EndChildElements();
         }
 
-        private void AddPreparedSlotRow(GuiComposer composer, int slotIndex)
+        private void AddPreparedSlotRow(GuiComposer composer, int slotId)
         {
-            var rowTop = slotIndex * 52;
-            var displaySlot = RustweaveStateService.ToDisplaySlotNumber(slotIndex);
-            var isSelected = state.SelectedPreparedSpellIndex == slotIndex;
-            var spellCode = RustweaveStateService.GetPreparedSpellCode(state, slotIndex);
+            var rowTop = (slotId - 1) * 52;
+            var isSelected = state.ActivePreparedSlotId == slotId;
+            var spellCode = RustweaveStateService.GetPreparedSpellCode(state, (int?)slotId);
             var hasSpell = !string.IsNullOrWhiteSpace(spellCode);
             var spellExists = hasSpell && RustweaveRuntime.SpellRegistry.TryGetSpell(spellCode, out var spell) && spell != null;
             var spellName = !hasSpell
@@ -839,30 +1116,27 @@ namespace TheRustweave
                 : spellExists
                     ? RustweaveStateService.GetSpellDisplayName(spellCode)
                     : $"{spellCode} ({Lang.Get("game:rustweave-spell-invalid")})";
-            composer.AddStaticText($"{displaySlot}:", TomeListFont.WithColor(GuiStyle.DisabledTextColor), ElementBounds.Fixed(0, rowTop + 3, 30, 16), $"prepared-slot-number-{slotIndex}");
+            composer.AddStaticText($"{slotId}:", TomeListFont.WithColor(GuiStyle.DisabledTextColor), ElementBounds.Fixed(0, rowTop + 3, 30, 16), $"prepared-slot-number-{slotId}");
 
             composer.AddButton("Select", () =>
             {
-                RustweaveRuntime.Client?.RequestSelectPreparedSpell(slotIndex);
-                RequestRebuild();
+                RustweaveRuntime.Client?.RequestSelectPreparedSpell(slotId);
                 return true;
-            }, ElementBounds.Fixed(40, rowTop, 48, 22), TomeButtonFont, EnumButtonStyle.Normal, $"prepared-select-{slotIndex}");
+            }, ElementBounds.Fixed(40, rowTop, 48, 22), TomeButtonFont, EnumButtonStyle.Normal, $"prepared-select-{slotId}");
 
             composer.AddButton("Clear", () =>
             {
-                RustweaveRuntime.Client?.RequestUnprepareSpell(slotIndex);
-                RequestRebuild();
+                RustweaveRuntime.Client?.RequestUnprepareSpell(slotId);
                 return true;
-            }, ElementBounds.Fixed(100, rowTop, 48, 22), TomeButtonFont, EnumButtonStyle.Normal, $"prepared-clear-{slotIndex}");
+            }, ElementBounds.Fixed(100, rowTop, 48, 22), TomeButtonFont, EnumButtonStyle.Normal, $"prepared-clear-{slotId}");
 
-            composer.AddStaticText(isSelected ? Lang.Get("game:rustweave-active-slot") : string.Empty, TomeListFont.WithColor(isSelected ? GuiStyle.ActiveButtonTextColor : GuiStyle.DisabledTextColor), ElementBounds.Fixed(156, rowTop + 3, 58, 16), $"prepared-active-{slotIndex}");
+            composer.AddStaticText(isSelected ? Lang.Get("game:rustweave-active-slot") : string.Empty, TomeListFont.WithColor(isSelected ? GuiStyle.ActiveButtonTextColor : GuiStyle.DisabledTextColor), ElementBounds.Fixed(156, rowTop + 3, 58, 16), $"prepared-active-{slotId}");
 
             composer.AddButton(isSelected ? $"* {spellName}" : spellName, () =>
             {
-                RustweaveRuntime.Client?.RequestSelectPreparedSpell(slotIndex);
-                RequestRebuild();
+                RustweaveRuntime.Client?.RequestSelectPreparedSpell(slotId);
                 return true;
-            }, ElementBounds.Fixed(228, rowTop, 820, 22), TomeButtonFont, EnumButtonStyle.Normal, $"prepared-slot-label-{slotIndex}");
+            }, ElementBounds.Fixed(228, rowTop, 820, 22), TomeButtonFont, EnumButtonStyle.Normal, $"prepared-slot-label-{slotId}");
         }
 
         private void NormalizeSelectedSpellForActiveTab()

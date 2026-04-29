@@ -6,8 +6,10 @@ using System.Reflection;
 using Newtonsoft.Json;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+using Vintagestory.API.Util;
 using Vintagestory.GameContent;
 
 namespace TheRustweave
@@ -357,6 +359,10 @@ namespace TheRustweave
         public const string OpenLock = "openLock";
         public const string OpenPassage = "openPassage";
         public const string CreateRift = "createRift";
+        public const string FreezeTemporalStabilityLoss = "freezeTemporalStabilityLoss";
+        public const string BraceNextDisplacement = "braceNextDisplacement";
+        public const string SenseTemporalStorm = "senseTemporalStorm";
+        public const string DeferSpellCorruptionCost = "deferSpellCorruptionCost";
         public const string SeparateTarget = "separateTarget";
         // Planned Picking effects.
         public const string MarkTarget = "markTarget";
@@ -479,6 +485,10 @@ namespace TheRustweave
             OpenLock,
             OpenPassage,
             CreateRift,
+            FreezeTemporalStabilityLoss,
+            BraceNextDisplacement,
+            SenseTemporalStorm,
+            DeferSpellCorruptionCost,
             SeparateTarget,
             MarkTarget,
             WeakPointStrike,
@@ -589,6 +599,10 @@ namespace TheRustweave
             OpenLock,
             OpenPassage,
             CreateRift,
+            FreezeTemporalStabilityLoss,
+            BraceNextDisplacement,
+            SenseTemporalStorm,
+            DeferSpellCorruptionCost,
             SeparateTarget,
             MarkTarget,
             WeakPointStrike,
@@ -790,6 +804,8 @@ namespace TheRustweave
 
         public bool Hidden { get; set; }
 
+        public bool TestingOnly { get; set; }
+
         public string School { get; set; } = string.Empty;
 
         public string Category { get; set; } = string.Empty;
@@ -985,6 +1001,7 @@ namespace TheRustweave
         {
             var validated = new List<SpellDefinition>();
             var seenCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var unsupportedEffectTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             for (var index = 0; index < loaded.Count; index++)
             {
@@ -997,6 +1014,16 @@ namespace TheRustweave
 
                 if (!TryNormalizeSpell(raw, out var normalized, out var validationError))
                 {
+                    if (string.Equals(validationError, "testing-only spell skipped", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    if (TryCollectUnsupportedEffectTypes(validationError, unsupportedEffectTypes))
+                    {
+                        continue;
+                    }
+
                     api.Logger.Warning("TheRustweave spell registry entry #{0} was ignored: {1}", index, validationError);
                     continue;
                 }
@@ -1008,6 +1035,11 @@ namespace TheRustweave
                 }
 
                 validated.Add(normalized);
+            }
+
+            if (unsupportedEffectTypes.Count > 0)
+            {
+                api.Logger.Warning("[TheRustweave] Loaded spells referenced unsupported effect type(s): {0}", string.Join(", ", unsupportedEffectTypes.OrderBy(value => value, StringComparer.OrdinalIgnoreCase)));
             }
 
             return validated;
@@ -1036,6 +1068,12 @@ namespace TheRustweave
             if (string.IsNullOrWhiteSpace(normalized.Code))
             {
                 validationError = "missing a code";
+                return false;
+            }
+
+            if (normalized.TestingOnly && !RustweaveConstants.AllSpellsLearnedByDefaultForTesting)
+            {
+                validationError = "testing-only spell skipped";
                 return false;
             }
 
@@ -1122,14 +1160,27 @@ namespace TheRustweave
                 return false;
             }
 
+            var unsupportedEffectTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             for (var effectIndex = 0; effectIndex < normalized.Effects.Count; effectIndex++)
             {
                 var effect = normalized.Effects[effectIndex];
                 if (!TryNormalizeEffect(effect, normalized, out var effectError))
                 {
+                    if (TryGetUnsupportedEffectType(effectError, out var unsupportedEffectType))
+                    {
+                        unsupportedEffectTypes.Add(unsupportedEffectType);
+                        continue;
+                    }
+
                     validationError = $"effect #{effectIndex} was ignored: {effectError}";
                     return false;
                 }
+            }
+
+            if (unsupportedEffectTypes.Count > 0)
+            {
+                validationError = $"unsupported effect type(s): {string.Join(", ", unsupportedEffectTypes.OrderBy(value => value, StringComparer.OrdinalIgnoreCase))}";
+                return false;
             }
 
             if (string.Equals(normalized.TargetType, SpellTargetTypes.LookEntity, StringComparison.OrdinalIgnoreCase))
@@ -1537,6 +1588,82 @@ namespace TheRustweave
                     }
 
                     return true;
+                case SpellEffectTypes.CreateRift:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer, SpellTargetTypes.LookPosition, SpellTargetTypes.LookArea, SpellTargetTypes.SelfArea))
+                    {
+                        validationError = "createRift requires a block, position, or area target";
+                        return false;
+                    }
+
+                    if (effect.DurationSeconds <= 0)
+                    {
+                        validationError = "durationSeconds must be greater than zero";
+                        return false;
+                    }
+
+                    if (GetEffectiveRadius(spell, effect) <= 0)
+                    {
+                        validationError = "radius must be greater than zero";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.FreezeTemporalStabilityLoss:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self))
+                    {
+                        validationError = "freezeTemporalStabilityLoss requires targetType self";
+                        return false;
+                    }
+
+                    if (effect.DurationSeconds <= 0)
+                    {
+                        validationError = "durationSeconds must be greater than zero";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.BraceNextDisplacement:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self))
+                    {
+                        validationError = "braceNextDisplacement requires targetType self";
+                        return false;
+                    }
+
+                    if (effect.DurationSeconds <= 0)
+                    {
+                        validationError = "durationSeconds must be greater than zero";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.SenseTemporalStorm:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self))
+                    {
+                        validationError = "senseTemporalStorm requires targetType self";
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.DeferSpellCorruptionCost:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self))
+                    {
+                        validationError = "deferSpellCorruptionCost requires targetType self";
+                        return false;
+                    }
+
+                    if (effect.DurationSeconds <= 0)
+                    {
+                        validationError = "durationSeconds must be greater than zero";
+                        return false;
+                    }
+
+                    if (effect.Amount <= 0f || effect.Amount >= 1f)
+                    {
+                        validationError = "amount must be greater than zero and less than one";
+                        return false;
+                    }
+
+                    return true;
                 case SpellEffectTypes.ModifyTemporalStability:
                 case SpellEffectTypes.ModifyCorruptionGain:
                     if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.SelfArea, SpellTargetTypes.LookArea, SpellTargetTypes.LookPosition, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity))
@@ -1675,6 +1802,20 @@ namespace TheRustweave
                     }
 
                     return true;
+                case SpellEffectTypes.LinkEntities:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.LookEntity, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookNonPlayerEntity))
+                    {
+                        validationError = "linkEntities requires targetType lookEntity, lookPlayer, or lookNonPlayerEntity";
+                        return false;
+                    }
+
+                    if (effect.DurationSeconds <= 0)
+                    {
+                        validationError = "durationSeconds must be greater than zero";
+                        return false;
+                    }
+
+                    return true;
                 case SpellEffectTypes.VitalityOverTime:
                     if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookEntity, SpellTargetTypes.LookNonPlayerEntity))
                     {
@@ -1738,13 +1879,35 @@ namespace TheRustweave
                         return true;
                     }
 
+                    if (string.Equals(effect.Type, SpellEffectTypes.CreateTemporaryFood, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.HeldItem, SpellTargetTypes.Inventory))
+                        {
+                            validationError = "createTemporaryFood requires targetType self, heldItem, or inventory";
+                            return false;
+                        }
+
+                        if (!RequireCodeField(effect.ItemCode, "itemCode", out validationError))
+                        {
+                            return false;
+                        }
+
+                        if (effect.Amount < 0f)
+                        {
+                            validationError = "amount must be nonnegative";
+                            return false;
+                        }
+
+                        return true;
+                    }
+
                     if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.SelfArea, SpellTargetTypes.LookArea, SpellTargetTypes.LookPosition, SpellTargetTypes.LookBlock, SpellTargetTypes.LookBlockEntity, SpellTargetTypes.LookContainer))
                     {
                         validationError = $"{effect.Type} requires a block, position, or area target";
                         return false;
                     }
 
-                    if (effect.DurationSeconds <= 0 && !string.Equals(effect.Type, SpellEffectTypes.CreateTemporaryFood, StringComparison.OrdinalIgnoreCase))
+                    if (effect.DurationSeconds <= 0)
                     {
                         validationError = "durationSeconds must be greater than zero";
                         return false;
@@ -1770,6 +1933,20 @@ namespace TheRustweave
                 case SpellEffectTypes.ConvertHeldItem:
                     if (!RequireCodeField(effect.ItemCode, "itemCode", out validationError))
                     {
+                        return false;
+                    }
+
+                    return true;
+                case SpellEffectTypes.ModifySatiety:
+                    if (!HasTargetType(spell.TargetType, SpellTargetTypes.Self, SpellTargetTypes.LookPlayer, SpellTargetTypes.LookEntity))
+                    {
+                        validationError = "modifySatiety requires targetType self, lookPlayer, or lookEntity";
+                        return false;
+                    }
+
+                    if (effect.Amount == 0f)
+                    {
+                        validationError = "amount must be nonzero";
                         return false;
                     }
 
@@ -1850,6 +2027,63 @@ namespace TheRustweave
                     validationError = $"unsupported effect type '{effect.Type}'";
                     return false;
             }
+        }
+
+        private static bool TryGetUnsupportedEffectType(string validationError, out string effectType)
+        {
+            effectType = string.Empty;
+            if (string.IsNullOrWhiteSpace(validationError))
+            {
+                return false;
+            }
+
+            const string marker = "unsupported effect type '";
+            var markerIndex = validationError.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (markerIndex < 0)
+            {
+                return false;
+            }
+
+            var startIndex = markerIndex + marker.Length;
+            var endIndex = validationError.IndexOf('\'', startIndex);
+            if (endIndex <= startIndex)
+            {
+                return false;
+            }
+
+            effectType = validationError.Substring(startIndex, endIndex - startIndex).Trim();
+            return !string.IsNullOrWhiteSpace(effectType);
+        }
+
+        private static bool TryCollectUnsupportedEffectTypes(string validationError, ISet<string> collection)
+        {
+            if (string.IsNullOrWhiteSpace(validationError) || collection == null)
+            {
+                return false;
+            }
+
+            const string prefix = "unsupported effect type(s):";
+            if (!validationError.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var remainder = validationError.Substring(prefix.Length).Trim();
+            if (string.IsNullOrWhiteSpace(remainder))
+            {
+                return true;
+            }
+
+            foreach (var value in remainder.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var trimmed = value.Trim();
+                if (!string.IsNullOrWhiteSpace(trimmed))
+                {
+                    collection.Add(trimmed);
+                }
+            }
+
+            return true;
         }
 
         private static List<string> NormalizeStringList(IReadOnlyCollection<string>? values)
@@ -2359,6 +2593,7 @@ namespace TheRustweave
 
             if (caster?.Entity == null || !caster.Entity.Alive)
             {
+                sapi.Logger.Warning("[TheRustweave] Self target resolution failed for spell '{0}' caster '{1}' targetType '{2}': caster is not available", spell.Code, caster?.PlayerUID ?? "unknown", SpellTargetTypes.Self);
                 failureReason = "caster is not available";
                 return false;
             }
@@ -2383,7 +2618,14 @@ namespace TheRustweave
 
             if (lockedTarget == null)
             {
-                if (!TryResolveTarget(caster, spell, out lockedTarget, out failureReason))
+                if (string.Equals(spell.TargetType, SpellTargetTypes.Self, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!TryResolveSelfTarget(caster, spell, out lockedTarget, out failureReason))
+                    {
+                        return false;
+                    }
+                }
+                else if (!TryResolveTarget(caster, spell, out lockedTarget, out failureReason))
                 {
                     return false;
                 }
@@ -2408,6 +2650,28 @@ namespace TheRustweave
             executionPlan.Actions.AddRange(visualActions);
             executionPlan.CorruptionDelta = corruptionDelta;
             plan = executionPlan;
+            return true;
+        }
+
+        private bool TryResolveSelfTarget(IServerPlayer caster, SpellDefinition spell, out SpellTargetContext target, out string failureReason)
+        {
+            target = new SpellTargetContext();
+            failureReason = string.Empty;
+
+            if (caster?.Entity == null || !caster.Entity.Alive)
+            {
+                failureReason = "caster is not available";
+                return false;
+            }
+
+            if (string.Equals(spell.Code, "still-thread", StringComparison.OrdinalIgnoreCase))
+            {
+                sapi.Logger.Debug("[TheRustweave] Resolving self target for spell still-thread: caster={0}", caster.PlayerName ?? caster.PlayerUID);
+            }
+
+            target.Entity = caster.Entity;
+            target.Position = caster.Entity.Pos.XYZ;
+            target.TargetName = caster.Entity.GetName() ?? spell.Code;
             return true;
         }
 
@@ -2460,9 +2724,7 @@ namespace TheRustweave
             switch (spell.TargetType)
             {
                 case SpellTargetTypes.Self:
-                    target.Entity = entity;
-                    target.TargetName = entity.GetName() ?? spell.Code;
-                    return true;
+                    return TryResolveSelfTarget(caster, spell, out target, out failureReason);
                 case SpellTargetTypes.HeldItem:
                     target.ItemSlot = caster.InventoryManager?.ActiveHotbarSlot;
                     if (target.ItemSlot?.Itemstack == null)
@@ -2487,9 +2749,15 @@ namespace TheRustweave
                         return false;
                     }
 
+                    if (repairSlot == null || repairSlot.Itemstack == null)
+                    {
+                        failureReason = "No valid repair target was found.";
+                        return false;
+                    }
+
                     target.ItemSlot = repairSlot;
                     target.Entity = entity;
-                    target.TargetName = repairSlot.Itemstack?.GetName() ?? spell.Code;
+                    target.TargetName = repairSlot.Itemstack.GetName() ?? spell.Code;
                     return true;
                 case SpellTargetTypes.LookEntity:
                     if (!TryResolveLookEntityTarget(caster, SpellRegistry.GetEffectiveLookTargetRange(spell), out var selection, out failureReason))
@@ -2622,9 +2890,7 @@ namespace TheRustweave
             switch (spell.TargetType)
             {
                 case SpellTargetTypes.Self:
-                    target.Entity = caster.Entity;
-                    target.TargetName = caster.Entity.GetName() ?? spell.Code;
-                    return true;
+                    return TryResolveSelfTarget(caster, spell, out target, out failureReason);
                 case SpellTargetTypes.HeldItem:
                     target.ItemSlot = caster.InventoryManager?.ActiveHotbarSlot;
                     if (target.ItemSlot?.Itemstack == null)
@@ -2649,9 +2915,15 @@ namespace TheRustweave
                         return false;
                     }
 
+                    if (repairSlot == null || repairSlot.Itemstack == null)
+                    {
+                        failureReason = "No valid repair target was found.";
+                        return false;
+                    }
+
                     target.ItemSlot = repairSlot;
                     target.Entity = caster.Entity;
-                    target.TargetName = repairSlot.Itemstack?.GetName() ?? spell.Code;
+                    target.TargetName = repairSlot.Itemstack.GetName() ?? spell.Code;
                     return true;
                 case SpellTargetTypes.LookEntity:
                 {
@@ -3727,6 +3999,11 @@ namespace TheRustweave
 
             gameplayActions.Add(() =>
             {
+                if (TryConsumeDisplacementBraceIfNeeded(caster, spell, effect.Type, targetEntity))
+                {
+                    return true;
+                }
+
                 var casterPos = caster.Entity?.Pos.XYZ ?? targetEntity.Pos.XYZ;
                 var awayVector = new Vec3d(targetEntity.Pos.X - casterPos.X, targetEntity.Pos.Y - casterPos.Y, targetEntity.Pos.Z - casterPos.Z);
                 var awayLength = Math.Sqrt((awayVector.X * awayVector.X) + (awayVector.Y * awayVector.Y) + (awayVector.Z * awayVector.Z));
@@ -3776,6 +4053,11 @@ namespace TheRustweave
 
             gameplayActions.Add(() =>
             {
+                if (TryConsumeDisplacementBraceIfNeeded(caster, spell, effect.Type, targetEntity))
+                {
+                    return true;
+                }
+
                 var casterPos = caster.Entity?.Pos.XYZ ?? targetEntity.Pos.XYZ;
                 var towardVector = new Vec3d(casterPos.X - targetEntity.Pos.X, casterPos.Y - targetEntity.Pos.Y, casterPos.Z - targetEntity.Pos.Z);
                 var towardLength = Math.Sqrt((towardVector.X * towardVector.X) + (towardVector.Y * towardVector.Y) + (towardVector.Z * towardVector.Z));
@@ -3991,6 +4273,94 @@ namespace TheRustweave
             return TryAppendEntityFieldEffect(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
         }
 
+        private bool TryAppendLinkEntitiesEffect(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (target.Entity == null || !target.Entity.Alive)
+            {
+                failureReason = "the targeted entity is unavailable";
+                return false;
+            }
+
+            if (effect.DurationSeconds <= 0)
+            {
+                failureReason = "durationSeconds must be greater than zero";
+                return false;
+            }
+
+            if (IsPlayerTargetBlockedByPvp(caster, target.Entity, effect.Type, out failureReason))
+            {
+                return false;
+            }
+
+            var durationMilliseconds = (long)Math.Round(effect.DurationSeconds * 1000d);
+            var tickIntervalMilliseconds = Math.Max(250, (long)Math.Round(Math.Max(0.25d, effect.TickIntervalSeconds) * 1000d));
+            var effectId = BuildTimedEffectCode(spell.Code, effect.Type, target.Entity.EntityId);
+            var record = new RustweaveActiveEffectRecord
+            {
+                EffectId = effectId,
+                EffectType = effect.Type,
+                RecordKind = "link",
+                SpellCode = spell.Code,
+                CasterPlayerUid = caster.PlayerUID,
+                CasterEntityId = caster.Entity?.EntityId ?? -1,
+                TargetPlayerUid = target.Entity is EntityPlayer targetPlayer ? targetPlayer.PlayerUID ?? string.Empty : string.Empty,
+                TargetEntityId = target.Entity.EntityId,
+                TargetType = spell.TargetType,
+                Mode = effect.Mode,
+                CenterX = target.Entity.Pos?.XYZ.X ?? target.Position.X,
+                CenterY = target.Entity.Pos?.XYZ.Y ?? target.Position.Y,
+                CenterZ = target.Entity.Pos?.XYZ.Z ?? target.Position.Z,
+                OriginX = caster.Entity?.Pos?.XYZ.X ?? target.Position.X,
+                OriginY = caster.Entity?.Pos?.XYZ.Y ?? target.Position.Y,
+                OriginZ = caster.Entity?.Pos?.XYZ.Z ?? target.Position.Z,
+                Radius = Math.Max(1d, effect.Radius > 0d ? effect.Radius : 4d),
+                Amount = effect.Amount,
+                SecondaryAmount = effect.SecondaryAmount,
+                DurationMilliseconds = durationMilliseconds,
+                StartedAtMilliseconds = sapi.World.ElapsedMilliseconds,
+                ExpiresAtMilliseconds = sapi.World.ElapsedMilliseconds + durationMilliseconds,
+                StartedAtTotalDays = Math.Max(0d, sapi.World.Calendar?.TotalDays ?? 0d),
+                ExpiresAtTotalDays = Math.Max(0d, sapi.World.Calendar?.TotalDays ?? 0d) + (Math.Max(1d, effect.DurationSeconds) / 24d),
+                TickIntervalMilliseconds = tickIntervalMilliseconds,
+                NextTickAtMilliseconds = sapi.World.ElapsedMilliseconds + tickIntervalMilliseconds,
+                PersistAcrossRestart = true,
+                IsArea = false,
+                IsHostile = false,
+                IsBeneficial = false,
+                IsBlocking = false
+            };
+
+            if (caster.Entity?.EntityId > 0 && !record.AffectedEntityIds.Contains(caster.Entity.EntityId))
+            {
+                record.AffectedEntityIds.Add(caster.Entity.EntityId);
+            }
+
+            if (!record.AffectedEntityIds.Contains(target.Entity.EntityId))
+            {
+                record.AffectedEntityIds.Add(target.Entity.EntityId);
+            }
+
+            gameplayActions.Add(() => RustweaveRuntime.Server?.TryRegisterActiveEffect(record) == true);
+            visualActions.Add(() =>
+            {
+                var start = caster.Entity?.Pos?.XYZ ?? new Vec3d(record.OriginX, record.OriginY, record.OriginZ);
+                var end = target.Entity.Pos?.XYZ ?? new Vec3d(record.CenterX, record.CenterY, record.CenterZ);
+                var color = record.IsHostile ? unchecked((int)0xFFC94A4A) : unchecked((int)0xFF6ACB71);
+                var segments = 5;
+                for (var i = 0; i <= segments; i++)
+                {
+                    var t = segments == 0 ? 0d : i / (double)segments;
+                    var point = new Vec3d(start.X + ((end.X - start.X) * t), start.Y + ((end.Y - start.Y) * t), start.Z + ((end.Z - start.Z) * t));
+                    sapi.World.SpawnParticles(1, color, new Vec3d(point.X - 0.03, point.Y - 0.03, point.Z - 0.03), new Vec3d(point.X + 0.03, point.Y + 0.03, point.Z + 0.03), new Vec3f(0f, 0.01f, 0f), new Vec3f(0f, 0.02f, 0f), 0.05f, 0f, 0.15f, EnumParticleModel.Quad, caster);
+                }
+
+                return true;
+            });
+
+            return true;
+        }
+
         private bool TryAppendTeleportToTarget(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
         {
             failureReason = string.Empty;
@@ -4026,7 +4396,15 @@ namespace TheRustweave
             }
 
             var desired = caster.Entity?.Pos?.XYZ ?? target.Position;
-            gameplayActions.Add(() => TryTeleportEntitySafely(target.Entity, desired));
+            gameplayActions.Add(() =>
+            {
+                if (TryConsumeDisplacementBraceIfNeeded(caster, spell, effect.Type, target.Entity))
+                {
+                    return true;
+                }
+
+                return TryTeleportEntitySafely(target.Entity, desired);
+            });
             visualActions.Add(() =>
             {
                 sapi.World.SpawnParticles(6, unchecked((int)0xFF8C6A4A), new Vec3d(desired.X - 0.12, desired.Y + 0.05, desired.Z - 0.12), new Vec3d(desired.X + 0.12, desired.Y + 0.18, desired.Z + 0.12), new Vec3f(-0.02f, 0.02f, -0.02f), new Vec3f(0.02f, 0.06f, 0.02f), 0.28f, 0f, 0.45f, EnumParticleModel.Quad, caster);
@@ -4051,7 +4429,15 @@ namespace TheRustweave
             }
 
             var desired = target.BlockPos != null ? new Vec3d(target.BlockPos.X + 0.5, target.BlockPos.Y + 1.0, target.BlockPos.Z + 0.5) : target.Position;
-            gameplayActions.Add(() => TryTeleportEntitySafely(target.Entity, desired));
+            gameplayActions.Add(() =>
+            {
+                if (TryConsumeDisplacementBraceIfNeeded(caster, spell, effect.Type, target.Entity))
+                {
+                    return true;
+                }
+
+                return TryTeleportEntitySafely(target.Entity, desired);
+            });
             visualActions.Add(() =>
             {
                 sapi.World.SpawnParticles(6, unchecked((int)0xFF8C6A4A), new Vec3d(desired.X - 0.12, desired.Y + 0.05, desired.Z - 0.12), new Vec3d(desired.X + 0.12, desired.Y + 0.18, desired.Z + 0.12), new Vec3f(-0.02f, 0.02f, -0.02f), new Vec3f(0.02f, 0.06f, 0.02f), 0.28f, 0f, 0.45f, EnumParticleModel.Quad, caster);
@@ -4080,6 +4466,11 @@ namespace TheRustweave
                     var direction = target.Entity.Pos.XYZ - source;
                     direction.Y = Math.Max(0.2, direction.Y);
                     direction.Normalize();
+                    if (TryConsumeDisplacementBraceIfNeeded(caster, spell, effect.Type, target.Entity))
+                    {
+                        return true;
+                    }
+
                     target.Entity.Pos.Motion.Add(direction.X * force, direction.Y * force, direction.Z * force);
                     return true;
                 });
@@ -4104,6 +4495,11 @@ namespace TheRustweave
                     foreach (var entity in entities.Where(entity => entity != null && entity.Alive))
                     {
                         if (entity is EntityPlayer && IsPlayerTargetBlockedByPvp(caster, entity, effect.Type, out _))
+                        {
+                            continue;
+                        }
+
+                        if (TryConsumeDisplacementBraceIfNeeded(caster, spell, effect.Type, entity))
                         {
                             continue;
                         }
@@ -4160,9 +4556,16 @@ namespace TheRustweave
                 return false;
             });
 
+            var visualEntity = target.Entity;
+            if (visualEntity == null)
+            {
+                failureReason = "that spell requires an entity target";
+                return false;
+            }
+
             visualActions.Add(() =>
             {
-                var center = target.Entity.Pos.XYZ;
+                var center = visualEntity.Pos.XYZ;
                 sapi.World.SpawnParticles(4, unchecked((int)0xFF8C6A4A), new Vec3d(center.X - 0.1, center.Y + 0.1, center.Z - 0.1), new Vec3d(center.X + 0.1, center.Y + 0.3, center.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.25f, 0f, 0.4f, EnumParticleModel.Quad, caster);
                 return true;
             });
@@ -4185,7 +4588,12 @@ namespace TheRustweave
                 for (var slotIndex = 0; slotIndex < inventory.Count; slotIndex++)
                 {
                     var slot = inventory[slotIndex];
-                    var stack = slot?.Itemstack;
+                    if (slot == null)
+                    {
+                        continue;
+                    }
+
+                    var stack = slot.Itemstack;
                     if (stack == null)
                     {
                         continue;
@@ -4519,11 +4927,13 @@ namespace TheRustweave
                             return true;
                         }
 
-                        return TryGiveItemStackToCaster(caster, stack);
+                        if (TryGiveItemStackToCaster(caster, stack))
+                        {
+                            return true;
+                        }
+
+                        return TrySpawnItemEntityByReflection(caster.Entity?.World ?? sapi.World, stack, caster.Entity?.Pos?.XYZ ?? target.Position, caster);
                     });
-                    break;
-                case SpellEffectTypes.ModifySatiety:
-                    gameplayActions.Add(() => TryModifySatiety(caster, effect.Amount));
                     break;
             }
 
@@ -4676,10 +5086,30 @@ namespace TheRustweave
             failureReason = string.Empty;
             if (effect.Type == SpellEffectTypes.ModifySatiety)
             {
-                gameplayActions.Add(() => TryModifySatiety(caster, effect.Amount));
+                var targetEntity = target.Entity as EntityPlayer;
+                if (targetEntity == null)
+                {
+                    if (string.Equals(spell.TargetType, SpellTargetTypes.Self, StringComparison.OrdinalIgnoreCase))
+                    {
+                        targetEntity = caster.Entity as EntityPlayer;
+                    }
+                    else
+                    {
+                        failureReason = "that spell requires a player target";
+                        return false;
+                    }
+                }
+
+                if (targetEntity == null)
+                {
+                    failureReason = "that spell requires a player target";
+                    return false;
+                }
+
+                gameplayActions.Add(() => TryModifySatiety(targetEntity, effect.Amount, out _));
                 visualActions.Add(() =>
                 {
-                    var center = caster.Entity?.Pos?.XYZ ?? target.Position;
+                    var center = targetEntity.Pos?.XYZ ?? caster.Entity?.Pos?.XYZ ?? target.Position;
                     sapi.World.SpawnParticles(4, unchecked((int)0xFF6ACB71), new Vec3d(center.X - 0.1, center.Y + 0.1, center.Z - 0.1), new Vec3d(center.X + 0.1, center.Y + 0.3, center.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.25f, 0f, 0.4f, EnumParticleModel.Quad, caster);
                     return true;
                 });
@@ -4961,6 +5391,720 @@ namespace TheRustweave
             return true;
         }
 
+        private bool TryConsumeDisplacementBraceIfNeeded(IServerPlayer caster, SpellDefinition spell, string effectType, Entity? targetEntity)
+        {
+            return targetEntity != null
+                && RustweaveRuntime.Server?.TryConsumeDisplacementBrace(targetEntity, caster, spell.Code, effectType, out _) == true;
+        }
+
+        private bool TryAppendFreezeTemporalStabilityLoss(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, RustweavePlayerStateData state, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            if (!string.Equals(spell.TargetType, SpellTargetTypes.Self, StringComparison.OrdinalIgnoreCase))
+            {
+                failureReason = "freezeTemporalStabilityLoss requires targetType self";
+                return false;
+            }
+
+            var targetEntity = caster.Entity as EntityPlayer;
+            if (targetEntity == null)
+            {
+                sapi.Logger.Warning("[TheRustweave] freezeTemporalStabilityLoss failed for spell '{0}' because caster '{1}' could not resolve a self target.", spell.Code, caster.PlayerUID);
+                failureReason = Lang.Get("game:rustweave-still-thread-fail");
+                return false;
+            }
+
+            if (!RustweaveStateService.TryReadTemporalStabilityValue(targetEntity, out var baseline))
+            {
+                sapi.Logger.Warning("[TheRustweave] freezeTemporalStabilityLoss failed because temporal stability could not be read for player '{0}'.", caster.PlayerUID);
+                failureReason = Lang.Get("game:rustweave-still-thread-fail");
+                return false;
+            }
+
+            var durationMilliseconds = (long)Math.Round(Math.Max(0d, effect.DurationSeconds) * 1000d);
+            if (durationMilliseconds <= 0)
+            {
+                failureReason = "durationSeconds must be greater than zero";
+                return false;
+            }
+
+            var effectId = BuildTimedEffectCode(spell.Code, effect.Type, targetEntity.EntityId);
+            var nowMilliseconds = sapi.World.ElapsedMilliseconds;
+            var nowDays = Math.Max(0d, sapi.World.Calendar?.TotalDays ?? 0d);
+            var record = new RustweaveActiveEffectRecord
+            {
+                EffectId = effectId,
+                EffectType = effect.Type,
+                RecordKind = "self",
+                SpellCode = spell.Code,
+                CasterPlayerUid = caster.PlayerUID,
+                CasterEntityId = caster.Entity?.EntityId ?? -1,
+                TargetPlayerUid = targetEntity.PlayerUID ?? string.Empty,
+                TargetEntityId = targetEntity.EntityId,
+                TargetType = spell.TargetType,
+                Mode = effect.Mode,
+                CenterX = targetEntity.Pos?.XYZ.X ?? target.Position.X,
+                CenterY = targetEntity.Pos?.XYZ.Y ?? target.Position.Y,
+                CenterZ = targetEntity.Pos?.XYZ.Z ?? target.Position.Z,
+                OriginX = caster.Entity?.Pos?.XYZ.X ?? target.Position.X,
+                OriginY = caster.Entity?.Pos?.XYZ.Y ?? target.Position.Y,
+                OriginZ = caster.Entity?.Pos?.XYZ.Z ?? target.Position.Z,
+                Radius = Math.Max(1d, effect.Radius),
+                Amount = effect.Amount,
+                SecondaryAmount = effect.SecondaryAmount,
+                DurationMilliseconds = durationMilliseconds,
+                StartedAtMilliseconds = nowMilliseconds,
+                ExpiresAtMilliseconds = nowMilliseconds + durationMilliseconds,
+                StartedAtTotalDays = nowDays,
+                ExpiresAtTotalDays = nowDays + (Math.Max(1d, effect.DurationSeconds) / 24d),
+                TickIntervalMilliseconds = Math.Max(250, (long)Math.Round(Math.Max(0.25d, effect.TickIntervalSeconds) * 1000d)),
+                NextTickAtMilliseconds = nowMilliseconds + Math.Max(250, (long)Math.Round(Math.Max(0.25d, effect.TickIntervalSeconds) * 1000d)),
+                PersistAcrossRestart = true,
+                IsArea = false,
+                IsHostile = false,
+                IsBeneficial = true,
+                IsBlocking = false
+            };
+
+            gameplayActions.Add(() =>
+            {
+                RustweaveRuntime.Server?.TryRemoveActiveEffectsForEntityAndType(targetEntity, SpellEffectTypes.FreezeTemporalStabilityLoss, spell.Code);
+                if (RustweaveRuntime.Server?.TryRegisterActiveEffect(record) != true)
+                {
+                    return false;
+                }
+
+                state.FreezeTemporalStabilityLossStartedAtTotalDays = nowDays;
+                state.FreezeTemporalStabilityLossExpiresAtTotalDays = nowDays + (Math.Max(1d, effect.DurationSeconds) / 24d);
+                state.FreezeTemporalStabilityLossBaseline = baseline;
+                state.FreezeTemporalStabilityLossSourceSpellCode = spell.Code;
+                caster.SendMessage(0, Lang.Get("game:rustweave-still-thread-active"), EnumChatType.Notification, null);
+                return true;
+            });
+
+            visualActions.Add(() =>
+            {
+                var center = targetEntity.Pos?.XYZ ?? target.Position;
+                sapi.World.SpawnParticles(8, unchecked((int)0xFF6FCBD3), new Vec3d(center.X - 0.12, center.Y + 0.05, center.Z - 0.12), new Vec3d(center.X + 0.12, center.Y + 1.3, center.Z + 0.12), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.05f, 0.01f), 0.2f, 0f, 0.35f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendBraceNextDisplacement(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, RustweavePlayerStateData state, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            var targetEntity = target.Entity as EntityPlayer ?? caster.Entity as EntityPlayer;
+            if (targetEntity == null)
+            {
+                failureReason = "that spell requires a player target";
+                return false;
+            }
+
+            var durationMilliseconds = (long)Math.Round(Math.Max(0d, effect.DurationSeconds) * 1000d);
+            if (durationMilliseconds <= 0)
+            {
+                failureReason = "durationSeconds must be greater than zero";
+                return false;
+            }
+
+            var effectId = BuildTimedEffectCode(spell.Code, effect.Type, targetEntity.EntityId);
+            var nowMilliseconds = sapi.World.ElapsedMilliseconds;
+            var nowDays = Math.Max(0d, sapi.World.Calendar?.TotalDays ?? 0d);
+            var record = new RustweaveActiveEffectRecord
+            {
+                EffectId = effectId,
+                EffectType = effect.Type,
+                RecordKind = "self",
+                SpellCode = spell.Code,
+                CasterPlayerUid = caster.PlayerUID,
+                CasterEntityId = caster.Entity?.EntityId ?? -1,
+                TargetPlayerUid = targetEntity.PlayerUID ?? string.Empty,
+                TargetEntityId = targetEntity.EntityId,
+                TargetType = spell.TargetType,
+                Mode = effect.Mode,
+                CenterX = targetEntity.Pos?.XYZ.X ?? target.Position.X,
+                CenterY = targetEntity.Pos?.XYZ.Y ?? target.Position.Y,
+                CenterZ = targetEntity.Pos?.XYZ.Z ?? target.Position.Z,
+                OriginX = caster.Entity?.Pos?.XYZ.X ?? target.Position.X,
+                OriginY = caster.Entity?.Pos?.XYZ.Y ?? target.Position.Y,
+                OriginZ = caster.Entity?.Pos?.XYZ.Z ?? target.Position.Z,
+                Radius = Math.Max(1d, effect.Radius),
+                Amount = effect.Amount,
+                SecondaryAmount = effect.SecondaryAmount,
+                DurationMilliseconds = durationMilliseconds,
+                StartedAtMilliseconds = nowMilliseconds,
+                ExpiresAtMilliseconds = nowMilliseconds + durationMilliseconds,
+                StartedAtTotalDays = nowDays,
+                ExpiresAtTotalDays = nowDays + (Math.Max(1d, effect.DurationSeconds) / 24d),
+                TickIntervalMilliseconds = Math.Max(500, (long)Math.Round(Math.Max(0.5d, effect.TickIntervalSeconds) * 1000d)),
+                NextTickAtMilliseconds = nowMilliseconds + Math.Max(500, (long)Math.Round(Math.Max(0.5d, effect.TickIntervalSeconds) * 1000d)),
+                PersistAcrossRestart = true,
+                IsArea = false,
+                IsHostile = false,
+                IsBeneficial = true,
+                IsBlocking = true
+            };
+
+            gameplayActions.Add(() =>
+            {
+                RustweaveRuntime.Server?.TryRemoveActiveEffectsForEntityAndType(targetEntity, SpellEffectTypes.BraceNextDisplacement, spell.Code);
+                if (RustweaveRuntime.Server?.TryRegisterActiveEffect(record) != true)
+                {
+                    return false;
+                }
+
+                state.BraceNextDisplacementStartedAtTotalDays = nowDays;
+                state.BraceNextDisplacementExpiresAtTotalDays = nowDays + (Math.Max(1d, effect.DurationSeconds) / 24d);
+                state.BraceNextDisplacementSourceSpellCode = spell.Code;
+                return true;
+            });
+
+            visualActions.Add(() =>
+            {
+                var center = targetEntity.Pos?.XYZ ?? target.Position;
+                sapi.World.SpawnParticles(8, unchecked((int)0xFF8C6A4A), new Vec3d(center.X - 0.14, center.Y + 0.05, center.Z - 0.14), new Vec3d(center.X + 0.14, center.Y + 0.35, center.Z + 0.14), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.22f, 0f, 0.35f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendSenseTemporalStorm(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, RustweavePlayerStateData state, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            gameplayActions.Add(() =>
+            {
+                if (TryReadTemporalStormInfo(sapi.World, out var hoursUntilStorm, out var severity))
+                {
+                    var clampedHours = Math.Max(0d, hoursUntilStorm);
+                    sapi.Logger.Debug("[TheRustweave] Stable Sense storm lookup: available={0}, hours={1}, severity={2}", true, clampedHours.ToString("0.0", CultureInfo.InvariantCulture), severity);
+                    if (clampedHours <= 0.01d)
+                    {
+                        caster.SendMessage(0, Lang.Get("game:rustweave-stable-sense-active", severity), EnumChatType.Notification, null);
+                    }
+                    else
+                    {
+                        caster.SendMessage(0, Lang.Get("game:rustweave-stable-sense-result", clampedHours.ToString("0.0", CultureInfo.InvariantCulture), severity), EnumChatType.Notification, null);
+                    }
+                }
+                else
+                {
+                    sapi.Logger.Debug("[TheRustweave] Stable Sense storm lookup: available={0}, hours={1}, severity={2}", false, "0.0", "Unknown");
+                    caster.SendMessage(0, Lang.Get("game:rustweave-stable-sense-unavailable"), EnumChatType.Notification, null);
+                }
+
+                return true;
+            });
+
+            visualActions.Add(() =>
+            {
+                var center = caster.Entity?.Pos?.XYZ ?? target.Position;
+                sapi.World.SpawnParticles(4, unchecked((int)0xFF6FCBD3), new Vec3d(center.X - 0.1, center.Y + 0.05, center.Z - 0.1), new Vec3d(center.X + 0.1, center.Y + 0.35, center.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.18f, 0f, 0.3f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private bool TryAppendDeferSpellCorruptionCost(List<Func<bool>> gameplayActions, List<Func<bool>> visualActions, IServerPlayer caster, RustweavePlayerStateData state, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, out string failureReason)
+        {
+            failureReason = string.Empty;
+            var targetEntity = target.Entity as EntityPlayer ?? caster.Entity as EntityPlayer;
+            if (targetEntity == null)
+            {
+                failureReason = "that spell requires a player target";
+                return false;
+            }
+
+            if (RustweaveStateService.HasActiveFoundationalFabric(state, sapi.World.Calendar?.TotalDays ?? 0d))
+            {
+                failureReason = Lang.Get("game:rustweave-foundational-fabric-active");
+                return false;
+            }
+
+            var durationMilliseconds = (long)Math.Round(Math.Max(0d, effect.DurationSeconds) * 1000d);
+            if (durationMilliseconds <= 0)
+            {
+                failureReason = "durationSeconds must be greater than zero";
+                return false;
+            }
+
+            var effectId = BuildTimedEffectCode(spell.Code, effect.Type, targetEntity.EntityId);
+            var nowMilliseconds = sapi.World.ElapsedMilliseconds;
+            var nowDays = Math.Max(0d, sapi.World.Calendar?.TotalDays ?? 0d);
+            var reductionPercent = Math.Max(0d, Math.Min(0.99d, effect.Amount));
+            var record = new RustweaveActiveEffectRecord
+            {
+                EffectId = effectId,
+                EffectType = effect.Type,
+                RecordKind = "self",
+                SpellCode = spell.Code,
+                CasterPlayerUid = caster.PlayerUID,
+                CasterEntityId = caster.Entity?.EntityId ?? -1,
+                TargetPlayerUid = targetEntity.PlayerUID ?? string.Empty,
+                TargetEntityId = targetEntity.EntityId,
+                TargetType = spell.TargetType,
+                Mode = effect.Mode,
+                CenterX = targetEntity.Pos?.XYZ.X ?? target.Position.X,
+                CenterY = targetEntity.Pos?.XYZ.Y ?? target.Position.Y,
+                CenterZ = targetEntity.Pos?.XYZ.Z ?? target.Position.Z,
+                OriginX = caster.Entity?.Pos?.XYZ.X ?? target.Position.X,
+                OriginY = caster.Entity?.Pos?.XYZ.Y ?? target.Position.Y,
+                OriginZ = caster.Entity?.Pos?.XYZ.Z ?? target.Position.Z,
+                Radius = Math.Max(1d, effect.Radius),
+                Amount = (float)reductionPercent,
+                SecondaryAmount = effect.SecondaryAmount,
+                DurationMilliseconds = durationMilliseconds,
+                StartedAtMilliseconds = nowMilliseconds,
+                ExpiresAtMilliseconds = nowMilliseconds + durationMilliseconds,
+                StartedAtTotalDays = nowDays,
+                ExpiresAtTotalDays = nowDays + (Math.Max(1d, effect.DurationSeconds) / 24d),
+                TickIntervalMilliseconds = Math.Max(1000, (long)Math.Round(Math.Max(1d, effect.TickIntervalSeconds) * 1000d)),
+                NextTickAtMilliseconds = nowMilliseconds + Math.Max(1000, (long)Math.Round(Math.Max(1d, effect.TickIntervalSeconds) * 1000d)),
+                PersistAcrossRestart = true,
+                IsArea = false,
+                IsHostile = false,
+                IsBeneficial = true,
+                IsBlocking = false
+            };
+
+            gameplayActions.Add(() =>
+            {
+                RustweaveRuntime.Server?.TryRemoveActiveEffectsForEntityAndType(targetEntity, SpellEffectTypes.DeferSpellCorruptionCost, spell.Code);
+                if (RustweaveRuntime.Server?.TryRegisterActiveEffect(record) != true)
+                {
+                    return false;
+                }
+
+                state.FoundationalFabricStartedAtTotalDays = nowDays;
+                state.FoundationalFabricExpiresAtTotalDays = nowDays + (Math.Max(1d, effect.DurationSeconds) / 24d);
+                state.FoundationalFabricSourceSpellCode = spell.Code;
+                state.FoundationalFabricReductionPercent = reductionPercent;
+                state.FoundationalFabricDebtAmount = 0;
+                return true;
+            });
+
+            visualActions.Add(() =>
+            {
+                var center = targetEntity.Pos?.XYZ ?? target.Position;
+                sapi.World.SpawnParticles(6, unchecked((int)0xFFC69C29), new Vec3d(center.X - 0.1, center.Y + 0.05, center.Z - 0.1), new Vec3d(center.X + 0.1, center.Y + 0.28, center.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.2f, 0f, 0.3f, EnumParticleModel.Quad, caster);
+                return true;
+            });
+
+            return true;
+        }
+
+        private static bool TryReadNumericMemberValue(object target, out double value, params string[] memberNames)
+        {
+            value = 0d;
+            if (target == null || memberNames == null || memberNames.Length == 0)
+            {
+                return false;
+            }
+
+            var type = target.GetType();
+            foreach (var memberName in memberNames.Where(name => !string.IsNullOrWhiteSpace(name)))
+            {
+                var property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (property?.CanRead == true)
+                {
+                    try
+                    {
+                        var current = property.GetValue(target);
+                        if (current is int currentInt)
+                        {
+                            value = currentInt;
+                            return true;
+                        }
+
+                        if (current is long currentLong)
+                        {
+                            value = currentLong;
+                            return true;
+                        }
+
+                        if (current is float currentFloat)
+                        {
+                            value = currentFloat;
+                            return true;
+                        }
+
+                        if (current is double currentDouble)
+                        {
+                            value = currentDouble;
+                            return true;
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                var field = type.GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (field != null)
+                {
+                    try
+                    {
+                        var current = field.GetValue(target);
+                        if (current is int currentInt)
+                        {
+                            value = currentInt;
+                            return true;
+                        }
+
+                        if (current is long currentLong)
+                        {
+                            value = currentLong;
+                            return true;
+                        }
+
+                        if (current is float currentFloat)
+                        {
+                            value = currentFloat;
+                            return true;
+                        }
+
+                        if (current is double currentDouble)
+                        {
+                            value = currentDouble;
+                            return true;
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryReadStringMemberValue(object target, out string value, params string[] memberNames)
+        {
+            value = string.Empty;
+            if (target == null || memberNames == null || memberNames.Length == 0)
+            {
+                return false;
+            }
+
+            var type = target.GetType();
+            foreach (var memberName in memberNames.Where(name => !string.IsNullOrWhiteSpace(name)))
+            {
+                var property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (property?.CanRead == true)
+                {
+                    try
+                    {
+                        var current = property.GetValue(target)?.ToString();
+                        if (!string.IsNullOrWhiteSpace(current))
+                        {
+                            value = current!;
+                            return true;
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                var field = type.GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (field != null)
+                {
+                    try
+                    {
+                        var current = field.GetValue(target)?.ToString();
+                        if (!string.IsNullOrWhiteSpace(current))
+                        {
+                            value = current!;
+                            return true;
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private bool TryReadTemporalStormInfo(IWorldAccessor world, out double hoursUntilStorm, out string severity)
+        {
+            hoursUntilStorm = 0d;
+            severity = "Unknown";
+            if (world == null)
+            {
+                return false;
+            }
+
+            var probes = new List<object>();
+            probes.Add(world);
+            if (world.Calendar != null)
+            {
+                probes.Add(world.Calendar);
+            }
+
+            if (world.Api != null)
+            {
+                probes.Add(world.Api);
+                if (world.Api.ModLoader != null)
+                {
+                    probes.Add(world.Api.ModLoader);
+                    if (TryGetTemporalStabilitySystem(world, out var stormSystem) && stormSystem != null)
+                    {
+                        probes.Add(stormSystem);
+                    }
+                }
+            }
+
+            foreach (var probe in probes.ToArray())
+            {
+                TryCollectNestedStormProbes(probe, probes);
+            }
+
+            var relativeHourNames = new[]
+            {
+                "NextTemporalStormHours",
+                "NextTemporalStormInHours",
+                "HoursUntilNextTemporalStorm",
+                "HoursUntilNextStorm",
+                "NextStormHours",
+                "TemporalStormHoursRemaining",
+                "TemporalStormHours",
+                "StormHoursRemaining",
+                "StormHours",
+                "HoursToNextStorm",
+                "HoursUntilStorm",
+                "HoursRemainingUntilNextStorm",
+                "StormHoursLeft"
+            };
+
+            var absoluteHourNames = new[]
+            {
+                "NextTemporalStormTotalHours",
+                "NextTemporalStormAtTotalHours",
+                "NextStormTotalHours",
+                "NextStormStartTotalHours",
+                "StormStartTotalHours",
+                "StormTotalHours"
+            };
+
+            var dayNames = new[]
+            {
+                "NextTemporalStormDays",
+                "NextTemporalStormInDays",
+                "DaysUntilNextTemporalStorm",
+                "DaysUntilNextStorm",
+                "NextStormDays",
+                "TemporalStormDaysRemaining",
+                "StormDaysRemaining",
+                "StormDays",
+                "DaysToNextStorm",
+                "DaysUntilStorm"
+            };
+
+            var absoluteDayNames = new[]
+            {
+                "NextTemporalStormTotalDays",
+                "NextTemporalStormAtTotalDays",
+                "NextStormTotalDays",
+                "NextStormStartTotalDays",
+                "StormStartTotalDays",
+                "StormTotalDays"
+            };
+
+            var severityNames = new[]
+            {
+                "TemporalStormStrength",
+                "StormStrength",
+                "NextStormStrength",
+                "StormSeverity",
+                "TemporalStormSeverity",
+                "TemporalStormIntensity",
+                "StormIntensity",
+                "NextStormIntensity",
+                "TemporalStormPower"
+            };
+
+            var currentHoursKnown = TryReadCurrentInGameHours(world, out var currentHours);
+            foreach (var probe in probes)
+            {
+                if (TryReadNumericMemberValue(probe, out var hoursValue, relativeHourNames))
+                {
+                    hoursUntilStorm = hoursValue;
+                    goto got_time;
+                }
+
+                if (TryReadNumericMemberValue(probe, out var absoluteHoursValue, absoluteHourNames) && currentHoursKnown)
+                {
+                    hoursUntilStorm = absoluteHoursValue - currentHours;
+                    goto got_time;
+                }
+
+                if (TryReadNumericMemberValue(probe, out var daysValue, dayNames))
+                {
+                    hoursUntilStorm = daysValue * 24d;
+                    goto got_time;
+                }
+
+                if (TryReadNumericMemberValue(probe, out var absoluteDaysValue, absoluteDayNames) && currentHoursKnown)
+                {
+                    hoursUntilStorm = absoluteDaysValue * 24d - currentHours;
+                    goto got_time;
+                }
+            }
+
+            return false;
+
+        got_time:
+            if (hoursUntilStorm < 0d)
+            {
+                hoursUntilStorm = 0d;
+            }
+
+            foreach (var probe in probes)
+            {
+                if (TryReadNumericMemberValue(probe, out var strengthValue, severityNames))
+                {
+                    severity = GetStormSeverityLabel(strengthValue);
+                    return true;
+                }
+
+                if (TryReadStringMemberValue(probe, out var severityText, severityNames))
+                {
+                    severity = string.IsNullOrWhiteSpace(severityText) ? "Unknown" : severityText;
+                    return true;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool TryReadCurrentInGameHours(IWorldAccessor world, out double currentHours)
+        {
+            currentHours = 0d;
+            if (world?.Calendar == null)
+            {
+                return false;
+            }
+
+            if (TryReadNumericMemberValue(world.Calendar, out currentHours, "TotalHours", "TotalWorldHours", "TotalGameHours"))
+            {
+                return true;
+            }
+
+            if (TryReadNumericMemberValue(world.Calendar, out var totalDays, "TotalDays", "TotalWorldDays"))
+            {
+                currentHours = totalDays * 24d;
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryGetTemporalStabilitySystem(IWorldAccessor world, out object? system)
+        {
+            system = null;
+            var modLoader = world?.Api?.ModLoader;
+            if (modLoader == null)
+            {
+                return false;
+            }
+
+            var systemType = Type.GetType("Vintagestory.GameContent.SystemTemporalStability, Vintagestory.GameContent", false);
+            if (systemType == null)
+            {
+                return false;
+            }
+
+            var getModSystemMethod = modLoader.GetType()
+                .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                .FirstOrDefault(method => string.Equals(method.Name, "GetModSystem", StringComparison.Ordinal) && method.IsGenericMethodDefinition && method.GetParameters().Length == 0);
+            if (getModSystemMethod == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                var genericMethod = getModSystemMethod.MakeGenericMethod(systemType);
+                system = genericMethod.Invoke(modLoader, Array.Empty<object>());
+                return system != null;
+            }
+            catch
+            {
+                system = null;
+                return false;
+            }
+        }
+
+        private static void TryCollectNestedStormProbes(object probe, ICollection<object> probes)
+        {
+            if (probe == null || probes == null)
+            {
+                return;
+            }
+
+            var type = probe.GetType();
+            var memberNames = new[]
+            {
+                "TemporalStorm",
+                "Storm",
+                "StormData",
+                "NextStorm",
+                "CurrentStorm",
+                "StormState",
+                "TemporalStormData",
+                "StormInfo"
+            };
+
+            foreach (var memberName in memberNames)
+            {
+                try
+                {
+                    var property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    var current = property?.CanRead == true ? property.GetValue(probe) : null;
+                    if (current != null && !probes.Contains(current))
+                    {
+                        probes.Add(current);
+                        continue;
+                    }
+
+                    var field = type.GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    current = field?.GetValue(probe);
+                    if (current != null && !probes.Contains(current))
+                    {
+                        probes.Add(current);
+                    }
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        private static string GetStormSeverityLabel(double stormStrength)
+        {
+            if (stormStrength <= 0.2d)
+            {
+                return "Weak";
+            }
+
+            if (stormStrength <= 0.45d)
+            {
+                return "Moderate";
+            }
+
+            if (stormStrength <= 0.75d)
+            {
+                return "Heavy";
+            }
+
+            return "Severe";
+        }
+
         private RustweaveActiveEffectRecord BuildAreaEffectRecord(IServerPlayer caster, SpellDefinition spell, SpellTargetContext target, SpellEffectDefinition effect, Vec3d center)
         {
             var radius = Math.Max(0d, spell.Radius > 0d ? spell.Radius : effect.Radius);
@@ -5085,6 +6229,79 @@ namespace TheRustweave
             return false;
         }
 
+        private bool TrySpawnItemEntityByReflection(IWorldAccessor world, ItemStack stack, Vec3d position, IServerPlayer caster)
+        {
+            if (world == null || stack == null)
+            {
+                return false;
+            }
+
+            foreach (var method in world.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                         .Where(candidate => string.Equals(candidate.Name, "SpawnItemEntity", StringComparison.OrdinalIgnoreCase)))
+            {
+                var parameters = method.GetParameters();
+                if (parameters.Length == 0 || parameters.Length > 5)
+                {
+                    continue;
+                }
+
+                var args = new object?[parameters.Length];
+                var usable = true;
+                for (var index = 0; index < parameters.Length; index++)
+                {
+                    var parameterType = parameters[index].ParameterType;
+                    if (typeof(ItemStack).IsAssignableFrom(parameterType))
+                    {
+                        args[index] = stack.Clone();
+                    }
+                    else if (typeof(Vec3d).IsAssignableFrom(parameterType))
+                    {
+                        args[index] = position;
+                    }
+                    else if (typeof(Vec3f).IsAssignableFrom(parameterType))
+                    {
+                        args[index] = new Vec3f((float)position.X, (float)position.Y, (float)position.Z);
+                    }
+                    else if (typeof(IPlayer).IsAssignableFrom(parameterType))
+                    {
+                        args[index] = caster;
+                    }
+                    else if (parameterType == typeof(bool))
+                    {
+                        args[index] = true;
+                    }
+                    else if (parameterType.IsValueType)
+                    {
+                        args[index] = Activator.CreateInstance(parameterType);
+                    }
+                    else
+                    {
+                        usable = false;
+                        break;
+                    }
+                }
+
+                if (!usable)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var result = method.Invoke(world, args);
+                    if (result != null)
+                    {
+                        return true;
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            return false;
+        }
+
         private bool TryBreakBlockWithLoot(IWorldAccessor world, BlockPos pos, IServerPlayer caster)
         {
             if (world == null || pos == null)
@@ -5158,40 +6375,118 @@ namespace TheRustweave
             return new ItemStack(item, quantity);
         }
 
-        private bool TryModifySatiety(IServerPlayer caster, float amount)
+        private bool TryModifySatiety(Entity? targetEntity, float amount, out string failureReason)
         {
-            if (caster?.Entity == null || Math.Abs(amount) <= 0f)
+            failureReason = string.Empty;
+            if (targetEntity == null || Math.Abs(amount) <= 0f)
+            {
+                failureReason = "that spell requires a player target";
+                return false;
+            }
+
+            if (!SpellRegistry.IsPlayerEntity(targetEntity))
+            {
+                failureReason = "that spell requires a player target";
+                return false;
+            }
+
+            if (TryAdjustNumericMember(targetEntity, amount, "Satiety", "satiety", "Saturation", "saturation", "Hunger", "hunger"))
+            {
+                return true;
+            }
+
+            if (TryAdjustWatchedAttributeValue(targetEntity, amount, "satiety", "saturation", "hunger"))
+            {
+                return true;
+            }
+
+            failureReason = "the hunger API is unavailable";
+            return false;
+        }
+
+        private static bool TryAdjustWatchedAttributeValue(Entity entity, double delta, params string[] keys)
+        {
+            if (entity == null || keys == null || keys.Length == 0 || delta == 0d)
             {
                 return false;
             }
 
-            var entity = caster.Entity;
-            var behaviorType = entity.GetType();
-            foreach (var propertyName in new[] { "Satiety", "satiety", "Saturation", "saturation", "Hunger", "hunger" })
+            var watchedAttributes = entity.GetType().GetProperty("WatchedAttributes", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)?.GetValue(entity);
+            if (watchedAttributes == null)
             {
-                var property = behaviorType.GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (property?.CanRead == true && property.CanWrite == true)
-                {
-                    var currentValue = property.GetValue(entity);
-                    if (currentValue is float currentFloat)
-                    {
-                        property.SetValue(entity, Math.Max(0f, currentFloat + amount));
-                        return true;
-                    }
-
-                    if (currentValue is double currentDouble)
-                    {
-                        property.SetValue(entity, Math.Max(0d, currentDouble + amount));
-                        return true;
-                    }
-                }
+                return false;
             }
 
-            var health = entity.GetBehavior<EntityBehaviorHealth>();
-            if (health != null)
+            var type = watchedAttributes.GetType();
+            foreach (var key in keys.Where(value => !string.IsNullOrWhiteSpace(value)))
             {
-                health.Health = Math.Max(1f, Math.Min(health.MaxHealth, health.Health + amount));
-                return true;
+                foreach (var getterName in new[] { "GetFloat", "GetDouble", "GetInt" })
+                {
+                    var getter = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                        .FirstOrDefault(method => string.Equals(method.Name, getterName, StringComparison.OrdinalIgnoreCase)
+                            && method.GetParameters().Length >= 1
+                            && method.GetParameters()[0].ParameterType == typeof(string));
+                    if (getter == null)
+                    {
+                        continue;
+                    }
+
+                    object? currentValue;
+                    try
+                    {
+                        var getterArgs = getter.GetParameters().Length == 1
+                            ? new object[] { key }
+                            : new object[] { key, 0 };
+                        currentValue = getter.Invoke(watchedAttributes, getterArgs);
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+
+                    if (currentValue == null)
+                    {
+                        continue;
+                    }
+
+                    var updated = currentValue switch
+                    {
+                        float currentFloat => currentFloat + (float)delta,
+                        double currentDouble => currentDouble + delta,
+                        int currentInt => currentInt + (int)Math.Round(delta),
+                        _ => (double?)null
+                    };
+
+                    if (updated == null)
+                    {
+                        continue;
+                    }
+
+                    var setter = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                        .FirstOrDefault(method => string.Equals(method.Name, getterName.Replace("Get", "Set"), StringComparison.OrdinalIgnoreCase)
+                            && method.GetParameters().Length == 2
+                            && method.GetParameters()[0].ParameterType == typeof(string));
+                    if (setter == null)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        var parameterType = setter.GetParameters()[1].ParameterType;
+                        object converted = parameterType == typeof(float)
+                            ? (object)(float)updated.Value
+                            : parameterType == typeof(int)
+                                ? (object)(int)Math.Round(updated.Value)
+                                : (object)updated.Value;
+                        setter.Invoke(watchedAttributes, new[] { key, converted });
+                        return true;
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+                }
             }
 
             return false;
@@ -5458,6 +6753,14 @@ namespace TheRustweave
                     return TryAppendAreaCorruptionEffect(gameplayActions, visualActions, caster, spell, target, effect, ref corruptionDelta, true, out failureReason);
                 case SpellEffectTypes.ModifyCorruptionGain:
                     return TryAppendCorruptionGainField(gameplayActions, visualActions, caster, spell, target, effect, ref corruptionDelta, out failureReason);
+                case SpellEffectTypes.FreezeTemporalStabilityLoss:
+                    return TryAppendFreezeTemporalStabilityLoss(gameplayActions, visualActions, caster, state, spell, target, effect, out failureReason);
+                case SpellEffectTypes.BraceNextDisplacement:
+                    return TryAppendBraceNextDisplacement(gameplayActions, visualActions, caster, state, spell, target, effect, out failureReason);
+                case SpellEffectTypes.SenseTemporalStorm:
+                    return TryAppendSenseTemporalStorm(gameplayActions, visualActions, caster, state, spell, target, effect, out failureReason);
+                case SpellEffectTypes.DeferSpellCorruptionCost:
+                    return TryAppendDeferSpellCorruptionCost(gameplayActions, visualActions, caster, state, spell, target, effect, out failureReason);
                 case SpellEffectTypes.AnchorEntity:
                 case SpellEffectTypes.PreventDisplacement:
                 case SpellEffectTypes.CounterNextHostileEffect:
@@ -5471,6 +6774,8 @@ namespace TheRustweave
                 case SpellEffectTypes.HealOverTime:
                 case SpellEffectTypes.VitalityOverTime:
                     return TryAppendEntityFieldEffect(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
+                case SpellEffectTypes.LinkEntities:
+                    return TryAppendLinkEntitiesEffect(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
                 case SpellEffectTypes.RewindEntityPosition:
                     return TryAppendRewindEntity(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
                 case SpellEffectTypes.UndoRecentEffect:
@@ -5524,7 +6829,6 @@ namespace TheRustweave
                     return TryAppendBlockEffect(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
                 case SpellEffectTypes.ConvertHeldItem:
                 case SpellEffectTypes.SummonTemporaryItem:
-                case SpellEffectTypes.ModifySatiety:
                 case SpellEffectTypes.CreateTemporaryFood:
                     return TryAppendHeldOrInventoryEffect(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
                 case SpellEffectTypes.SummonTemporaryEntity:
@@ -5539,6 +6843,7 @@ namespace TheRustweave
                 case SpellEffectTypes.ModifyCropGrowth:
                 case SpellEffectTypes.ModifyFarmlandNutrients:
                 case SpellEffectTypes.ModifyAnimalFertility:
+                case SpellEffectTypes.ModifySatiety:
                     return TryAppendGraftingEffect(gameplayActions, visualActions, caster, spell, target, effect, out failureReason);
                 case SpellEffectTypes.ChangeWeather:
                 case SpellEffectTypes.ChangeTemperatureArea:
@@ -5682,6 +6987,8 @@ namespace TheRustweave
                 return false;
             }
 
+            var visualTargetEntity = targetEntity;
+            var visualTargetCenter = visualTargetEntity.Pos.XYZ;
             var durationMilliseconds = (long)Math.Round(Math.Max(0d, effect.DurationSeconds) * 1000d);
             if (durationMilliseconds <= 0 && !string.Equals(effect.Type, SpellEffectTypes.CounterNextHostileEffect, StringComparison.OrdinalIgnoreCase) && !string.Equals(effect.Type, SpellEffectTypes.ReflectProjectile, StringComparison.OrdinalIgnoreCase) && !string.Equals(effect.Type, SpellEffectTypes.UndoRecentEffect, StringComparison.OrdinalIgnoreCase) && !string.Equals(effect.Type, SpellEffectTypes.CancelActiveEffect, StringComparison.OrdinalIgnoreCase))
             {
@@ -5699,12 +7006,12 @@ namespace TheRustweave
                 CasterPlayerUid = caster.PlayerUID,
                 CasterEntityId = caster.Entity?.EntityId ?? -1,
                 TargetPlayerUid = targetEntity is EntityPlayer targetPlayer ? targetPlayer.PlayerUID ?? string.Empty : string.Empty,
-                TargetEntityId = targetEntity.EntityId,
+                TargetEntityId = visualTargetEntity.EntityId,
                 TargetType = spell.TargetType,
                 Mode = effect.Mode,
-                CenterX = targetEntity.Pos?.XYZ.X ?? target.Position.X,
-                CenterY = targetEntity.Pos?.XYZ.Y ?? target.Position.Y,
-                CenterZ = targetEntity.Pos?.XYZ.Z ?? target.Position.Z,
+                CenterX = visualTargetCenter.X,
+                CenterY = visualTargetCenter.Y,
+                CenterZ = visualTargetCenter.Z,
                 OriginX = caster.Entity?.Pos?.XYZ.X ?? target.Position.X,
                 OriginY = caster.Entity?.Pos?.XYZ.Y ?? target.Position.Y,
                 OriginZ = caster.Entity?.Pos?.XYZ.Z ?? target.Position.Z,
@@ -5736,7 +7043,7 @@ namespace TheRustweave
             visualActions.Add(() =>
             {
                 var color = record.IsHostile ? unchecked((int)0xFFC94A4A) : unchecked((int)0xFF6ACB71);
-                sapi.World.SpawnParticles(10, color, new Vec3d(targetEntity.Pos.XYZ.X - 0.15, targetEntity.Pos.XYZ.Y + 0.1, targetEntity.Pos.XYZ.Z - 0.15), new Vec3d(targetEntity.Pos.XYZ.X + 0.15, targetEntity.Pos.XYZ.Y + 1.4, targetEntity.Pos.XYZ.Z + 0.15), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.05f, 0.01f), 0.3f, 0f, 0.45f, EnumParticleModel.Quad, caster);
+                sapi.World.SpawnParticles(10, color, new Vec3d(visualTargetEntity.Pos.XYZ.X - 0.15, visualTargetEntity.Pos.XYZ.Y + 0.1, visualTargetEntity.Pos.XYZ.Z - 0.15), new Vec3d(visualTargetEntity.Pos.XYZ.X + 0.15, visualTargetEntity.Pos.XYZ.Y + 1.4, visualTargetEntity.Pos.XYZ.Z + 0.15), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.05f, 0.01f), 0.3f, 0f, 0.45f, EnumParticleModel.Quad, caster);
                 return true;
             });
 
@@ -5767,6 +7074,11 @@ namespace TheRustweave
                 if (RustweaveRuntime.Server?.TryFindNearestSafeTeleportPosition(targetEntity.World, targetEntity, historyPosition, out var safePosition) != true)
                 {
                     return false;
+                }
+
+                if (TryConsumeDisplacementBraceIfNeeded(caster, spell, effect.Type, targetEntity))
+                {
+                    return true;
                 }
 
                 targetEntity.TeleportTo(safePosition);

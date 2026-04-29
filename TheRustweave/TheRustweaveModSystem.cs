@@ -13,8 +13,12 @@ namespace TheRustweave
             api.RegisterItemClass("ItemRustweaverTome", typeof(ItemRustweaverTome));
             api.RegisterItemClass("ItemRustTablet", typeof(ItemRustTablet));
             api.RegisterItemClass("ItemRustweaveDiscoveryItem", typeof(ItemRustweaveDiscoveryItem));
-            Mod.Logger.Notification("Hello from template mod: " + api.Side);
-            Mod.Logger.Notification("[TheRustweave] Loaded mod origin: {0}", GetModOrigin());
+            Mod.Logger.Notification("[TheRustweave] Core mod systems initialized.");
+            var origin = GetModOrigin();
+            if (!string.Equals(origin, "unknown", StringComparison.OrdinalIgnoreCase))
+            {
+                Mod.Logger.Notification("[TheRustweave] Loaded mod origin: {0}", origin);
+            }
         }
 
         public override void AssetsLoaded(ICoreAPI api)
@@ -25,13 +29,20 @@ namespace TheRustweave
         public override void StartServerSide(ICoreServerAPI api)
         {
             RustweaveRuntime.InitializeServer(api);
-            Mod.Logger.Notification("Hello from template mod server side: " + Lang.Get("therustweave:hello"));
+            Mod.Logger.Notification("[TheRustweave] Server systems initialized.");
         }
 
         public override void StartClientSide(ICoreClientAPI api)
         {
             RustweaveRuntime.InitializeClient(api);
-            Mod.Logger.Notification("Hello from template mod client side: " + Lang.Get("therustweave:hello"));
+            Mod.Logger.Notification("[TheRustweave] Client systems initialized.");
+        }
+
+        public override void Dispose()
+        {
+            RustweaveRuntime.ShutdownClient();
+            RustweaveRuntime.ShutdownServer();
+            base.Dispose();
         }
 
         private string GetModOrigin()

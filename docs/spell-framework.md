@@ -50,10 +50,15 @@ This document is the persistent reference for Rustweave spell vocabulary, valida
 
 - Look targets require positive range.
 - Area targets require positive radius.
+- `self` targets always resolve to the caster entity and do not require range, line of sight, or raycasts.
+- `self` target casting should resolve from the caster directly, not through look-target lookup.
 - `lookBlockEntity` and `lookContainer` must fail cleanly if the block entity is missing or not container-capable.
 - `lookDroppedItem` must use safe entity detection and must not crash on unknown entity types.
 - Harmful player-target effects still obey PvP validation.
 - Non-player entity targets must not be blocked by player-only PvP rules.
+- Prepared slots are domain/UI/network/save scoped as SlotIds `1..9`.
+- Internal array indexing, if any, is private to the prepared-slot service only.
+- Slot `0` and `-1` are not gameplay values.
 
 ## Effect rules
 
@@ -62,6 +67,13 @@ This document is the persistent reference for Rustweave spell vocabulary, valida
 - Block-changing effects must respect land claims/protection.
 - Loreweave or lore-flavored spells should only gain mechanical behavior when the spell JSON explicitly assigns it and the current task authorizes that behavior; do not rely on a blanket cosmetic-only allowlist in framework work.
 
+## Testing-only spells
+
+- Temporary validation spells may use `testingOnly: true`.
+- `testingOnly` spells are skipped quietly when `AllSpellsLearnedByDefaultForTesting` is false.
+- Hidden test spells remain hidden from the Tome in normal gameplay.
+- When test mode is enabled, `testingOnly` spells load and validate normally.
+
 ## Runtime systems
 
 - Persistent active area registry
@@ -69,6 +81,22 @@ This document is the persistent reference for Rustweave spell vocabulary, valida
 - Active spell-effect registry
 - Summon tracking and expiry
 - Safe teleport helpers
+- Persistent per-player Warping effect state for Still Thread, Warping Brace, and Foundational Fabric
+- Stable Sense attempts an exact Temporal Storm hour lookup first and falls back to an unavailable message when the runtime does not expose usable storm data.
+- Foundational Fabric defers 10% of future base corruption costs, rounds deferred debt up, persists the debt world-specifically, and repays it all at once on expiry or on next join after offline expiry.
+- World-scoped player progression and runtime state:
+  - learned spells
+  - prepared slots
+  - active prepared slot
+  - rank/progression
+  - spell cooldowns
+  - current Temporal Corruption
+  - active self effects
+  - active areas/wards/rifts/barriers
+- Rustweave player runtime state is stored per world/save, not in global mod config.
+- Legacy global player state is ignored for normal gameplay and must not leak into a different save.
+- Corruption and prepared-slot state are loaded on join and synced immediately rather than waiting for another spell cast.
+- Prepared-slot selection is authoritative on the server; the client mirrors server state rather than inventing empty-slot semantics.
 
 ## Active area effects
 
@@ -82,6 +110,7 @@ Active area records are persisted in mod config and ticked on the server. They s
 - stabilization/corruption modifiers
 - temperature/environment pressure fields
 - rift markers
+- self-buff Warping effects may also be mirrored through the active effect registry
 
 They are queryable by purge/cancel/counter/identify effects and expire automatically.
 
@@ -124,12 +153,16 @@ They are queryable by purge/cancel/counter/identify effects and expire automatic
 
 | Effect type | Behavior |
 | --- | --- |
+| `freezeTemporalStabilityLoss` | Freezes passive temporal stability loss at the caster's current baseline for a timed window. |
+| `braceNextDisplacement` | Consumes the next hostile player displacement attempt against the target. |
 | `modifyTemporalStability` | Timed stability/corruption modifier. |
 | `stabilizeArea` | Timed stabilization field. |
 | `anchorEntity` | Prevents displacement on an entity. |
 | `anchorBlock` | Marks a block as anchored for Rustweave interactions. |
 | `preventDisplacement` | Blocks teleport/push/pull/swap displacement. |
 | `modifyCorruptionGain` | Timed corruption gain modifier. |
+| `senseTemporalStorm` | Reports the next readable temporal storm. |
+| `deferSpellCorruptionCost` | Defers part of future spell corruption cost and repays the debt later. |
 
 ### Wefting
 
@@ -252,6 +285,7 @@ They are queryable by purge/cancel/counter/identify effects and expire automatic
 | `summonTemporaryItem` | Spawns or grants a temporary item. |
 | `summonTemporaryProjectile` | Spawns a temporary projectile-like effect. |
 | `summonTemporaryConstruct` | Spawns a temporary construct/block effect. |
+| `createTemporaryFood` | Grants a food item to the caster or target inventory; drops safely if inventory is full. |
 
 ### Grafting
 

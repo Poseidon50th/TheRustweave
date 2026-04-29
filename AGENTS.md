@@ -84,3 +84,10 @@ Use a stable `GuiDialog` lifecycle:
 - do not reassign composers from active mouse callbacks
 - prefer updating text/state elements over full recomposition
 - if rebuild is unavoidable, close/dispose/recreate the dialog safely outside the callback
+
+## Rustweave persistence rule
+
+- Rustweave player progression, corruption, cooldowns, prepared slots, and active runtime effects are world-scoped, not global.
+- Do not store per-player runtime state in global ModConfig or any UID-only global cache.
+- Testing-only spells may exist, but they must remain skipped in normal play when testing mode is off.
+- Any effect added to the supported spell framework must have validation and real runtime behavior; no silent no-ops.

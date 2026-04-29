@@ -1,9 +1,11 @@
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Reflection;
+using System.Security.Cryptography;
 using Newtonsoft.Json;
 using ProtoBuf;
 using Cairo;
@@ -153,7 +155,7 @@ namespace TheRustweave
         public string SpellCode { get; set; } = string.Empty;
 
         [ProtoMember(3)]
-        public int SlotIndex { get; set; } = -1;
+        public int? SlotId { get; set; }
 
         [ProtoMember(4)]
         public int Delta { get; set; }
@@ -762,6 +764,21 @@ namespace TheRustweave
         public List<RustweaveActiveEffectRecord> ActiveEffects { get; set; } = new();
     }
 
+    internal sealed class RustweaveWorldSaveData
+    {
+        [JsonProperty("worldKey")]
+        public string WorldKey { get; set; } = string.Empty;
+
+        [JsonProperty("worldLabel")]
+        public string WorldLabel { get; set; } = string.Empty;
+
+        [JsonProperty("playerStatesByUid")]
+        public Dictionary<string, RustweavePlayerStateData> PlayerStatesByUid { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+        [JsonProperty("activeEffects")]
+        public List<RustweaveActiveEffectRecord> ActiveEffects { get; set; } = new();
+    }
+
     internal sealed class RustweavePlayerStateData
     {
         public int SpellProgressionVersion { get; set; }
@@ -782,9 +799,39 @@ namespace TheRustweave
 
         public List<string> PreparedSpellCodes { get; set; } = new();
 
-        public int SelectedPreparedSpellIndex { get; set; } = -1;
+        [JsonProperty("activePreparedSlotId")]
+        public int? ActivePreparedSlotId { get; set; }
+
+        [JsonProperty("selectedPreparedSpellIndex")]
+        public int? LegacySelectedPreparedSpellIndex { get; set; }
 
         public long TemporalOverloadStartedAtMilliseconds { get; set; }
+
+        public double FreezeTemporalStabilityLossStartedAtTotalDays { get; set; }
+
+        public double FreezeTemporalStabilityLossExpiresAtTotalDays { get; set; }
+
+        public double FreezeTemporalStabilityLossBaseline { get; set; }
+
+        public string FreezeTemporalStabilityLossSourceSpellCode { get; set; } = string.Empty;
+
+        public double BraceNextDisplacementStartedAtTotalDays { get; set; }
+
+        public double BraceNextDisplacementExpiresAtTotalDays { get; set; }
+
+        public string BraceNextDisplacementSourceSpellCode { get; set; } = string.Empty;
+
+        public double FoundationalFabricStartedAtTotalDays { get; set; }
+
+        public double FoundationalFabricExpiresAtTotalDays { get; set; }
+
+        public string FoundationalFabricSourceSpellCode { get; set; } = string.Empty;
+
+        public double FoundationalFabricReductionPercent { get; set; }
+
+        public int FoundationalFabricDebtAmount { get; set; }
+
+        public Dictionary<string, double> SpellCooldowns { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
         public Dictionary<string, int> DiscoveryResearchProgress { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -793,7 +840,12 @@ namespace TheRustweave
         public List<RustweaveMentorStudyData> MentorStudies { get; set; } = new();
 
         [JsonIgnore]
-        public string SelectedPreparedSpellCode => RustweaveStateService.GetPreparedSpellCode(this, SelectedPreparedSpellIndex);
+        public string SelectedPreparedSpellCode => RustweaveStateService.GetPreparedSpellCode(this, ActivePreparedSlotId);
+
+        public bool ShouldSerializeLegacySelectedPreparedSpellIndex()
+        {
+            return false;
+        }
 
         public RustweavePlayerStateData Clone()
         {
@@ -808,8 +860,22 @@ namespace TheRustweave
                 SpellCastCounts = SpellCastCounts?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
                 KnowledgeRankIndex = KnowledgeRankIndex,
                 PreparedSpellCodes = PreparedSpellCodes.ToList(),
-                SelectedPreparedSpellIndex = SelectedPreparedSpellIndex,
+                ActivePreparedSlotId = ActivePreparedSlotId,
+                LegacySelectedPreparedSpellIndex = LegacySelectedPreparedSpellIndex,
                 TemporalOverloadStartedAtMilliseconds = TemporalOverloadStartedAtMilliseconds,
+                FreezeTemporalStabilityLossStartedAtTotalDays = FreezeTemporalStabilityLossStartedAtTotalDays,
+                FreezeTemporalStabilityLossExpiresAtTotalDays = FreezeTemporalStabilityLossExpiresAtTotalDays,
+                FreezeTemporalStabilityLossBaseline = FreezeTemporalStabilityLossBaseline,
+                FreezeTemporalStabilityLossSourceSpellCode = FreezeTemporalStabilityLossSourceSpellCode,
+                BraceNextDisplacementStartedAtTotalDays = BraceNextDisplacementStartedAtTotalDays,
+                BraceNextDisplacementExpiresAtTotalDays = BraceNextDisplacementExpiresAtTotalDays,
+                BraceNextDisplacementSourceSpellCode = BraceNextDisplacementSourceSpellCode,
+                FoundationalFabricStartedAtTotalDays = FoundationalFabricStartedAtTotalDays,
+                FoundationalFabricExpiresAtTotalDays = FoundationalFabricExpiresAtTotalDays,
+                FoundationalFabricSourceSpellCode = FoundationalFabricSourceSpellCode,
+                FoundationalFabricReductionPercent = FoundationalFabricReductionPercent,
+                FoundationalFabricDebtAmount = FoundationalFabricDebtAmount,
+                SpellCooldowns = SpellCooldowns?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase),
                 DiscoveryResearchProgress = DiscoveryResearchProgress?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
                 DiscoveryItemUseCounts = DiscoveryItemUseCounts?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
                 MentorStudies = MentorStudies?.Select(study => study?.Clone()).Where(study => study != null).Cast<RustweaveMentorStudyData>().ToList() ?? new List<RustweaveMentorStudyData>()
@@ -823,7 +889,8 @@ namespace TheRustweave
 
         public string SpellCode { get; set; } = string.Empty;
 
-        public int PreparedSpellIndex { get; set; } = -1;
+        [JsonProperty("preparedSlotId")]
+        public int? PreparedSlotId { get; set; }
 
         public long StartedAtMilliseconds { get; set; }
 
@@ -836,6 +903,8 @@ namespace TheRustweave
         public double BaseCastTimeSeconds { get; set; }
 
         public int StartingTemporalCorruption { get; set; }
+
+        public int DeferredCorruptionDebt { get; set; }
 
         public bool HasLockedTarget { get; set; }
 
@@ -871,14 +940,14 @@ namespace TheRustweave
             {
                 IsCasting = IsCasting,
                 SpellCode = SpellCode,
-                PreparedSpellIndex = PreparedSpellIndex,
+                PreparedSlotId = PreparedSlotId,
                 StartedAtMilliseconds = StartedAtMilliseconds,
                 DurationMilliseconds = DurationMilliseconds,
                 ElapsedMilliseconds = ElapsedMilliseconds,
                 CorruptionCost = CorruptionCost,
                 BaseCastTimeSeconds = BaseCastTimeSeconds,
-                StartingTemporalCorruption = StartingTemporalCorruption
-                ,
+                StartingTemporalCorruption = StartingTemporalCorruption,
+                DeferredCorruptionDebt = DeferredCorruptionDebt,
                 HasLockedTarget = HasLockedTarget,
                 LockedTargetType = LockedTargetType,
                 LockedEntityId = LockedEntityId,
@@ -938,6 +1007,7 @@ namespace TheRustweave
 
         private static void LoadProgressionConfig(ICoreAPI api)
         {
+            var changed = false;
             try
             {
                 ProgressionConfig = api.LoadModConfig<RustweaveProgressionConfig>(RustweaveConstants.ProgressionConfigFileName) ?? new RustweaveProgressionConfig();
@@ -948,6 +1018,12 @@ namespace TheRustweave
                 api.Logger.Warning("[TheRustweave] Failed to load progression config, using defaults: {0}", exception.Message);
             }
 
+            if (ProgressionConfig.AllSpellsLearnedByDefaultForTesting)
+            {
+                ProgressionConfig.AllSpellsLearnedByDefaultForTesting = false;
+                changed = true;
+            }
+
             try
             {
                 api.StoreModConfig(ProgressionConfig, RustweaveConstants.ProgressionConfigFileName);
@@ -955,6 +1031,11 @@ namespace TheRustweave
             catch (Exception exception)
             {
                 api.Logger.Warning("[TheRustweave] Failed to store progression config defaults: {0}", exception.Message);
+            }
+
+            if (changed)
+            {
+                api.Logger.Notification("[TheRustweave] Disabled all-spells testing mode for survival/progression testing.");
             }
 
             api.Logger.Notification("[TheRustweave] Progression config loaded: AllSpellsLearnedByDefaultForTesting={0}", ProgressionConfig.AllSpellsLearnedByDefaultForTesting);
@@ -1140,6 +1221,7 @@ namespace TheRustweave
         public static void InitializeServer(ICoreServerAPI api)
         {
             ServerApi = api;
+            RustweaveStateService.InitializeWorldState(api);
             Server = new RustweaveServerController(api);
             Server.Start();
         }
@@ -1149,6 +1231,21 @@ namespace TheRustweave
             ClientApi = api;
             Client = new RustweaveClientController(api);
             Client.Start();
+        }
+
+        public static void ShutdownServer()
+        {
+            Server?.Dispose();
+            Server = null;
+            RustweaveStateService.ShutdownWorldState();
+            ServerApi = null;
+        }
+
+        public static void ShutdownClient()
+        {
+            Client?.Dispose();
+            Client = null;
+            ClientApi = null;
         }
     }
 
@@ -1162,6 +1259,16 @@ namespace TheRustweave
         };
 
         private static readonly Dictionary<string, RustweavePlayerStateData> CachedServerStates = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly object WorldSaveLock = new();
+        private static ICoreServerAPI? CurrentServerApi;
+        private static RustweaveWorldSaveData CurrentWorldSaveData = new();
+        private static string CurrentWorldScopeKey = string.Empty;
+        private static string CurrentWorldScopeLabel = "unknown";
+        private static string CurrentWorldSavePath = string.Empty;
+        private static bool CurrentWorldSaveLoaded;
+        private static bool CurrentWorldSaveDirty;
+        private static long NextWorldSaveFlushMilliseconds;
+        private static bool LegacyGlobalPlayerStateWarningLogged;
 
         public static string GetClassCode(IPlayer? player)
         {
@@ -1458,7 +1565,11 @@ namespace TheRustweave
                 SpellCastCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
                 KnowledgeRankIndex = 0,
                 PreparedSpellCodes = new List<string>(RustweaveConstants.PreparedSlotCount),
-                SelectedPreparedSpellIndex = -1
+                ActivePreparedSlotId = null,
+                LegacySelectedPreparedSpellIndex = null,
+                FreezeTemporalStabilityLossSourceSpellCode = string.Empty,
+                BraceNextDisplacementSourceSpellCode = string.Empty,
+                FoundationalFabricSourceSpellCode = string.Empty
             };
 
             while (state.PreparedSpellCodes.Count < RustweaveConstants.PreparedSlotCount)
@@ -1494,6 +1605,18 @@ namespace TheRustweave
             state.DiscoveryResearchProgress ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             state.DiscoveryItemUseCounts ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             state.MentorStudies ??= new List<RustweaveMentorStudyData>();
+            state.SpellCooldowns ??= new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            state.FreezeTemporalStabilityLossSourceSpellCode ??= string.Empty;
+            state.BraceNextDisplacementSourceSpellCode ??= string.Empty;
+            state.FoundationalFabricSourceSpellCode ??= string.Empty;
+            state.FreezeTemporalStabilityLossStartedAtTotalDays = Math.Max(0d, state.FreezeTemporalStabilityLossStartedAtTotalDays);
+            state.FreezeTemporalStabilityLossExpiresAtTotalDays = Math.Max(0d, state.FreezeTemporalStabilityLossExpiresAtTotalDays);
+            state.BraceNextDisplacementStartedAtTotalDays = Math.Max(0d, state.BraceNextDisplacementStartedAtTotalDays);
+            state.BraceNextDisplacementExpiresAtTotalDays = Math.Max(0d, state.BraceNextDisplacementExpiresAtTotalDays);
+            state.FoundationalFabricStartedAtTotalDays = Math.Max(0d, state.FoundationalFabricStartedAtTotalDays);
+            state.FoundationalFabricExpiresAtTotalDays = Math.Max(0d, state.FoundationalFabricExpiresAtTotalDays);
+            state.FoundationalFabricReductionPercent = Math.Max(0d, state.FoundationalFabricReductionPercent);
+            state.FoundationalFabricDebtAmount = Math.Max(0, state.FoundationalFabricDebtAmount);
 
             if (state.SpellProgressionVersion < CurrentProgressionVersion)
             {
@@ -1538,9 +1661,17 @@ namespace TheRustweave
             }
 
             state.PreparedSpellCodes = normalizedPrepared;
-            state.SelectedPreparedSpellIndex = IsValidSlotIndex(state.SelectedPreparedSpellIndex)
-                ? state.SelectedPreparedSpellIndex
-                : -1;
+            if (!state.ActivePreparedSlotId.HasValue && state.LegacySelectedPreparedSpellIndex.HasValue)
+            {
+                var legacyIndex = state.LegacySelectedPreparedSpellIndex.Value;
+                if (legacyIndex >= 0 && legacyIndex < RustweaveConstants.PreparedSlotCount)
+                {
+                    state.ActivePreparedSlotId = ToSlotId(legacyIndex);
+                }
+            }
+
+            state.ActivePreparedSlotId = NormalizeActiveSlotId(state.ActivePreparedSlotId, state.PreparedSpellCodes);
+            state.LegacySelectedPreparedSpellIndex = null;
 
             state.DiscoveryResearchProgress = state.DiscoveryResearchProgress
                 .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value > 0)
@@ -1552,9 +1683,385 @@ namespace TheRustweave
                 .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.Max(pair => pair.Value), StringComparer.OrdinalIgnoreCase);
 
+            state.SpellCooldowns = state.SpellCooldowns
+                .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value > 0d)
+                .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.Max(pair => pair.Value), StringComparer.OrdinalIgnoreCase);
+
             RustweaveMentorService.NormalizeMentorStudies(state);
 
             return state;
+        }
+
+        public static bool HasActiveFreezeTemporalStabilityLoss(RustweavePlayerStateData state, double nowTotalDays)
+        {
+            return state != null
+                && !string.IsNullOrWhiteSpace(state.FreezeTemporalStabilityLossSourceSpellCode)
+                && state.FreezeTemporalStabilityLossStartedAtTotalDays > 0d
+                && state.FreezeTemporalStabilityLossExpiresAtTotalDays > nowTotalDays;
+        }
+
+        public static bool HasActiveBraceNextDisplacement(RustweavePlayerStateData state, double nowTotalDays)
+        {
+            return state != null
+                && !string.IsNullOrWhiteSpace(state.BraceNextDisplacementSourceSpellCode)
+                && state.BraceNextDisplacementStartedAtTotalDays > 0d
+                && state.BraceNextDisplacementExpiresAtTotalDays > nowTotalDays;
+        }
+
+        public static bool HasActiveFoundationalFabric(RustweavePlayerStateData state, double nowTotalDays)
+        {
+            return state != null
+                && !string.IsNullOrWhiteSpace(state.FoundationalFabricSourceSpellCode)
+                && state.FoundationalFabricStartedAtTotalDays > 0d
+                && state.FoundationalFabricExpiresAtTotalDays > nowTotalDays
+                && state.FoundationalFabricReductionPercent > 0d;
+        }
+
+        public static bool TryApplyFoundationalFabricDiscount(RustweavePlayerStateData state, string spellCode, int baseCost, double nowTotalDays, out int adjustedCost, out int savedDebt)
+        {
+            adjustedCost = Math.Max(0, baseCost);
+            savedDebt = 0;
+
+            if (state == null || baseCost <= 0 || string.IsNullOrWhiteSpace(spellCode))
+            {
+                return true;
+            }
+
+            if (!HasActiveFoundationalFabric(state, nowTotalDays) || string.Equals(spellCode, "foundational-fabric", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var reductionPercent = Math.Max(0d, Math.Min(0.99d, state.FoundationalFabricReductionPercent));
+            if (reductionPercent <= 0d)
+            {
+                return true;
+            }
+
+            savedDebt = (int)Math.Ceiling(baseCost * reductionPercent);
+            adjustedCost = Math.Max(0, baseCost - savedDebt);
+            return true;
+        }
+
+        public static int AddFoundationalFabricDebt(RustweavePlayerStateData state, int debtAmount)
+        {
+            if (state == null || debtAmount <= 0)
+            {
+                return Math.Max(0, state?.FoundationalFabricDebtAmount ?? 0);
+            }
+
+            state.FoundationalFabricDebtAmount = Math.Max(0, state.FoundationalFabricDebtAmount + debtAmount);
+            return state.FoundationalFabricDebtAmount;
+        }
+
+        public static void ClearFoundationalFabric(RustweavePlayerStateData state)
+        {
+            if (state == null)
+            {
+                return;
+            }
+
+            state.FoundationalFabricStartedAtTotalDays = 0d;
+            state.FoundationalFabricExpiresAtTotalDays = 0d;
+            state.FoundationalFabricSourceSpellCode = string.Empty;
+            state.FoundationalFabricReductionPercent = 0d;
+            state.FoundationalFabricDebtAmount = 0;
+        }
+
+        public static void ClearFreezeTemporalStabilityLoss(RustweavePlayerStateData state)
+        {
+            if (state == null)
+            {
+                return;
+            }
+
+            state.FreezeTemporalStabilityLossStartedAtTotalDays = 0d;
+            state.FreezeTemporalStabilityLossExpiresAtTotalDays = 0d;
+            state.FreezeTemporalStabilityLossBaseline = 0d;
+            state.FreezeTemporalStabilityLossSourceSpellCode = string.Empty;
+        }
+
+        public static void ClearBraceNextDisplacement(RustweavePlayerStateData state)
+        {
+            if (state == null)
+            {
+                return;
+            }
+
+            state.BraceNextDisplacementStartedAtTotalDays = 0d;
+            state.BraceNextDisplacementExpiresAtTotalDays = 0d;
+            state.BraceNextDisplacementSourceSpellCode = string.Empty;
+        }
+
+        public static bool TryReadNumericMemberValue(object target, out double value, params string[] memberNames)
+        {
+            value = 0d;
+            if (target == null || memberNames == null || memberNames.Length == 0)
+            {
+                return false;
+            }
+
+            var type = target.GetType();
+            foreach (var memberName in memberNames.Where(name => !string.IsNullOrWhiteSpace(name)))
+            {
+                var property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (property?.CanRead == true)
+                {
+                    var current = property.GetValue(target);
+                    if (current is int currentInt)
+                    {
+                        value = currentInt;
+                        return true;
+                    }
+
+                    if (current is long currentLong)
+                    {
+                        value = currentLong;
+                        return true;
+                    }
+
+                    if (current is float currentFloat)
+                    {
+                        value = currentFloat;
+                        return true;
+                    }
+
+                    if (current is double currentDouble)
+                    {
+                        value = currentDouble;
+                        return true;
+                    }
+                }
+
+                var field = type.GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (field != null)
+                {
+                    var current = field.GetValue(target);
+                    if (current is int currentInt)
+                    {
+                        value = currentInt;
+                        return true;
+                    }
+
+                    if (current is long currentLong)
+                    {
+                        value = currentLong;
+                        return true;
+                    }
+
+                    if (current is float currentFloat)
+                    {
+                        value = currentFloat;
+                        return true;
+                    }
+
+                    if (current is double currentDouble)
+                    {
+                        value = currentDouble;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public static bool TrySetNumericMemberValue(object target, double value, params string[] memberNames)
+        {
+            if (target == null || memberNames == null || memberNames.Length == 0)
+            {
+                return false;
+            }
+
+            var type = target.GetType();
+            foreach (var memberName in memberNames.Where(name => !string.IsNullOrWhiteSpace(name)))
+            {
+                var property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (property?.CanRead == true && property.CanWrite == true)
+                {
+                    try
+                    {
+                        object converted = property.PropertyType == typeof(float)
+                            ? (object)(float)value
+                            : property.PropertyType == typeof(int)
+                                ? (object)(int)Math.Round(value)
+                                : property.PropertyType == typeof(long)
+                                    ? (object)(long)Math.Round(value)
+                                    : (object)value;
+                        property.SetValue(target, converted);
+                        return true;
+                    }
+                    catch
+                    {
+                        // keep probing
+                    }
+                }
+
+                var field = type.GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (field != null)
+                {
+                    try
+                    {
+                        object converted = field.FieldType == typeof(float)
+                            ? (object)(float)value
+                            : field.FieldType == typeof(int)
+                                ? (object)(int)Math.Round(value)
+                                : field.FieldType == typeof(long)
+                                    ? (object)(long)Math.Round(value)
+                                    : (object)value;
+                        field.SetValue(target, converted);
+                        return true;
+                    }
+                    catch
+                    {
+                        // keep probing
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public static bool TryReadWatchedAttributeNumericValue(Entity entity, out double value, params string[] keys)
+        {
+            value = 0d;
+            if (entity == null || keys == null || keys.Length == 0)
+            {
+                return false;
+            }
+
+            var watchedAttributes = entity.GetType().GetProperty("WatchedAttributes", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)?.GetValue(entity);
+            if (watchedAttributes == null)
+            {
+                return false;
+            }
+
+            var type = watchedAttributes.GetType();
+            foreach (var key in keys.Where(entry => !string.IsNullOrWhiteSpace(entry)))
+            {
+                foreach (var getterName in new[] { "GetFloat", "GetDouble", "GetInt" })
+                {
+                    var getter = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                        .FirstOrDefault(method => string.Equals(method.Name, getterName, StringComparison.OrdinalIgnoreCase)
+                            && method.GetParameters().Length >= 1
+                            && method.GetParameters()[0].ParameterType == typeof(string));
+                    if (getter == null)
+                    {
+                        continue;
+                    }
+
+                    object? currentValue;
+                    try
+                    {
+                        var getterArgs = getter.GetParameters().Length == 1 ? new object[] { key } : new object[] { key, 0 };
+                        currentValue = getter.Invoke(watchedAttributes, getterArgs);
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+
+                    if (currentValue is float currentFloat)
+                    {
+                        value = currentFloat;
+                        return true;
+                    }
+
+                    if (currentValue is double currentDouble)
+                    {
+                        value = currentDouble;
+                        return true;
+                    }
+
+                    if (currentValue is int currentInt)
+                    {
+                        value = currentInt;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public static bool TrySetWatchedAttributeNumericValue(Entity entity, double value, params string[] keys)
+        {
+            if (entity == null || keys == null || keys.Length == 0)
+            {
+                return false;
+            }
+
+            var watchedAttributes = entity.GetType().GetProperty("WatchedAttributes", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)?.GetValue(entity);
+            if (watchedAttributes == null)
+            {
+                return false;
+            }
+
+            var type = watchedAttributes.GetType();
+            foreach (var key in keys.Where(entry => !string.IsNullOrWhiteSpace(entry)))
+            {
+                foreach (var setterName in new[] { "SetFloat", "SetDouble", "SetInt" })
+                {
+                    var setter = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                        .FirstOrDefault(method => string.Equals(method.Name, setterName, StringComparison.OrdinalIgnoreCase)
+                            && method.GetParameters().Length == 2
+                            && method.GetParameters()[0].ParameterType == typeof(string));
+                    if (setter == null)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        var parameterType = setter.GetParameters()[1].ParameterType;
+                        object converted = parameterType == typeof(float)
+                            ? (object)(float)value
+                            : parameterType == typeof(int)
+                                ? (object)(int)Math.Round(value)
+                                : (object)value;
+                        setter.Invoke(watchedAttributes, new[] { key, converted });
+                        return true;
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public static bool TryReadTemporalStabilityValue(Entity entity, out double value)
+        {
+            value = 0d;
+            if (entity == null)
+            {
+                return false;
+            }
+
+            if (TryReadNumericMemberValue(entity, out value, "TemporalStability", "temporalStability", "TempStability", "tempStability", "Stability", "stability"))
+            {
+                return true;
+            }
+
+            return TryReadWatchedAttributeNumericValue(entity, out value, "temporalStability", "tempStability", "stability");
+        }
+
+        public static bool TrySetTemporalStabilityValue(Entity entity, double value)
+        {
+            if (entity == null)
+            {
+                return false;
+            }
+
+            if (TrySetNumericMemberValue(entity, value, "TemporalStability", "temporalStability", "TempStability", "tempStability", "Stability", "stability"))
+            {
+                return true;
+            }
+
+            return TrySetWatchedAttributeNumericValue(entity, value, "temporalStability", "tempStability", "stability");
         }
 
         public static bool IsSpellLearned(string spellCode, RustweavePlayerStateData state)
@@ -1597,82 +2104,89 @@ namespace TheRustweave
             return false;
         }
 
-        public static int NormalizeSelectedIndex(int selectedIndex, IReadOnlyList<string> preparedSpellCodes)
+        public static bool IsValidSlotId(int slotId)
         {
-            if (selectedIndex >= 0 && selectedIndex < preparedSpellCodes.Count)
-            {
-                return selectedIndex;
-            }
-
-            var firstPrepared = GetFirstPreparedSlotIndex(preparedSpellCodes);
-            return firstPrepared >= 0 ? firstPrepared : -1;
+            return slotId >= 1 && slotId <= RustweaveConstants.PreparedSlotCount;
         }
 
-        public static int GetFirstPreparedSlotIndex(IReadOnlyList<string> preparedSpellCodes)
+        public static int ToArrayIndex(int slotId)
         {
-            for (var index = 0; index < preparedSpellCodes.Count; index++)
-            {
-                if (!string.IsNullOrWhiteSpace(preparedSpellCodes[index]))
-                {
-                    return index;
-                }
-            }
-
-            return -1;
+            return slotId - 1;
         }
 
-        public static string GetPreparedSpellCode(RustweavePlayerStateData state, int slotIndex)
+        public static int ToSlotId(int arrayIndex)
         {
-            if (slotIndex < 0 || slotIndex >= state.PreparedSpellCodes.Count)
+            return arrayIndex + 1;
+        }
+
+        public static int ToDisplaySlotNumber(int slotId)
+        {
+            return slotId;
+        }
+
+        public static string GetPreparedSpellCode(RustweavePlayerStateData state, int? slotId)
+        {
+            if (state == null || !slotId.HasValue || !IsValidSlotId(slotId.Value))
             {
                 return string.Empty;
             }
 
-            return state.PreparedSpellCodes[slotIndex] ?? string.Empty;
+            var arrayIndex = ToArrayIndex(slotId.Value);
+            if (arrayIndex < 0 || arrayIndex >= state.PreparedSpellCodes.Count)
+            {
+                return string.Empty;
+            }
+
+            return state.PreparedSpellCodes[arrayIndex] ?? string.Empty;
         }
 
-        public static string GetPreparedSlotDisplayText(RustweavePlayerStateData state, int slotIndex)
+        public static string GetPreparedSlotDisplayText(RustweavePlayerStateData state, int? slotId)
         {
-            var spellCode = GetPreparedSpellCode(state, slotIndex);
+            var spellCode = GetPreparedSpellCode(state, slotId);
             return string.IsNullOrWhiteSpace(spellCode) ? "Empty" : GetSpellDisplayName(spellCode);
         }
 
         public static string GetSelectedPreparedSpellCode(RustweavePlayerStateData state)
         {
-            return GetPreparedSpellCode(state, state.SelectedPreparedSpellIndex);
+            return GetPreparedSpellCode(state, state.ActivePreparedSlotId);
         }
 
-        public static int FindPreparedSpellSlot(RustweavePlayerStateData state, string spellCode)
+        public static int? FindPreparedSpellSlot(RustweavePlayerStateData state, string spellCode)
         {
-            for (var index = 0; index < state.PreparedSpellCodes.Count; index++)
+            if (state == null || string.IsNullOrWhiteSpace(spellCode))
             {
-                if (string.Equals(state.PreparedSpellCodes[index], spellCode, StringComparison.OrdinalIgnoreCase))
+                return null;
+            }
+
+            for (var arrayIndex = 0; arrayIndex < state.PreparedSpellCodes.Count; arrayIndex++)
+            {
+                if (string.Equals(state.PreparedSpellCodes[arrayIndex], spellCode, StringComparison.OrdinalIgnoreCase))
                 {
-                    return index;
+                    return ToSlotId(arrayIndex);
                 }
             }
 
-            return -1;
+            return null;
         }
 
-        public static int CycleSelection(RustweavePlayerStateData state, int delta)
+        public static int? CycleSelection(RustweavePlayerStateData state, int delta)
         {
-            var occupiedSlots = Enumerable.Range(0, state.PreparedSpellCodes.Count)
-                .Where(index => !string.IsNullOrWhiteSpace(state.PreparedSpellCodes[index]))
+            var occupiedSlots = Enumerable.Range(1, RustweaveConstants.PreparedSlotCount)
+                .Where(slotId => !string.IsNullOrWhiteSpace(GetPreparedSpellCode(state, (int?)slotId)))
                 .ToList();
 
             if (occupiedSlots.Count == 0)
             {
-                return -1;
+                return null;
             }
 
-            var currentIndex = NormalizeSelectedIndex(state.SelectedPreparedSpellIndex, state.PreparedSpellCodes);
-            if (currentIndex < 0)
+            var currentSlot = NormalizeActiveSlotId(state.ActivePreparedSlotId, state.PreparedSpellCodes);
+            if (!currentSlot.HasValue)
             {
                 return occupiedSlots[0];
             }
 
-            var currentPosition = occupiedSlots.IndexOf(currentIndex);
+            var currentPosition = occupiedSlots.IndexOf(currentSlot.Value);
             if (currentPosition < 0)
             {
                 return occupiedSlots[0];
@@ -1687,110 +2201,156 @@ namespace TheRustweave
             return occupiedSlots[nextPosition];
         }
 
-        public static int ResolvePrepareTargetSlot(RustweavePlayerStateData state, int targetSlotIndex)
+        public static int? ResolvePrepareTargetSlot(RustweavePlayerStateData state, int? targetSlotId)
         {
-            if (IsValidSlotIndex(targetSlotIndex))
+            if (targetSlotId.HasValue && IsValidSlotId(targetSlotId.Value))
             {
-                return targetSlotIndex;
+                return targetSlotId.Value;
             }
 
-            if (IsValidSlotIndex(state.SelectedPreparedSpellIndex))
+            var firstEmpty = FindFirstEmptySlotId(state);
+            if (firstEmpty.HasValue)
             {
-                return state.SelectedPreparedSpellIndex;
+                return firstEmpty.Value;
             }
 
-            return GetFirstEmptyPreparedSlotIndex(state.PreparedSpellCodes);
+            if (IsValidSlotId(state.ActivePreparedSlotId ?? -1))
+            {
+                return state.ActivePreparedSlotId;
+            }
+
+            return null;
         }
 
-        public static bool TryPrepareSpell(RustweavePlayerStateData state, string spellCode, int targetSlotIndex)
+        public static bool TryPrepareSpell(RustweavePlayerStateData state, string spellCode, int? targetSlotId)
         {
-            if (string.IsNullOrWhiteSpace(spellCode))
+            if (state == null || string.IsNullOrWhiteSpace(spellCode))
             {
                 return false;
             }
 
             var existingSlot = FindPreparedSpellSlot(state, spellCode);
-            var slotIndex = ResolvePrepareTargetSlot(state, targetSlotIndex);
-
-            if (slotIndex < 0)
+            if (existingSlot.HasValue)
             {
-                return false;
-            }
-
-            if (existingSlot >= 0 && existingSlot != slotIndex)
-            {
-                return false;
-            }
-
-            if (existingSlot == slotIndex && string.Equals(state.PreparedSpellCodes[slotIndex], spellCode, StringComparison.OrdinalIgnoreCase))
-            {
+                state.ActivePreparedSlotId = existingSlot;
                 return true;
             }
 
-            state.PreparedSpellCodes[slotIndex] = spellCode;
-            return true;
-        }
-
-        public static bool TryUnprepareSpell(RustweavePlayerStateData state, int slotIndex)
-        {
-            if (!IsValidSlotIndex(slotIndex))
+            var slotId = ResolvePrepareTargetSlot(state, targetSlotId);
+            if (!slotId.HasValue || !IsValidSlotId(slotId.Value))
             {
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(state.PreparedSpellCodes[slotIndex]))
+            var arrayIndex = ToArrayIndex(slotId.Value);
+            if (arrayIndex < 0 || arrayIndex >= state.PreparedSpellCodes.Count)
             {
                 return false;
             }
 
-            state.PreparedSpellCodes[slotIndex] = string.Empty;
+            if (string.Equals(state.PreparedSpellCodes[arrayIndex], spellCode, StringComparison.OrdinalIgnoreCase))
+            {
+                state.ActivePreparedSlotId = slotId;
+                return true;
+            }
 
+            state.PreparedSpellCodes[arrayIndex] = spellCode;
+            state.ActivePreparedSlotId = slotId;
             return true;
         }
 
-        public static bool TrySelectPreparedSpell(RustweavePlayerStateData state, int slotIndex)
+        public static bool TryUnprepareSpell(RustweavePlayerStateData state, int slotId)
         {
-            if (!IsValidSlotIndex(slotIndex))
+            if (state == null || !IsValidSlotId(slotId))
             {
                 return false;
             }
 
-            state.SelectedPreparedSpellIndex = slotIndex;
+            var arrayIndex = ToArrayIndex(slotId);
+            if (arrayIndex < 0 || arrayIndex >= state.PreparedSpellCodes.Count)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(state.PreparedSpellCodes[arrayIndex]))
+            {
+                return false;
+            }
+
+            state.PreparedSpellCodes[arrayIndex] = string.Empty;
+            if (state.ActivePreparedSlotId == slotId)
+            {
+                state.ActivePreparedSlotId = null;
+            }
+
             return true;
         }
 
-        public static bool IsValidSlotIndex(int slotIndex)
+        public static bool TrySelectPreparedSpell(RustweavePlayerStateData state, int slotId)
         {
-            return slotIndex >= 0 && slotIndex < RustweaveConstants.PreparedSlotCount;
-        }
-
-        public static int ToDisplaySlotNumber(int slotIndex)
-        {
-            return slotIndex + 1;
-        }
-
-        public static int ToInternalSlotIndex(int displaySlotNumber)
-        {
-            return displaySlotNumber - 1;
-        }
-
-        public static string DescribePreparedSlot(int slotIndex)
-        {
-            return IsValidSlotIndex(slotIndex) ? ToDisplaySlotNumber(slotIndex).ToString(CultureInfo.InvariantCulture) : "none";
-        }
-
-        public static int GetFirstEmptyPreparedSlotIndex(IReadOnlyList<string> preparedSpellCodes)
-        {
-            for (var index = 0; index < preparedSpellCodes.Count; index++)
+            if (state == null || !IsValidSlotId(slotId))
             {
-                if (string.IsNullOrWhiteSpace(preparedSpellCodes[index]))
+                return false;
+            }
+
+            state.ActivePreparedSlotId = slotId;
+            return true;
+        }
+
+        public static string DescribePreparedSlot(int? slotId)
+        {
+            return slotId.HasValue && IsValidSlotId(slotId.Value)
+                ? slotId.Value.ToString(CultureInfo.InvariantCulture)
+                : "none";
+        }
+
+        public static int? FindFirstEmptySlotId(RustweavePlayerStateData state)
+        {
+            if (state == null)
+            {
+                return null;
+            }
+
+            for (var arrayIndex = 0; arrayIndex < state.PreparedSpellCodes.Count; arrayIndex++)
+            {
+                if (string.IsNullOrWhiteSpace(state.PreparedSpellCodes[arrayIndex]))
                 {
-                    return index;
+                    return ToSlotId(arrayIndex);
                 }
             }
 
-            return -1;
+            return null;
         }
+
+        public static int? NormalizeActiveSlotId(int? selectedSlotId, IReadOnlyList<string> preparedSpellCodes)
+        {
+            if (selectedSlotId.HasValue && selectedSlotId.Value >= 1 && selectedSlotId.Value <= preparedSpellCodes.Count)
+            {
+                var arrayIndex = ToArrayIndex(selectedSlotId.Value);
+                if (arrayIndex >= 0 && arrayIndex < preparedSpellCodes.Count && !string.IsNullOrWhiteSpace(preparedSpellCodes[arrayIndex]))
+                {
+                    return selectedSlotId.Value;
+                }
+            }
+
+            return null;
+        }
+
+        [Obsolete("Use IsValidSlotId.")]
+        public static bool IsValidSlotIndex(int slotIndex) => IsValidSlotId(slotIndex);
+
+        [Obsolete("Use ToArrayIndex.")]
+        public static int ToInternalSlotIndex(int displaySlotNumber) => ToArrayIndex(displaySlotNumber);
+
+        [Obsolete("Use FindFirstEmptySlotId.")]
+        public static int GetFirstEmptyPreparedSlotIndex(IReadOnlyList<string> preparedSpellCodes)
+        {
+            var state = new RustweavePlayerStateData { PreparedSpellCodes = preparedSpellCodes.ToList() };
+            return FindFirstEmptySlotId(state) ?? -1;
+        }
+
+        [Obsolete("Use GetPreparedSpellCode with a SlotId.")]
+        public static string GetPreparedSpellCode(RustweavePlayerStateData state, int slotIndex) => GetPreparedSpellCode(state, (int?)slotIndex);
 
         public static IReadOnlyList<string> GetLearnedSpellCodes(RustweavePlayerStateData state)
         {
@@ -2336,18 +2896,38 @@ namespace TheRustweave
 
         public static void SaveServerState(IServerPlayer player, RustweavePlayerStateData state)
         {
-            var bytes = Encoding.UTF8.GetBytes(SerializePlayerState(state));
-            player.SetModdata(RustweaveConstants.PlayerStateModDataKey, bytes);
+            if (player == null)
+            {
+                return;
+            }
+
+            lock (WorldSaveLock)
+            {
+                state = NormalizeState(state);
+                CurrentWorldSaveData.PlayerStatesByUid[player.PlayerUID] = state.Clone();
+                CachedServerStates[GetWorldCacheKey(player.PlayerUID)] = state;
+                CurrentWorldSaveDirty = true;
+                NextWorldSaveFlushMilliseconds = 0;
+            }
+
             SyncWatchedPlayerState(player, state);
             player.BroadcastPlayerData(false);
         }
 
         public static RustweavePlayerStateData LoadServerState(IServerPlayer player)
         {
-            if (CachedServerStates.TryGetValue(player.PlayerUID, out var cached))
+            if (player == null)
             {
-                var cachedJson = SerializePlayerState(cached);
+                return CreateFreshState();
+            }
+
+            EnsureWorldStateLoaded();
+
+            var cacheKey = GetWorldCacheKey(player.PlayerUID);
+            if (CachedServerStates.TryGetValue(cacheKey, out var cached))
+            {
                 var watchedCachedStateJson = player.Entity?.WatchedAttributes?.GetString(RustweaveConstants.WatchedPlayerStateKey, string.Empty) ?? string.Empty;
+                var cachedJson = SerializePlayerState(cached);
                 if (!string.Equals(watchedCachedStateJson, cachedJson, StringComparison.Ordinal))
                 {
                     SyncWatchedPlayerState(player, cached);
@@ -2356,19 +2936,43 @@ namespace TheRustweave
                 return cached;
             }
 
-            var raw = player.GetModdata(RustweaveConstants.PlayerStateModDataKey);
-            var isNewState = raw == null || raw.Length == 0;
-            var rawJson = raw == null ? string.Empty : Encoding.UTF8.GetString(raw);
-            var state = isNewState
-                ? CreateFreshState()
-                : DeserializePlayerState(rawJson);
+            RustweavePlayerStateData? state = null;
+            var hadLegacyPreparedSlot = false;
+            if (CurrentWorldSaveData.PlayerStatesByUid.TryGetValue(player.PlayerUID, out var savedState))
+            {
+                state = savedState?.Clone();
+                hadLegacyPreparedSlot = state?.LegacySelectedPreparedSpellIndex.HasValue == true;
+            }
+            else
+            {
+                var legacyRaw = player.GetModdata(RustweaveConstants.PlayerStateModDataKey);
+                if ((legacyRaw?.Length ?? 0) > 0 && !LegacyGlobalPlayerStateWarningLogged)
+                {
+                    LegacyGlobalPlayerStateWarningLogged = true;
+                    CurrentServerApi?.Logger.Warning("[TheRustweave] Ignoring legacy global player state; Rustweave progression is now world-specific.");
+                }
+
+                state = CreateFreshState();
+                CurrentServerApi?.Logger.Debug("[TheRustweave] Created fresh Rustweave player state for '{0}' in this world.", player.PlayerUID);
+                CurrentWorldSaveData.PlayerStatesByUid[player.PlayerUID] = state.Clone();
+                CurrentWorldSaveDirty = true;
+                NextWorldSaveFlushMilliseconds = 0;
+            }
 
             state = NormalizeState(state);
-            CachedServerStates[player.PlayerUID] = state;
-            var normalizedJson = SerializePlayerState(state);
-            if (isNewState || !string.Equals(rawJson, normalizedJson, StringComparison.Ordinal))
+            if (hadLegacyPreparedSlot)
             {
-                player.SetModdata(RustweaveConstants.PlayerStateModDataKey, Encoding.UTF8.GetBytes(normalizedJson));
+                CurrentServerApi?.Logger.Notification("[TheRustweave] Migrated prepared spell slots to 1-based slot IDs for player '{0}'.", player.PlayerName);
+            }
+            CachedServerStates[cacheKey] = state;
+
+            var normalizedJson = SerializePlayerState(state);
+            var savedJson = savedState != null ? SerializePlayerState(savedState) : string.Empty;
+            if (savedState == null || !string.Equals(savedJson, normalizedJson, StringComparison.Ordinal))
+            {
+                CurrentWorldSaveData.PlayerStatesByUid[player.PlayerUID] = state.Clone();
+                CurrentWorldSaveDirty = true;
+                NextWorldSaveFlushMilliseconds = 0;
             }
 
             var watchedStateJson = player.Entity?.WatchedAttributes?.GetString(RustweaveConstants.WatchedPlayerStateKey, string.Empty) ?? string.Empty;
@@ -2382,7 +2986,31 @@ namespace TheRustweave
 
         public static void CacheServerState(IServerPlayer player, RustweavePlayerStateData state)
         {
-            CachedServerStates[player.PlayerUID] = state;
+            if (player == null || state == null)
+            {
+                return;
+            }
+
+            CachedServerStates[GetWorldCacheKey(player.PlayerUID)] = state;
+        }
+
+        public static bool TryGetCachedServerState(string playerUid, out RustweavePlayerStateData state)
+        {
+            return CachedServerStates.TryGetValue(GetWorldCacheKey(playerUid), out state!);
+        }
+
+        public static bool HasStoredServerState(string playerUid)
+        {
+            if (string.IsNullOrWhiteSpace(playerUid))
+            {
+                return false;
+            }
+
+            lock (WorldSaveLock)
+            {
+                return CachedServerStates.ContainsKey(GetWorldCacheKey(playerUid))
+                    || CurrentWorldSaveData.PlayerStatesByUid.ContainsKey(playerUid);
+            }
         }
 
         public static void SyncWatchedPlayerState(IPlayer player, RustweavePlayerStateData state)
@@ -2428,6 +3056,29 @@ namespace TheRustweave
             return true;
         }
 
+        public static void EnsureWorldStateLoaded()
+        {
+            lock (WorldSaveLock)
+            {
+                if (CurrentWorldSaveLoaded)
+                {
+                    return;
+                }
+
+                if (CurrentServerApi == null)
+                {
+                    return;
+                }
+
+                InitializeWorldState(CurrentServerApi);
+            }
+        }
+
+        private static string GetWorldCacheKey(string playerUid)
+        {
+            return $"{CurrentWorldScopeKey}|{playerUid}";
+        }
+
         public static string FormatSeconds(double seconds)
         {
             return seconds.ToString("0.0", CultureInfo.InvariantCulture);
@@ -2446,6 +3097,351 @@ namespace TheRustweave
                 ? spell.Description
                 : string.Empty;
         }
+
+        public static void InitializeWorldState(ICoreServerAPI api)
+        {
+            if (api == null)
+            {
+                return;
+            }
+
+            lock (WorldSaveLock)
+            {
+                CurrentServerApi = api;
+                var worldScope = ResolveWorldScope(api);
+                var scopeChanged = !string.Equals(CurrentWorldScopeKey, worldScope.ScopeKey, StringComparison.Ordinal);
+
+                if (scopeChanged)
+                {
+                    CachedServerStates.Clear();
+                    CurrentWorldSaveLoaded = false;
+                    CurrentWorldSaveDirty = false;
+                    NextWorldSaveFlushMilliseconds = 0;
+                }
+
+                CurrentWorldScopeKey = worldScope.ScopeKey;
+                CurrentWorldScopeLabel = worldScope.ScopeLabel;
+                CurrentWorldSavePath = ResolveWorldSavePath(api, worldScope.ScopeKey);
+
+                CurrentWorldSaveData = LoadWorldSaveData(api, CurrentWorldSavePath);
+                NormalizeWorldSaveData(CurrentWorldSaveData);
+                CurrentWorldSaveData.WorldKey = CurrentWorldScopeKey;
+                CurrentWorldSaveData.WorldLabel = CurrentWorldScopeLabel;
+                CurrentWorldSaveLoaded = true;
+
+                api.Logger.Notification("[TheRustweave] Loaded world-scoped Rustweave state for save '{0}'.", CurrentWorldScopeLabel);
+                api.Logger.Notification("[TheRustweave] Loaded Rustweave player state for {0} player(s) in this world.", CurrentWorldSaveData.PlayerStatesByUid.Count);
+            }
+        }
+
+        public static void ShutdownWorldState()
+        {
+            lock (WorldSaveLock)
+            {
+                if (CurrentServerApi != null && CurrentWorldSaveLoaded && CurrentWorldSaveDirty)
+                {
+                    SaveWorldStateInternal(CurrentServerApi, force: true);
+                }
+
+                CurrentServerApi = null;
+                CurrentWorldSaveData = new RustweaveWorldSaveData();
+                CurrentWorldScopeKey = string.Empty;
+                CurrentWorldScopeLabel = "unknown";
+                CurrentWorldSavePath = string.Empty;
+                CurrentWorldSaveLoaded = false;
+                CurrentWorldSaveDirty = false;
+                NextWorldSaveFlushMilliseconds = 0;
+                CachedServerStates.Clear();
+                LegacyGlobalPlayerStateWarningLogged = false;
+            }
+        }
+
+        public static void MarkWorldStateDirty()
+        {
+            lock (WorldSaveLock)
+            {
+                CurrentWorldSaveDirty = true;
+            }
+        }
+
+        public static void ProcessWorldStatePersistence(long nowMilliseconds)
+        {
+            lock (WorldSaveLock)
+            {
+                if (!CurrentWorldSaveLoaded || !CurrentWorldSaveDirty || CurrentServerApi == null)
+                {
+                    return;
+                }
+
+                if (NextWorldSaveFlushMilliseconds > 0 && nowMilliseconds < NextWorldSaveFlushMilliseconds)
+                {
+                    return;
+                }
+
+                SaveWorldStateInternal(CurrentServerApi, force: false);
+            }
+        }
+
+        public static IReadOnlyCollection<RustweaveActiveEffectRecord> GetWorldActiveEffects()
+        {
+            lock (WorldSaveLock)
+            {
+                return CurrentWorldSaveData.ActiveEffects.Select(effect => effect.Clone()).ToList();
+            }
+        }
+
+        public static void SetWorldActiveEffects(IEnumerable<RustweaveActiveEffectRecord> effects, bool markDirty = true)
+        {
+            lock (WorldSaveLock)
+            {
+                CurrentWorldSaveData.ActiveEffects = effects.Where(effect => effect != null).Select(effect => effect!.Clone()).ToList();
+                NormalizeWorldSaveData(CurrentWorldSaveData);
+                if (markDirty)
+                {
+                    CurrentWorldSaveDirty = true;
+                    NextWorldSaveFlushMilliseconds = 0;
+                }
+            }
+        }
+
+        private static string ResolveWorldSavePath(ICoreAPI api, string scopeKey)
+        {
+            var folder = TryGetDataPath(api, "therustweave");
+            if (string.IsNullOrWhiteSpace(folder))
+            {
+                folder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TheRustweave");
+            }
+
+            try
+            {
+                Directory.CreateDirectory(folder);
+            }
+            catch
+            {
+                // ignore directory creation failures here; the later write will report them
+            }
+
+            return System.IO.Path.Combine(folder, $"therustweave-worldstate-{scopeKey}.json");
+        }
+
+        private static string TryGetDataPath(ICoreAPI api, string relativePath)
+        {
+            try
+            {
+                var method = api.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                    .FirstOrDefault(candidate => string.Equals(candidate.Name, "GetOrCreateDataPath", StringComparison.OrdinalIgnoreCase)
+                        && candidate.GetParameters().Length == 1
+                        && candidate.GetParameters()[0].ParameterType == typeof(string)
+                        && candidate.ReturnType == typeof(string));
+                if (method != null)
+                {
+                    var result = method.Invoke(api, new object[] { relativePath }) as string;
+                    if (!string.IsNullOrWhiteSpace(result))
+                    {
+                        return result;
+                    }
+                }
+            }
+            catch
+            {
+                // fall back to local application data
+            }
+
+            return System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TheRustweave", relativePath);
+        }
+
+        private static (string ScopeKey, string ScopeLabel) ResolveWorldScope(ICoreAPI api)
+        {
+            var candidateValues = new List<string>();
+            var labelCandidates = new List<string>();
+            var candidateSources = new List<object>();
+            candidateSources.Add(api);
+            if (api?.World != null)
+            {
+                candidateSources.Add(api.World);
+            }
+
+            foreach (var source in candidateSources.Where(entry => entry != null))
+            {
+                CollectWorldScopeValue(source!, candidateValues, "SavegamePath", "SaveGamePath", "SavegameLocation", "SaveGameLocation");
+                CollectWorldScopeValue(source!, candidateValues, "SavegameIdentifier", "SaveGameIdentifier", "SavegameName", "SaveGameName", "WorldName", "Name", "FolderName");
+                CollectWorldScopeValue(source!, labelCandidates, "SavegameIdentifier", "SaveGameIdentifier", "SavegameName", "SaveGameName", "WorldName", "Name", "FolderName");
+                CollectWorldScopeValue(source!, candidateValues, "Seed", "WorldSeed");
+            }
+
+            var signature = candidateValues.Count > 0
+                ? string.Join("|", candidateValues.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()))
+                : string.Empty;
+
+            if (string.IsNullOrWhiteSpace(signature))
+            {
+                signature = "unknown-world";
+            }
+
+            var scopeLabel = labelCandidates.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
+                ?? candidateValues.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
+                ?? "unknown";
+            var scopeKey = ComputeStableHash(signature);
+            return (scopeKey, scopeLabel);
+        }
+
+        private static void CollectWorldScopeValue(object source, List<string> values, params string[] memberNames)
+        {
+            if (source == null || memberNames == null || memberNames.Length == 0)
+            {
+                return;
+            }
+
+            if (TryReadStringMemberValue(source, out var stringValue, memberNames) && !string.IsNullOrWhiteSpace(stringValue))
+            {
+                values.Add(stringValue);
+                return;
+            }
+
+            if (TryReadNumericMemberValue(source, out var numericValue, memberNames) && !double.IsNaN(numericValue))
+            {
+                values.Add(numericValue.ToString(CultureInfo.InvariantCulture));
+            }
+        }
+
+        private static string ComputeStableHash(string text)
+        {
+            var bytes = Encoding.UTF8.GetBytes(text ?? string.Empty);
+            var hash = SHA256.HashData(bytes);
+            var builder = new StringBuilder(hash.Length * 2);
+            foreach (var b in hash)
+            {
+                builder.Append(b.ToString("x2", CultureInfo.InvariantCulture));
+            }
+
+            return builder.ToString();
+        }
+
+        private static bool TryReadStringMemberValue(object target, out string value, params string[] memberNames)
+        {
+            value = string.Empty;
+            if (target == null || memberNames == null || memberNames.Length == 0)
+            {
+                return false;
+            }
+
+            var type = target.GetType();
+            foreach (var memberName in memberNames.Where(name => !string.IsNullOrWhiteSpace(name)))
+            {
+                var property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (property?.CanRead == true && property.PropertyType == typeof(string))
+                {
+                    value = property.GetValue(target) as string ?? string.Empty;
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        return true;
+                    }
+                }
+
+                var field = type.GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (field?.FieldType == typeof(string))
+                {
+                    value = field.GetValue(target) as string ?? string.Empty;
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static RustweaveWorldSaveData LoadWorldSaveData(ICoreAPI api, string filePath)
+        {
+            RustweaveWorldSaveData data;
+            try
+            {
+                if (File.Exists(filePath))
+                {
+                    var json = File.ReadAllText(filePath);
+                    data = string.IsNullOrWhiteSpace(json)
+                        ? new RustweaveWorldSaveData()
+                        : JsonConvert.DeserializeObject<RustweaveWorldSaveData>(json, JsonSettings) ?? new RustweaveWorldSaveData();
+                }
+                else
+                {
+                    data = new RustweaveWorldSaveData();
+                }
+            }
+            catch (Exception exception)
+            {
+                api.Logger.Warning("[TheRustweave] Failed to load world-scoped Rustweave state, using defaults: {0}", exception.Message);
+                data = new RustweaveWorldSaveData();
+            }
+
+            NormalizeWorldSaveData(data);
+            return data;
+        }
+
+        private static void NormalizeWorldSaveData(RustweaveWorldSaveData? data)
+        {
+            if (data == null)
+            {
+                return;
+            }
+
+            data.WorldKey = data.WorldKey ?? string.Empty;
+            data.WorldLabel = data.WorldLabel ?? string.Empty;
+            data.PlayerStatesByUid ??= new Dictionary<string, RustweavePlayerStateData>(StringComparer.OrdinalIgnoreCase);
+            data.ActiveEffects ??= new List<RustweaveActiveEffectRecord>();
+
+            var normalizedPlayers = new Dictionary<string, RustweavePlayerStateData>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in data.PlayerStatesByUid.Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value != null))
+            {
+                normalizedPlayers[entry.Key] = NormalizeState(entry.Value);
+            }
+
+            data.PlayerStatesByUid = normalizedPlayers;
+
+            var nowDays = CurrentServerApi?.World?.Calendar?.TotalDays ?? 0d;
+            data.ActiveEffects = data.ActiveEffects
+                .Where(effect => effect != null)
+                .Select(effect => effect!.Clone())
+                .Where(effect => effect.ExpiresAtTotalDays <= 0d || effect.ExpiresAtTotalDays >= nowDays)
+                .ToList();
+        }
+
+        private static void SaveWorldStateInternal(ICoreServerAPI api, bool force)
+        {
+            if (api == null || string.IsNullOrWhiteSpace(CurrentWorldSavePath))
+            {
+                return;
+            }
+
+            try
+            {
+                NormalizeWorldSaveData(CurrentWorldSaveData);
+                CurrentWorldSaveData.WorldKey = CurrentWorldScopeKey;
+                CurrentWorldSaveData.WorldLabel = CurrentWorldScopeLabel;
+
+                var json = JsonConvert.SerializeObject(CurrentWorldSaveData, Formatting.Indented, JsonSettings);
+                var directory = System.IO.Path.GetDirectoryName(CurrentWorldSavePath);
+                if (!string.IsNullOrWhiteSpace(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+                File.WriteAllText(CurrentWorldSavePath, json);
+                CurrentWorldSaveDirty = false;
+                NextWorldSaveFlushMilliseconds = api.World.ElapsedMilliseconds + 5000;
+            }
+            catch (Exception exception)
+            {
+                if (force)
+                {
+                    api.Logger.Warning("[TheRustweave] Failed to store world-scoped Rustweave state: {0}", exception.Message);
+                }
+                else
+                {
+                    api.Logger.Debug("[TheRustweave] Deferred world-scoped Rustweave state save failed: {0}", exception.Message);
+                }
+            }
+        }
     }
 
     internal sealed class RustweaveServerController
@@ -2459,7 +3455,6 @@ namespace TheRustweave
         private readonly Dictionary<string, RustweaveTimedStatModifier> activeTimedStatModifiers = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, RustweaveTimedDamageOverTime> activeDamageOverTimeEffects = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, RustweaveTimedShield> activeSpellShields = new(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, Dictionary<string, long>> spellCooldowns = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, RustweaveTargetPreviewPacket> activeTargetPreviews = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, RustweaveActiveCastRecord> activeTargetedCastRecords = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, RustweaveActiveEffectRecord> activeEffectRecords = new(StringComparer.OrdinalIgnoreCase);
@@ -2471,6 +3466,7 @@ namespace TheRustweave
         private long nextActiveEffectPersistenceSaveMilliseconds;
         private bool activeEffectRegistryDirty;
         private RustweaveActiveEffectRegistryConfig activeEffectRegistry = new();
+        private bool disposed;
 
         public RustweaveServerController(ICoreServerAPI sapi)
         {
@@ -2495,11 +3491,45 @@ namespace TheRustweave
             tickListenerId = sapi.Event.RegisterGameTickListener(OnServerTick, 50, 50);
         }
 
+        public void Dispose()
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            disposed = true;
+
+            try
+            {
+                if (activeEffectRegistryDirty)
+                {
+                    SaveActiveEffectRegistry();
+                }
+            }
+            catch
+            {
+                // ignore shutdown persistence failures
+            }
+
+            sapi.Event.PlayerJoin -= OnServerPlayerJoin;
+            sapi.Event.PlayerNowPlaying -= OnServerPlayerNowPlaying;
+            sapi.Event.PlayerLeave -= OnServerPlayerLeave;
+            if (tickListenerId > 0)
+            {
+                sapi.Event.UnregisterGameTickListener(tickListenerId);
+                tickListenerId = 0;
+            }
+        }
+
         private void LoadActiveEffectRegistry()
         {
             try
             {
-                activeEffectRegistry = sapi.LoadModConfig<RustweaveActiveEffectRegistryConfig>(RustweaveConstants.ActiveEffectConfigFileName) ?? new RustweaveActiveEffectRegistryConfig();
+                activeEffectRegistry = new RustweaveActiveEffectRegistryConfig
+                {
+                    ActiveEffects = RustweaveStateService.GetWorldActiveEffects().Select(effect => effect.Clone()).ToList()
+                };
             }
             catch (Exception exception)
             {
@@ -2528,14 +3558,7 @@ namespace TheRustweave
             }
 
             activeEffectRegistry.ActiveEffects = activeEffectRecords.Values.Select(effect => effect.Clone()).ToList();
-            try
-            {
-                sapi.StoreModConfig(activeEffectRegistry, RustweaveConstants.ActiveEffectConfigFileName);
-            }
-            catch (Exception exception)
-            {
-                sapi.Logger.Warning("[TheRustweave] Failed to store active effect registry defaults: {0}", exception.Message);
-            }
+            RustweaveStateService.SetWorldActiveEffects(activeEffectRegistry.ActiveEffects, false);
         }
 
         private void SaveActiveEffectRegistry()
@@ -2543,7 +3566,7 @@ namespace TheRustweave
             try
             {
                 activeEffectRegistry.ActiveEffects = activeEffectRecords.Values.Select(effect => effect.Clone()).ToList();
-                sapi.StoreModConfig(activeEffectRegistry, RustweaveConstants.ActiveEffectConfigFileName);
+                RustweaveStateService.SetWorldActiveEffects(activeEffectRegistry.ActiveEffects);
                 activeEffectRegistryDirty = false;
                 nextActiveEffectPersistenceSaveMilliseconds = sapi.World.ElapsedMilliseconds + 5000;
             }
@@ -3055,24 +4078,37 @@ namespace TheRustweave
 
         private void OnServerPlayerJoin(IServerPlayer player)
         {
-            if (player == null || !RustweaveStateService.IsRustweaver(player))
+            if (player == null)
             {
                 return;
             }
 
-            GetState(player);
-            ScheduleTabletDecayScan(player, 1500);
-        }
-
-        private void OnServerPlayerNowPlaying(IServerPlayer player)
-        {
-            if (player == null || !RustweaveStateService.IsRustweaver(player))
+            if (!RustweaveStateService.IsRustweaver(player) && !RustweaveStateService.HasStoredServerState(player.PlayerUID))
             {
                 return;
             }
 
             var state = GetState(player);
             SaveAndSyncState(player, state);
+            sapi.Logger.Debug("[TheRustweave] Loaded Rustweave state for {0}: corruption={1}", player.PlayerName, state.CurrentTemporalCorruption);
+            ScheduleTabletDecayScan(player, 1500);
+        }
+
+        private void OnServerPlayerNowPlaying(IServerPlayer player)
+        {
+            if (player == null)
+            {
+                return;
+            }
+
+            if (!RustweaveStateService.IsRustweaver(player) && !RustweaveStateService.HasStoredServerState(player.PlayerUID))
+            {
+                return;
+            }
+
+            var state = GetState(player);
+            SaveAndSyncState(player, state);
+            sapi.Logger.Debug("[TheRustweave] Loaded Rustweave state for {0}: corruption={1}", player.PlayerName, state.CurrentTemporalCorruption);
             ProcessMentorStudies(player, state);
             ScheduleTabletDecayScan(player, 1500);
         }
@@ -3084,6 +4120,13 @@ namespace TheRustweave
                 return;
             }
 
+            if (RustweaveStateService.IsRustweaver(player) || RustweaveStateService.HasStoredServerState(player.PlayerUID))
+            {
+                var state = GetState(player);
+                SaveAndSyncState(player, state);
+                sapi.Logger.Debug("[TheRustweave] Saved Rustweave state for {0}: corruption={1}", player.PlayerName, state.CurrentTemporalCorruption);
+            }
+
             activeCasts.Remove(player.PlayerUID);
             ClearCastState(player);
             ClearTargetedWarningState(casterPlayerUid: player.PlayerUID, targetPlayerUid: player.PlayerUID, sendInactive: true);
@@ -3091,7 +4134,6 @@ namespace TheRustweave
             RemoveActiveEffectsForPlayer(player.PlayerUID);
             activeTabletVents.Remove(player.PlayerUID);
             pendingTabletDecayScans.Remove(player.PlayerUID);
-            spellCooldowns.Remove(player.PlayerUID);
         }
 
         public bool TryStartTabletVenting(EntityPlayer entityPlayer)
@@ -3244,27 +4286,32 @@ namespace TheRustweave
             switch (packet.Action)
             {
                 case RustweaveActionType.RequestStartCast:
-                    StartCast(fromPlayer, state, packet.SlotIndex);
+                    StartCast(fromPlayer, state, packet.SlotId);
                     break;
                 case RustweaveActionType.RequestCancelCast:
                     CancelCast(fromPlayer, state, Lang.Get("game:rustweave-cast-cancel"), true, true);
                     break;
                 case RustweaveActionType.RequestSelectPrepared:
+                    if (!packet.SlotId.HasValue)
+                    {
+                        break;
+                    }
+
                     if (activeCasts.ContainsKey(fromPlayer.PlayerUID))
                     {
                         CancelCast(fromPlayer, state, Lang.Get("game:rustweave-cast-cancel"), true, true);
                     }
 
-                    if (RustweaveStateService.TrySelectPreparedSpell(state, packet.SlotIndex))
+                    if (RustweaveStateService.TrySelectPreparedSpell(state, packet.SlotId.Value))
                     {
-                        var displaySlot = RustweaveStateService.ToDisplaySlotNumber(packet.SlotIndex);
-                        sapi.Logger.Debug("[TheRustweave] Active prepared slot changed to {0} (internal index {1}) for player '{2}'.", displaySlot, packet.SlotIndex, fromPlayer.PlayerUID);
+                        var displaySlot = RustweaveStateService.ToDisplaySlotNumber(packet.SlotId.Value);
+                        sapi.Logger.Debug("[TheRustweave] Active prepared slot changed to {0} for player '{1}'.", displaySlot, fromPlayer.PlayerUID);
                         SaveAndSyncState(fromPlayer, state);
-                        fromPlayer.SendMessage(0, Lang.Get("game:rustweave-selected-slot", displaySlot, RustweaveStateService.GetPreparedSlotDisplayText(state, state.SelectedPreparedSpellIndex)), EnumChatType.Notification, null);
+                        fromPlayer.SendMessage(0, Lang.Get("game:rustweave-selected-slot", displaySlot, RustweaveStateService.GetPreparedSlotDisplayText(state, state.ActivePreparedSlotId)), EnumChatType.Notification, null);
                     }
                     break;
                 case RustweaveActionType.RequestPrepareSpell:
-                    sapi.Logger.Debug("[TheRustweave] Prepare request received from player '{0}' for spell '{1}' (requested slot {2}).", fromPlayer.PlayerUID, packet.SpellCode, RustweaveStateService.DescribePreparedSlot(packet.SlotIndex));
+                    sapi.Logger.Debug("[TheRustweave] Prepare request received from player '{0}' for spell '{1}' (requested slot {2}).", fromPlayer.PlayerUID, packet.SpellCode, RustweaveStateService.DescribePreparedSlot(packet.SlotId));
 
                     if (string.IsNullOrWhiteSpace(packet.SpellCode) || !RustweaveRuntime.SpellRegistry.TryGetEnabledSpell(packet.SpellCode, out var spell) || spell == null || !RustweaveStateService.IsSpellLearned(spell.Code, state))
                     {
@@ -3273,10 +4320,10 @@ namespace TheRustweave
                         break;
                     }
 
-                    var chosenSlot = RustweaveStateService.ResolvePrepareTargetSlot(state, packet.SlotIndex);
-                    sapi.Logger.Debug("[TheRustweave] Prepare target slot resolved to {0} (internal index {1}) for player '{2}'.", RustweaveStateService.DescribePreparedSlot(chosenSlot), chosenSlot, fromPlayer.PlayerUID);
+                    var chosenSlot = RustweaveStateService.ResolvePrepareTargetSlot(state, packet.SlotId);
+                    sapi.Logger.Debug("[TheRustweave] Prepare target slot resolved to {0} for player '{1}'.", RustweaveStateService.DescribePreparedSlot(chosenSlot), fromPlayer.PlayerUID);
 
-                    if (chosenSlot < 0)
+                    if (!chosenSlot.HasValue)
                     {
                         sapi.Logger.Warning("[TheRustweave] Prepare request rejected for player '{0}' because no prepared slot was available.", fromPlayer.PlayerUID);
                         fromPlayer.SendMessage(0, Lang.Get("game:rustweave-no-empty-spell-slots"), EnumChatType.Notification, null);
@@ -3284,20 +4331,20 @@ namespace TheRustweave
                     }
 
                     var existingSlot = RustweaveStateService.FindPreparedSpellSlot(state, spell.Code);
-                    if (existingSlot >= 0 && existingSlot != chosenSlot)
+                    if (existingSlot.HasValue && existingSlot.Value != chosenSlot.Value)
                     {
-                        sapi.Logger.Warning("[TheRustweave] Prepare request rejected for player '{0}' because spell '{1}' is already prepared in slot {2}.", fromPlayer.PlayerUID, spell.Code, existingSlot);
+                        sapi.Logger.Warning("[TheRustweave] Prepare request rejected for player '{0}' because spell '{1}' is already prepared in slot {2}.", fromPlayer.PlayerUID, spell.Code, existingSlot.Value);
                         fromPlayer.SendMessage(0, Lang.Get("game:rustweave-spell-duplicate"), EnumChatType.Notification, null);
                         break;
                     }
 
-                    var beforeValue = RustweaveStateService.GetPreparedSpellCode(state, chosenSlot);
-                    if (RustweaveStateService.TryPrepareSpell(state, spell.Code, chosenSlot))
+                    var beforeValue = RustweaveStateService.GetPreparedSpellCode(state, (int?)chosenSlot.Value);
+                    if (RustweaveStateService.TryPrepareSpell(state, spell.Code, chosenSlot.Value))
                     {
-                        var afterValue = RustweaveStateService.GetPreparedSpellCode(state, chosenSlot);
-                        sapi.Logger.Debug("[TheRustweave] Stored spell '{0}' in prepared slot {1} (internal index {2}) for player '{3}' (before='{4}', after='{5}').", spell.Code, RustweaveStateService.ToDisplaySlotNumber(chosenSlot), chosenSlot, fromPlayer.PlayerUID, beforeValue, afterValue);
+                        var afterValue = RustweaveStateService.GetPreparedSpellCode(state, (int?)chosenSlot.Value);
+                        sapi.Logger.Debug("[TheRustweave] Stored spell '{0}' in prepared slot {1} for player '{2}' (before='{3}', after='{4}').", spell.Code, RustweaveStateService.ToDisplaySlotNumber(chosenSlot.Value), fromPlayer.PlayerUID, beforeValue, afterValue);
                         SaveAndSyncState(fromPlayer, state);
-                        fromPlayer.SendMessage(0, Lang.Get("game:rustweave-spell-prepared-slot", RustweaveStateService.GetSpellDisplayName(spell.Code), RustweaveStateService.ToDisplaySlotNumber(chosenSlot)), EnumChatType.Notification, null);
+                        fromPlayer.SendMessage(0, Lang.Get("game:rustweave-spell-prepared-slot", RustweaveStateService.GetSpellDisplayName(spell.Code), RustweaveStateService.ToDisplaySlotNumber(chosenSlot.Value)), EnumChatType.Notification, null);
                     }
                     else
                     {
@@ -3306,11 +4353,16 @@ namespace TheRustweave
                     }
                     break;
                 case RustweaveActionType.RequestUnprepareSpell:
-                    if (RustweaveStateService.TryUnprepareSpell(state, packet.SlotIndex))
+                    if (!packet.SlotId.HasValue)
                     {
-                        sapi.Logger.Debug("[TheRustweave] Prepared slot {0} (internal index {1}) cleared for player '{2}'.", RustweaveStateService.ToDisplaySlotNumber(packet.SlotIndex), packet.SlotIndex, fromPlayer.PlayerUID);
+                        break;
+                    }
+
+                    if (RustweaveStateService.TryUnprepareSpell(state, packet.SlotId.Value))
+                    {
+                        sapi.Logger.Debug("[TheRustweave] Prepared slot {0} cleared for player '{1}'.", RustweaveStateService.ToDisplaySlotNumber(packet.SlotId.Value), fromPlayer.PlayerUID);
                         SaveAndSyncState(fromPlayer, state);
-                        fromPlayer.SendMessage(0, Lang.Get("game:rustweave-cleared-prepared-slot", RustweaveStateService.ToDisplaySlotNumber(packet.SlotIndex)), EnumChatType.Notification, null);
+                        fromPlayer.SendMessage(0, Lang.Get("game:rustweave-cleared-prepared-slot", RustweaveStateService.ToDisplaySlotNumber(packet.SlotId.Value)), EnumChatType.Notification, null);
                     }
                     break;
             }
@@ -3322,6 +4374,7 @@ namespace TheRustweave
             ProcessPassiveTabletDecay();
             ProcessTimedSpellEffects();
             ProcessActiveEffectRecords();
+            RustweaveStateService.ProcessWorldStatePersistence(sapi.World.ElapsedMilliseconds);
             SampleEntityHistory();
             ProcessTargetPreviewStates();
             ProcessActiveTargetedWarningRecords();
@@ -3594,9 +4647,35 @@ namespace TheRustweave
 
             switch (record.EffectType)
             {
+                case SpellEffectTypes.FreezeTemporalStabilityLoss:
+                    if (sapi.World.ElapsedMilliseconds < record.NextTickAtMilliseconds)
+                    {
+                        return;
+                    }
+
+                    record.NextTickAtMilliseconds = sapi.World.ElapsedMilliseconds + Math.Max(750, record.TickIntervalMilliseconds > 0 ? record.TickIntervalMilliseconds : 1000);
+                    sapi.World.SpawnParticles(4, unchecked((int)0xFF6FCBD3), new Vec3d(entity.Pos.XYZ.X - 0.1, entity.Pos.XYZ.Y + 0.05, entity.Pos.XYZ.Z - 0.1), new Vec3d(entity.Pos.XYZ.X + 0.1, entity.Pos.XYZ.Y + 1.3, entity.Pos.XYZ.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.18f, 0f, 0.3f, EnumParticleModel.Quad, GetOnlineServerPlayer(record.CasterPlayerUid));
+                    break;
+                case SpellEffectTypes.BraceNextDisplacement:
+                    if (sapi.World.ElapsedMilliseconds < record.NextTickAtMilliseconds)
+                    {
+                        return;
+                    }
+
+                    record.NextTickAtMilliseconds = sapi.World.ElapsedMilliseconds + Math.Max(1000, record.TickIntervalMilliseconds > 0 ? record.TickIntervalMilliseconds : 1250);
+                    sapi.World.SpawnParticles(4, unchecked((int)0xFF8C6A4A), new Vec3d(entity.Pos.XYZ.X - 0.12, entity.Pos.XYZ.Y + 0.05, entity.Pos.XYZ.Z - 0.12), new Vec3d(entity.Pos.XYZ.X + 0.12, entity.Pos.XYZ.Y + 0.35, entity.Pos.XYZ.Z + 0.12), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.04f, 0.01f), 0.18f, 0f, 0.3f, EnumParticleModel.Quad, GetOnlineServerPlayer(record.CasterPlayerUid));
+                    break;
+                case SpellEffectTypes.DeferSpellCorruptionCost:
+                    if (sapi.World.ElapsedMilliseconds < record.NextTickAtMilliseconds)
+                    {
+                        return;
+                    }
+
+                    record.NextTickAtMilliseconds = sapi.World.ElapsedMilliseconds + Math.Max(1500, record.TickIntervalMilliseconds > 0 ? record.TickIntervalMilliseconds : 1500);
+                    sapi.World.SpawnParticles(3, unchecked((int)0xFFC69C29), new Vec3d(entity.Pos.XYZ.X - 0.1, entity.Pos.XYZ.Y + 0.05, entity.Pos.XYZ.Z - 0.1), new Vec3d(entity.Pos.XYZ.X + 0.1, entity.Pos.XYZ.Y + 0.25, entity.Pos.XYZ.Z + 0.1), new Vec3f(-0.01f, 0.02f, -0.01f), new Vec3f(0.01f, 0.03f, 0.01f), 0.16f, 0f, 0.25f, EnumParticleModel.Quad, GetOnlineServerPlayer(record.CasterPlayerUid));
+                    break;
                 case SpellEffectTypes.AnchorEntity:
                 case SpellEffectTypes.PreventDisplacement:
-                    entity.ServerPos.Motion.Set(0, 0, 0);
                     entity.Pos.Motion.Set(0, 0, 0);
                     break;
                 case SpellEffectTypes.HealOverTime:
@@ -3622,6 +4701,41 @@ namespace TheRustweave
                 case SpellEffectTypes.CommandEntity:
                     EnforceCharmedEntity(entity, record);
                     break;
+                case SpellEffectTypes.LinkEntities:
+                    if (sapi.World.ElapsedMilliseconds < record.NextTickAtMilliseconds)
+                    {
+                        return;
+                    }
+
+                    record.NextTickAtMilliseconds = sapi.World.ElapsedMilliseconds + Math.Max(250, record.TickIntervalMilliseconds > 0 ? record.TickIntervalMilliseconds : 350);
+                    SpawnLinkEffectParticles(record);
+                    break;
+            }
+        }
+
+        private void SpawnLinkEffectParticles(RustweaveActiveEffectRecord record)
+        {
+            var caster = record.CasterEntityId > 0 ? sapi.World.GetEntityById(record.CasterEntityId) : null;
+            var target = record.TargetEntityId > 0 ? sapi.World.GetEntityById(record.TargetEntityId) : null;
+            if (caster?.Pos == null || target?.Pos == null)
+            {
+                return;
+            }
+
+            var start = caster.Pos.XYZ;
+            var end = target.Pos.XYZ;
+            var color = record.IsHostile
+                ? unchecked((int)0xFFC94A4A)
+                : record.IsBeneficial
+                    ? unchecked((int)0xFF6ACB71)
+                    : unchecked((int)0xFF8C6A4A);
+            var casterPlayer = GetOnlineServerPlayer(record.CasterPlayerUid);
+            var segments = 4;
+            for (var i = 0; i <= segments; i++)
+            {
+                var t = segments == 0 ? 0d : i / (double)segments;
+                var point = new Vec3d(start.X + ((end.X - start.X) * t), start.Y + ((end.Y - start.Y) * t), start.Z + ((end.Z - start.Z) * t));
+                sapi.World.SpawnParticles(1, color, new Vec3d(point.X - 0.02, point.Y - 0.02, point.Z - 0.02), new Vec3d(point.X + 0.02, point.Y + 0.02, point.Z + 0.02), new Vec3f(0f, 0.01f, 0f), new Vec3f(0f, 0.015f, 0f), 0.04f, 0f, 0.12f, EnumParticleModel.Quad, casterPlayer);
             }
         }
 
@@ -3943,6 +5057,84 @@ namespace TheRustweave
             return true;
         }
 
+        public bool TryConsumeDisplacementBrace(Entity targetEntity, IServerPlayer attackingCaster, string incomingSpellCode, string incomingEffectType, out string failureMessage)
+        {
+            failureMessage = string.Empty;
+            if (targetEntity == null || attackingCaster == null || targetEntity is not EntityPlayer targetPlayer || string.IsNullOrWhiteSpace(targetPlayer.PlayerUID))
+            {
+                return false;
+            }
+
+            if (string.Equals(attackingCaster.PlayerUID, targetPlayer.PlayerUID, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var targetServerPlayer = GetOnlineServerPlayer(targetPlayer.PlayerUID);
+            if (targetServerPlayer == null)
+            {
+                return false;
+            }
+
+            var state = GetState(targetServerPlayer);
+            var nowDays = sapi.World.Calendar?.TotalDays ?? 0d;
+            if (!RustweaveStateService.HasActiveBraceNextDisplacement(state, nowDays))
+            {
+                return false;
+            }
+
+            var targetUid = targetPlayer.PlayerUID;
+            var attackerUid = attackingCaster.PlayerUID;
+            sapi.Logger.Debug("[TheRustweave] Brace consumed for attacker '{0}' against target '{1}' during spell '{2}' effect '{3}'.", attackerUid, targetUid, incomingSpellCode, incomingEffectType);
+            attackingCaster.SendMessage(0, Lang.Get("game:rustweave-displacement-braced-attacker"), EnumChatType.Notification, null);
+            targetServerPlayer.SendMessage(0, Lang.Get("game:rustweave-displacement-braced-target"), EnumChatType.Notification, null);
+            RemoveActiveEffectRecordsForEntityAndType(targetPlayer, SpellEffectTypes.BraceNextDisplacement, state.BraceNextDisplacementSourceSpellCode);
+            RustweaveStateService.ClearBraceNextDisplacement(state);
+            SaveAndSyncState(targetServerPlayer, state);
+            failureMessage = Lang.Get("game:rustweave-displacement-braced-target");
+            return true;
+        }
+
+        private void RemoveActiveEffectRecordsForEntityAndType(Entity? entity, string effectType, string? sourceSpellCode = null)
+        {
+            if (entity == null || string.IsNullOrWhiteSpace(effectType))
+            {
+                return;
+            }
+
+            var effects = GetActiveEffectsForEntity(entity.EntityId);
+            if (effects.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var record in effects.Where(record => record != null
+                && string.Equals(record.EffectType, effectType, StringComparison.OrdinalIgnoreCase)
+                && (string.IsNullOrWhiteSpace(sourceSpellCode) || string.Equals(record.SpellCode, sourceSpellCode, StringComparison.OrdinalIgnoreCase))).ToArray())
+            {
+                TryRemoveActiveEffect(record.EffectId, false);
+            }
+        }
+
+        public bool TryRemoveActiveEffectsForEntityAndType(Entity? entity, string effectType, string? sourceSpellCode = null)
+        {
+            if (entity == null || string.IsNullOrWhiteSpace(effectType))
+            {
+                return false;
+            }
+
+            var effects = GetActiveEffectsForEntity(entity.EntityId);
+            var removed = false;
+            foreach (var record in effects.Where(record => record != null
+                && string.Equals(record.EffectType, effectType, StringComparison.OrdinalIgnoreCase)
+                && (string.IsNullOrWhiteSpace(sourceSpellCode) || string.Equals(record.SpellCode, sourceSpellCode, StringComparison.OrdinalIgnoreCase))).ToArray())
+            {
+                removed |= TryRemoveActiveEffect(record.EffectId, false);
+            }
+
+            return removed;
+        }
+
         private void CleanupSummonedRecord(RustweaveActiveEffectRecord record)
         {
             if (record == null)
@@ -3985,7 +5177,12 @@ namespace TheRustweave
                 for (var slotIndex = 0; slotIndex < inventory.Count; slotIndex++)
                 {
                     var slot = inventory[slotIndex];
-                    var stack = slot?.Itemstack;
+                    if (slot == null)
+                    {
+                        continue;
+                    }
+
+                    var stack = slot.Itemstack;
                     if (stack?.Collectible?.Code?.Path == null)
                     {
                         continue;
@@ -4442,6 +5639,7 @@ namespace TheRustweave
             var state = RustweaveStateService.LoadServerState(player);
             state = RustweaveStateService.NormalizeState(state);
             RustweaveStateService.UpdateOverloadState(state, sapi.World.ElapsedMilliseconds);
+            ProcessPersistentWarpingState(player, state);
             RustweaveStateService.CacheServerState(player, state);
             return state;
         }
@@ -4452,6 +5650,106 @@ namespace TheRustweave
             RustweaveStateService.UpdateOverloadState(state, sapi.World.ElapsedMilliseconds);
             RustweaveStateService.CacheServerState(player, state);
             RustweaveStateService.SaveServerState(player, state);
+        }
+
+        private bool ProcessPersistentWarpingState(IServerPlayer player, RustweavePlayerStateData state)
+        {
+            if (player == null || state == null)
+            {
+                return false;
+            }
+
+            var nowDays = sapi.World.Calendar?.TotalDays ?? 0d;
+            var changed = false;
+
+            if (player.Entity == null || !player.Entity.Alive)
+            {
+                if (state.FreezeTemporalStabilityLossStartedAtTotalDays > 0d
+                    || state.BraceNextDisplacementStartedAtTotalDays > 0d
+                    || state.FoundationalFabricStartedAtTotalDays > 0d
+                    || state.FoundationalFabricDebtAmount > 0)
+                {
+                    if (state.FoundationalFabricStartedAtTotalDays > 0d || state.FoundationalFabricDebtAmount > 0)
+                    {
+                        sapi.Logger.Debug("[TheRustweave] Foundational Fabric cleared on death for player={0}", player.PlayerName);
+                    }
+
+                    RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.FreezeTemporalStabilityLoss, state.FreezeTemporalStabilityLossSourceSpellCode);
+                    RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.BraceNextDisplacement, state.BraceNextDisplacementSourceSpellCode);
+                    RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.DeferSpellCorruptionCost, state.FoundationalFabricSourceSpellCode);
+                    RustweaveStateService.ClearFreezeTemporalStabilityLoss(state);
+                    RustweaveStateService.ClearBraceNextDisplacement(state);
+                    RustweaveStateService.ClearFoundationalFabric(state);
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    SaveAndSyncState(player, state);
+                }
+
+                return changed;
+            }
+
+            if (state.FoundationalFabricStartedAtTotalDays > 0d && state.FoundationalFabricExpiresAtTotalDays > 0d && state.FoundationalFabricExpiresAtTotalDays <= nowDays)
+            {
+                var debt = Math.Max(0, state.FoundationalFabricDebtAmount);
+                sapi.Logger.Debug("[TheRustweave] Foundational Fabric expired: applying debt={0} to player={1}", debt, player.PlayerName);
+                if (debt > 0)
+                {
+                    state.CurrentTemporalCorruption = Math.Min(state.AbsoluteTemporalCorruptionCap, state.CurrentTemporalCorruption + debt);
+                    player.SendMessage(0, Lang.Get("game:rustweave-foundational-fabric-debt-paid", debt), EnumChatType.Notification, null);
+                }
+                else
+                {
+                    player.SendMessage(0, Lang.Get("game:rustweave-foundational-fabric-expired-empty"), EnumChatType.Notification, null);
+                }
+
+                RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.DeferSpellCorruptionCost, state.FoundationalFabricSourceSpellCode);
+                RustweaveStateService.ClearFoundationalFabric(state);
+                changed = true;
+            }
+
+            if (state.FreezeTemporalStabilityLossStartedAtTotalDays > 0d && state.FreezeTemporalStabilityLossExpiresAtTotalDays > 0d)
+            {
+                if (state.FreezeTemporalStabilityLossExpiresAtTotalDays <= nowDays)
+                {
+                    RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.FreezeTemporalStabilityLoss, state.FreezeTemporalStabilityLossSourceSpellCode);
+                    RustweaveStateService.ClearFreezeTemporalStabilityLoss(state);
+                    changed = true;
+                }
+                else if (!RustweaveStateService.TryReadTemporalStabilityValue(player.Entity, out var currentStability))
+                {
+                    sapi.Logger.Warning("[TheRustweave] Could not read temporal stability for player '{0}' while Still Thread was active.", player.PlayerUID);
+                    RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.FreezeTemporalStabilityLoss, state.FreezeTemporalStabilityLossSourceSpellCode);
+                    RustweaveStateService.ClearFreezeTemporalStabilityLoss(state);
+                    changed = true;
+                }
+                else if (currentStability < state.FreezeTemporalStabilityLossBaseline)
+                {
+                    if (!RustweaveStateService.TrySetTemporalStabilityValue(player.Entity, state.FreezeTemporalStabilityLossBaseline))
+                    {
+                        sapi.Logger.Warning("[TheRustweave] Could not write temporal stability for player '{0}' while Still Thread was active.", player.PlayerUID);
+                        RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.FreezeTemporalStabilityLoss, state.FreezeTemporalStabilityLossSourceSpellCode);
+                        RustweaveStateService.ClearFreezeTemporalStabilityLoss(state);
+                        changed = true;
+                    }
+                }
+            }
+
+            if (state.BraceNextDisplacementStartedAtTotalDays > 0d && state.BraceNextDisplacementExpiresAtTotalDays > 0d && state.BraceNextDisplacementExpiresAtTotalDays <= nowDays)
+            {
+                RemoveActiveEffectRecordsForEntityAndType(player.Entity, SpellEffectTypes.BraceNextDisplacement, state.BraceNextDisplacementSourceSpellCode);
+                RustweaveStateService.ClearBraceNextDisplacement(state);
+                changed = true;
+            }
+
+            if (changed)
+            {
+                SaveAndSyncState(player, state);
+            }
+
+            return changed;
         }
 
         private void ProcessTabletDecayForInventories(IServerPlayer player)
@@ -4921,7 +6219,7 @@ namespace TheRustweave
                 return;
             }
 
-            sapi.Logger.Warning($"[TheRustweave] Skipping tablet decay inventory {inventoryKey}");
+            sapi.Logger.Debug("[TheRustweave] Skipping tablet decay inventory {0}", inventoryKey);
         }
 
         private IServerPlayer? GetOnlineServerPlayer(string playerUid)
@@ -4929,50 +6227,41 @@ namespace TheRustweave
             return sapi.World.AllOnlinePlayers.OfType<IServerPlayer>().FirstOrDefault(player => string.Equals(player.PlayerUID, playerUid, StringComparison.OrdinalIgnoreCase));
         }
 
-        private bool TryGetCooldownRemaining(string playerUid, string spellCode, out long remainingMilliseconds)
+        private bool TryGetCooldownRemaining(RustweavePlayerStateData state, string spellCode, out long remainingMilliseconds)
         {
             remainingMilliseconds = 0;
-            if (string.IsNullOrWhiteSpace(playerUid) || string.IsNullOrWhiteSpace(spellCode))
+            if (state == null || string.IsNullOrWhiteSpace(spellCode))
             {
                 return false;
             }
 
-            if (!spellCooldowns.TryGetValue(playerUid, out var cooldowns) || !cooldowns.TryGetValue(spellCode, out var expiresAtMilliseconds))
+            if (state.SpellCooldowns == null || !state.SpellCooldowns.TryGetValue(spellCode, out var expiresAtTotalDays))
             {
                 return false;
             }
 
-            var nowMilliseconds = sapi.World.ElapsedMilliseconds;
-            if (nowMilliseconds >= expiresAtMilliseconds)
+            var nowTotalDays = sapi.World.Calendar?.TotalDays ?? 0d;
+            if (nowTotalDays >= expiresAtTotalDays)
             {
-                cooldowns.Remove(spellCode);
-                if (cooldowns.Count == 0)
-                {
-                    spellCooldowns.Remove(playerUid);
-                }
-
+                state.SpellCooldowns.Remove(spellCode);
+                RustweaveStateService.MarkWorldStateDirty();
                 return false;
             }
 
-            remainingMilliseconds = expiresAtMilliseconds - nowMilliseconds;
+            remainingMilliseconds = (long)Math.Ceiling(Math.Max(0d, expiresAtTotalDays - nowTotalDays) * 86400000d);
             return true;
         }
 
-        private void SetSpellCooldown(string playerUid, SpellDefinition spell)
+        private void SetSpellCooldown(RustweavePlayerStateData state, SpellDefinition spell)
         {
-            if (string.IsNullOrWhiteSpace(playerUid) || spell == null || spell.CooldownSeconds <= 0)
+            if (state == null || spell == null || spell.CooldownSeconds <= 0)
             {
                 return;
             }
 
-            var expiresAtMilliseconds = sapi.World.ElapsedMilliseconds + (long)Math.Round(spell.CooldownSeconds * 1000d);
-            if (!spellCooldowns.TryGetValue(playerUid, out var cooldowns))
-            {
-                cooldowns = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
-                spellCooldowns[playerUid] = cooldowns;
-            }
-
-            cooldowns[spell.Code] = expiresAtMilliseconds;
+            var expiresAtTotalDays = (sapi.World.Calendar?.TotalDays ?? 0d) + (spell.CooldownSeconds / 86400d);
+            state.SpellCooldowns ??= new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            state.SpellCooldowns[spell.Code] = expiresAtTotalDays;
         }
 
         private void SendSpellTargetFailure(IServerPlayer player, string failureReason)
@@ -5009,7 +6298,7 @@ namespace TheRustweave
             return true;
         }
 
-        private void StartCast(IServerPlayer player, RustweavePlayerStateData state, int slotIndex)
+        private void StartCast(IServerPlayer player, RustweavePlayerStateData state, int? requestedSlotId)
         {
             if (state.CurrentTemporalCorruption >= state.EffectiveTemporalCorruptionThreshold)
             {
@@ -5017,24 +6306,25 @@ namespace TheRustweave
                 return;
             }
 
-            if (!RustweaveStateService.IsValidSlotIndex(slotIndex))
+            var slotId = requestedSlotId ?? state.ActivePreparedSlotId;
+            if (!slotId.HasValue || !RustweaveStateService.IsValidSlotId(slotId.Value))
             {
                 player.SendMessage(0, Lang.Get("game:rustweave-no-spell-prepared"), EnumChatType.Notification, null);
                 return;
             }
 
-            var spellCode = RustweaveStateService.GetPreparedSpellCode(state, slotIndex);
-            sapi.Logger.Debug("[TheRustweave] Cast attempted from active prepared slot {0} (internal index {1}) for player '{2}' (spell '{3}').", RustweaveStateService.ToDisplaySlotNumber(slotIndex), slotIndex, player.PlayerUID, spellCode);
+            var spellCode = RustweaveStateService.GetPreparedSpellCode(state, slotId);
+            sapi.Logger.Debug("[TheRustweave] Cast attempted from active prepared slot {0} for player '{1}' (spell '{2}').", RustweaveStateService.DescribePreparedSlot(slotId), player.PlayerUID, spellCode);
             if (string.IsNullOrWhiteSpace(spellCode))
             {
-                player.SendMessage(0, Lang.Get("game:rustweave-no-spell-in-slot", RustweaveStateService.ToDisplaySlotNumber(slotIndex)), EnumChatType.Notification, null);
+                player.SendMessage(0, Lang.Get("game:rustweave-no-spell-in-slot", RustweaveStateService.DescribePreparedSlot(slotId)), EnumChatType.Notification, null);
                 return;
             }
 
             if (!RustweaveRuntime.SpellRegistry.TryGetEnabledSpell(spellCode, out var spell) || spell == null)
             {
                 sapi.Logger.Warning("[TheRustweave] Cast rejected for player '{0}' because spell '{1}' is missing or disabled.", player.PlayerUID, spellCode);
-                RustweaveStateService.TryUnprepareSpell(state, slotIndex);
+                RustweaveStateService.TryUnprepareSpell(state, slotId.Value);
                 SaveAndSyncState(player, state);
                 player.SendMessage(0, Lang.Get("game:rustweave-cast-fail"), EnumChatType.Notification, null);
                 return;
@@ -5043,25 +6333,41 @@ namespace TheRustweave
             if (!RustweaveStateService.IsSpellLearned(spell.Code, state))
             {
                 sapi.Logger.Warning("[TheRustweave] Cast rejected for player '{0}' because spell '{1}' is no longer learned.", player.PlayerUID, spell.Code);
-                RustweaveStateService.TryUnprepareSpell(state, slotIndex);
+                RustweaveStateService.TryUnprepareSpell(state, slotId.Value);
                 SaveAndSyncState(player, state);
                 player.SendMessage(0, Lang.Get("game:rustweave-spell-unlearned"), EnumChatType.Notification, null);
                 return;
             }
 
-            if (TryGetCooldownRemaining(player.PlayerUID, spell.Code, out var remainingMilliseconds))
+            if (TryGetCooldownRemaining(state, spell.Code, out var remainingMilliseconds))
             {
                 sapi.Logger.Warning("[TheRustweave] Spell '{0}' was rejected for player '{1}' because it is on cooldown for {2} ms.", spell.Code, player.PlayerUID, remainingMilliseconds);
                 player.SendMessage(0, Lang.Get("game:rustweave-spell-cooldown", spell.Name, RustweaveStateService.FormatSeconds(remainingMilliseconds / 1000d)), EnumChatType.Notification, null);
                 return;
             }
 
-            sapi.Logger.Debug("[TheRustweave] Cast start requested by player '{0}' from prepared slot {1} (internal index {2}) for spell '{3}' with targetType '{4}'.", player.PlayerUID, RustweaveStateService.ToDisplaySlotNumber(slotIndex), slotIndex, spell.Code, spell.TargetType);
-            if (!spellExecutor.TryResolveTarget(player, spell, out var lockedTarget, out var lockFailureReason))
+            var nowDays = sapi.World.Calendar?.TotalDays ?? 0d;
+            if (string.Equals(spell.Code, "foundational-fabric", StringComparison.OrdinalIgnoreCase) && RustweaveStateService.HasActiveFoundationalFabric(state, nowDays))
             {
-                sapi.Logger.Warning("[TheRustweave] Spell '{0}' could not resolve a cast-start target for player '{1}': {2}", spell.Code, player.PlayerUID, lockFailureReason);
-                SendSpellTargetFailure(player, lockFailureReason);
+                sapi.Logger.Warning("[TheRustweave] Spell '{0}' was rejected for player '{1}' because Foundational Fabric is already active.", spell.Code, player.PlayerUID);
+                player.SendMessage(0, Lang.Get("game:rustweave-foundational-fabric-active"), EnumChatType.Notification, null);
                 return;
+            }
+
+            sapi.Logger.Debug("[TheRustweave] Cast start requested by player '{0}' from prepared slot {1} for spell '{2}' with targetType '{3}'.", player.PlayerUID, RustweaveStateService.DescribePreparedSlot(slotId), spell.Code, spell.TargetType);
+            SpellEffectExecutor.SpellTargetContext? lockedTarget = null;
+            var selfTargetSpell = string.Equals(spell.TargetType, SpellTargetTypes.Self, StringComparison.OrdinalIgnoreCase);
+            if (!spellExecutor.TryResolveTarget(player, spell, out lockedTarget, out var lockFailureReason))
+            {
+                if (!selfTargetSpell)
+                {
+                    sapi.Logger.Warning("[TheRustweave] Spell '{0}' could not resolve a cast-start target for player '{1}': {2}", spell.Code, player.PlayerUID, lockFailureReason);
+                    SendSpellTargetFailure(player, lockFailureReason);
+                    return;
+                }
+
+                sapi.Logger.Debug("[TheRustweave] Self-target spell '{0}' will continue after initial target lookup failed for player '{1}': {2}", spell.Code, player.PlayerUID, lockFailureReason);
+                lockedTarget = null;
             }
 
             if (!spellExecutor.TryBuildPlan(player, state, spell, lockedTarget, out var previewPlan, out var previewFailureReason))
@@ -5071,7 +6377,19 @@ namespace TheRustweave
                 return;
             }
 
-            var projectedCorruption = state.CurrentTemporalCorruption + previewPlan!.CorruptionDelta + spell.CorruptionCost;
+            if (lockedTarget == null && selfTargetSpell)
+            {
+                lockedTarget = new SpellEffectExecutor.SpellTargetContext
+                {
+                    Entity = player.Entity,
+                    Position = player.Entity?.Pos?.XYZ ?? new Vec3d(),
+                    TargetName = player.Entity?.GetName() ?? spell.Code
+                };
+            }
+
+            RustweaveStateService.TryApplyFoundationalFabricDiscount(state, spell.Code, spell.CorruptionCost, nowDays, out var adjustedSpellCorruptionCost, out var deferredSpellDebt);
+            sapi.Logger.Debug("[TheRustweave] Foundational Fabric discount: spell={0}, base={1}, paid={2}, deferred={3}, totalDebt={4}", spell.Code, spell.CorruptionCost, adjustedSpellCorruptionCost, deferredSpellDebt, Math.Max(0, state.FoundationalFabricDebtAmount + deferredSpellDebt));
+            var projectedCorruption = state.CurrentTemporalCorruption + previewPlan!.CorruptionDelta + adjustedSpellCorruptionCost;
             if (projectedCorruption > state.EffectiveTemporalCorruptionThreshold)
             {
                 sapi.Logger.Warning("[TheRustweave] Spell '{0}' was rejected for player '{1}' because the corruption cap would be exceeded.", spell.Code, player.PlayerUID);
@@ -5096,25 +6414,26 @@ namespace TheRustweave
             {
                 IsCasting = true,
                 SpellCode = castSpell.Code,
-                PreparedSpellIndex = slotIndex,
+                PreparedSlotId = slotId,
                 StartedAtMilliseconds = sapi.World.ElapsedMilliseconds,
                 DurationMilliseconds = duration,
                 ElapsedMilliseconds = 0,
-                CorruptionCost = castSpell.CorruptionCost,
+                CorruptionCost = adjustedSpellCorruptionCost,
                 BaseCastTimeSeconds = castSpell.CastTimeSeconds,
                 StartingTemporalCorruption = state.CurrentTemporalCorruption,
+                DeferredCorruptionDebt = deferredSpellDebt,
                 ActiveCastId = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)
             };
 
-            ApplyLockedTarget(castState, spell, lockedTarget);
+            ApplyLockedTarget(castState, spell, lockedTarget!);
             sapi.Logger.Debug("[TheRustweave] Cast start locked target for player '{0}': hasLock={1}, lockType='{2}', targetName='{3}', entityId={4}.",
                 player.PlayerUID, castState.HasLockedTarget, castState.LockedTargetType, castState.LockedTargetName, castState.LockedEntityId);
 
             activeCasts[player.PlayerUID] = castState;
             SyncCastState(player, castState);
-            BroadcastTargetPreviewState(player, spell, lockedTarget, true, true);
+            BroadcastTargetPreviewState(player, spell, lockedTarget!, true, true);
             SendTargetLockState(player, castState, spell, true);
-            RegisterTargetedWarningIfNeeded(player, spell, castState, lockedTarget);
+            RegisterTargetedWarningIfNeeded(player, spell, castState, lockedTarget!);
         }
 
         private void FinishCast(IServerPlayer player, RustweavePlayerStateData state, RustweaveCastStateData castState)
@@ -5132,7 +6451,7 @@ namespace TheRustweave
             }
 
             sapi.Logger.Debug("[TheRustweave] Cast completion rebuilding target context for player '{0}' and spell '{1}'.", player.PlayerUID, spell.Code);
-            if (TryGetCooldownRemaining(player.PlayerUID, spell.Code, out var remainingMilliseconds))
+            if (TryGetCooldownRemaining(state, spell.Code, out var remainingMilliseconds))
             {
                 sapi.Logger.Warning("[TheRustweave] Spell '{0}' was rejected at completion for player '{1}' because it is on cooldown for {2} ms.", spell.Code, player.PlayerUID, remainingMilliseconds);
                 player.SendMessage(0, Lang.Get("game:rustweave-spell-cooldown", spell.Name, RustweaveStateService.FormatSeconds(remainingMilliseconds / 1000d)), EnumChatType.Notification, null);
@@ -5158,7 +6477,7 @@ namespace TheRustweave
                 return;
             }
 
-            var projectedCorruption = state.CurrentTemporalCorruption + executionPlan!.CorruptionDelta + spell.CorruptionCost;
+            var projectedCorruption = state.CurrentTemporalCorruption + executionPlan!.CorruptionDelta + castState.CorruptionCost;
             if (projectedCorruption > state.EffectiveTemporalCorruptionThreshold)
             {
                 sapi.Logger.Warning("[TheRustweave] Spell '{0}' failed at completion for player '{1}' because the corruption cap would be exceeded.", spell.Code, player.PlayerUID);
@@ -5176,9 +6495,15 @@ namespace TheRustweave
             }
 
             RustweaveStateService.IncrementSpellCastCount(state, spell.Code);
-            state.CurrentTemporalCorruption = Math.Min(state.EffectiveTemporalCorruptionThreshold, state.CurrentTemporalCorruption + spell.CorruptionCost);
+            state.CurrentTemporalCorruption = Math.Min(state.AbsoluteTemporalCorruptionCap, state.CurrentTemporalCorruption + castState.CorruptionCost);
+            if (castState.DeferredCorruptionDebt > 0)
+            {
+                var totalDebt = RustweaveStateService.AddFoundationalFabricDebt(state, castState.DeferredCorruptionDebt);
+                sapi.Logger.Debug("[TheRustweave] Foundational Fabric discount: spell={0}, base={1}, paid={2}, deferred={3}, totalDebt={4}", spell.Code, spell.CorruptionCost, castState.CorruptionCost, castState.DeferredCorruptionDebt, totalDebt);
+                player.SendMessage(0, Lang.Get("game:rustweave-foundational-fabric-debt-added", castState.DeferredCorruptionDebt, totalDebt), EnumChatType.Notification, null);
+            }
             SaveAndSyncState(player, state);
-            SetSpellCooldown(player.PlayerUID, spell);
+            SetSpellCooldown(state, spell);
             ClearCastState(player);
             player.SendMessage(0, Lang.Get("game:rustweave-cast-success"), EnumChatType.Notification, null);
         }
@@ -6013,7 +7338,7 @@ namespace TheRustweave
         private readonly Dictionary<string, long> activeTargetPreviewSendTimes = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, RustweaveTargetedWarningPacket> activeTargetedWarnings = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, long> activeTargetedWarningRenderTimes = new(StringComparer.OrdinalIgnoreCase);
-        private int localSelectedPreparedSpellIndex = -1;
+        private int? localSelectedPreparedSlotId;
         private string lastStateJson = string.Empty;
         private string lastCastJson = string.Empty;
         private RustweaveCorruptionHud? corruptionHud;
@@ -6043,6 +7368,21 @@ namespace TheRustweave
             HydrateFromSavedState();
         }
 
+        public void Dispose()
+        {
+            capi.Event.PlayerJoin -= OnClientPlayerJoin;
+            capi.Event.LevelFinalize -= OnClientLevelFinalize;
+            capi.Event.MouseWheelMove -= OnMouseWheelMove;
+            if (tickListenerId > 0)
+            {
+                capi.Event.UnregisterGameTickListener(tickListenerId);
+                tickListenerId = 0;
+            }
+
+            ResetClientRuntimeState();
+            channel = null;
+        }
+
         public void OpenPreparationGui()
         {
             HydrateFromSavedState();
@@ -6068,13 +7408,18 @@ namespace TheRustweave
                 return;
             }
 
-            var selectedSlotIndex = GetSelectedPreparedSlotIndex();
-            var displaySlotNumber = RustweaveStateService.ToDisplaySlotNumber(selectedSlotIndex);
-            capi.Logger.Debug("[TheRustweave] Cast requested from prepared slot {0} (internal index {1}).", displaySlotNumber, selectedSlotIndex);
+            var selectedSlotId = GetSelectedPreparedSlotId();
+            if (!selectedSlotId.HasValue)
+            {
+                capi.ShowChatMessage(Lang.Get("game:rustweave-no-spell-prepared"));
+                return;
+            }
+
+            capi.Logger.Debug("[TheRustweave] Cast requested from prepared slot {0}.", RustweaveStateService.DescribePreparedSlot(selectedSlotId));
             SendPacket(new RustweaveActionPacket
             {
                 Action = RustweaveActionType.RequestStartCast,
-                SlotIndex = selectedSlotIndex
+                SlotId = selectedSlotId
             });
         }
 
@@ -6162,49 +7507,61 @@ namespace TheRustweave
             });
         }
 
-        public void RequestSelectPreparedSpell(int slotIndex)
+        public void RequestSelectPreparedSpell(int slotId)
         {
             RequestPreviewStop();
-            if (RustweaveStateService.IsValidSlotIndex(slotIndex))
+            if (RustweaveStateService.IsValidSlotId(slotId))
             {
-                localSelectedPreparedSpellIndex = slotIndex;
-                currentState.SelectedPreparedSpellIndex = slotIndex;
-                prepDialog?.SetState(currentState);
+                localSelectedPreparedSlotId = slotId;
+                currentState.ActivePreparedSlotId = slotId;
             }
 
-            capi.Logger.Debug("[TheRustweave] Client requested prepared slot selection: {0} (internal index {1}).", RustweaveStateService.ToDisplaySlotNumber(slotIndex), slotIndex);
+            capi.Logger.Debug("[TheRustweave] Client requested prepared slot selection: {0}.", RustweaveStateService.ToDisplaySlotNumber(slotId));
             SendPacket(new RustweaveActionPacket
             {
                 Action = RustweaveActionType.RequestSelectPrepared,
-                SlotIndex = slotIndex
+                SlotId = slotId
             });
         }
 
-        public void RequestPrepareSpell(string spellCode, int targetSlotIndex)
+        public void RequestPrepareSpell(string spellCode, int? targetSlotId)
         {
-            capi.Logger.Debug("[TheRustweave] Client requested prepare for spell '{0}' with target slot {1}.", spellCode, RustweaveStateService.DescribePreparedSlot(targetSlotIndex));
+            capi.Logger.Debug("[TheRustweave] Client requested prepare for spell '{0}' with target slot {1}.", spellCode, RustweaveStateService.DescribePreparedSlot(targetSlotId));
             SendPacket(new RustweaveActionPacket
             {
                 Action = RustweaveActionType.RequestPrepareSpell,
                 SpellCode = spellCode,
-                SlotIndex = targetSlotIndex
+                SlotId = targetSlotId
             });
         }
 
-        public void RequestUnprepareSpell(int slotIndex)
+        public void RequestUnprepareSpell(int slotId)
         {
             RequestPreviewStop();
-            if (RustweaveStateService.IsValidSlotIndex(slotIndex) && slotIndex < currentState.PreparedSpellCodes.Count)
+            if (RustweaveStateService.IsValidSlotId(slotId))
             {
-                currentState.PreparedSpellCodes[slotIndex] = string.Empty;
-                prepDialog?.SetState(currentState);
+                var arrayIndex = RustweaveStateService.ToArrayIndex(slotId);
+                if (arrayIndex >= 0 && arrayIndex < currentState.PreparedSpellCodes.Count)
+                {
+                    currentState.PreparedSpellCodes[arrayIndex] = string.Empty;
+                }
+
+                if (currentState.ActivePreparedSlotId == slotId)
+                {
+                    currentState.ActivePreparedSlotId = null;
+                }
+
+                if (localSelectedPreparedSlotId == slotId)
+                {
+                    localSelectedPreparedSlotId = null;
+                }
             }
 
-            capi.Logger.Debug("[TheRustweave] Client requested clear for prepared slot {0} (internal index {1}).", RustweaveStateService.ToDisplaySlotNumber(slotIndex), slotIndex);
+            capi.Logger.Debug("[TheRustweave] Client requested clear for prepared slot {0}.", RustweaveStateService.ToDisplaySlotNumber(slotId));
             SendPacket(new RustweaveActionPacket
             {
                 Action = RustweaveActionType.RequestUnprepareSpell,
-                SlotIndex = slotIndex
+                SlotId = slotId
             });
         }
 
@@ -6230,9 +7587,28 @@ namespace TheRustweave
 
         private void OnClientLevelFinalize()
         {
-            HydrateFromSavedState();
             RequestPreviewStop();
             ClearTargetedWarnings();
+            ResetClientRuntimeState();
+        }
+
+        private void ResetClientRuntimeState()
+        {
+            currentState = RustweaveStateService.CreateFreshState();
+            currentCastState = new RustweaveCastStateData();
+            currentTargetLock = new RustweaveTargetLockPacket();
+            activeTargetPreviews.Clear();
+            activeTargetPreviewRenderTimes.Clear();
+            activeTargetPreviewSendTimes.Clear();
+            activeTargetedWarnings.Clear();
+            activeTargetedWarningRenderTimes.Clear();
+            localSelectedPreparedSlotId = null;
+            lastStateJson = string.Empty;
+            lastCastJson = string.Empty;
+            corruptionHud = null;
+            castHud = null;
+            targetLockHud = null;
+            prepDialog = null;
         }
 
         private void OnTargetLockPacket(RustweaveTargetLockPacket packet)
@@ -6337,7 +7713,13 @@ namespace TheRustweave
         {
             packet = new RustweaveTargetPreviewPacket();
 
-            var player = capi.World?.Player;
+            var world = capi?.World;
+            if (world == null)
+            {
+                return false;
+            }
+
+            var player = world.Player;
             if (player == null || byEntity == null || !RustweaveStateService.IsRustweaver(player) || !RustweaveStateService.IsHoldingTome(player))
             {
                 return false;
@@ -6371,7 +7753,7 @@ namespace TheRustweave
             {
                 BlockSelection? tracedBlock = null;
                 EntitySelection? tracedEntity = null;
-                capi.World.RayTraceForSelection(
+                world.RayTraceForSelection(
                     fromPos,
                     toPos,
                     ref tracedBlock,
@@ -6441,7 +7823,7 @@ namespace TheRustweave
                         return false;
                     }
 
-                    var previewBlockEntity = capi.World.BlockAccessor.GetBlockEntity(blockSel.Position);
+                    var previewBlockEntity = world.BlockAccessor.GetBlockEntity(blockSel.Position);
                     if (spell.TargetType == SpellTargetTypes.LookBlockEntity && previewBlockEntity == null)
                     {
                         return false;
@@ -6564,7 +7946,7 @@ namespace TheRustweave
                 UsesGravity = preview.UsesGravity,
                 ShowImpactPoint = preview.ShowImpactPoint,
                 MarkerStyle = preview.MarkerStyle,
-                UpdatedAtMs = capi.World.ElapsedMilliseconds
+                UpdatedAtMs = world.ElapsedMilliseconds
             };
 
             return true;
@@ -7042,13 +8424,13 @@ namespace TheRustweave
                 return true;
             }
 
-                lastStateJson = serialized;
-                currentState = syncedState;
-                ApplyLocalPreparedSelection();
-            capi.Logger.Debug("[TheRustweave] Prepared slot state loaded: {0} slots, active slot {1}.", currentState.PreparedSpellCodes.Count, RustweaveStateService.DescribePreparedSlot(currentState.SelectedPreparedSpellIndex));
-                corruptionHud?.SetState(currentState);
-                prepDialog?.SetState(currentState);
-                return true;
+            lastStateJson = serialized;
+            currentState = syncedState;
+            ApplyLocalPreparedSelection();
+            capi.Logger.Debug("[TheRustweave] Prepared slot state loaded: {0} slots, active slot {1}.", currentState.PreparedSpellCodes.Count, RustweaveStateService.DescribePreparedSlot(currentState.ActivePreparedSlotId));
+            corruptionHud?.SetState(currentState);
+            prepDialog?.SetState(currentState);
+            return true;
         }
 
         private void OnMouseWheelMove(MouseWheelEventArgs args)
@@ -7082,13 +8464,13 @@ namespace TheRustweave
             }
 
             var nextSlot = RustweaveStateService.CycleSelection(currentState, delta);
-            if (nextSlot < 0)
+            if (!nextSlot.HasValue)
             {
                 return;
             }
 
-            RequestSelectPreparedSpell(nextSlot);
-            capi.ShowChatMessage(Lang.Get("game:rustweave-selected-slot", RustweaveStateService.ToDisplaySlotNumber(nextSlot), RustweaveStateService.GetPreparedSlotDisplayText(currentState, nextSlot)));
+            RequestSelectPreparedSpell(nextSlot.Value);
+            capi.ShowChatMessage(Lang.Get("game:rustweave-selected-slot", RustweaveStateService.ToDisplaySlotNumber(nextSlot.Value), RustweaveStateService.GetPreparedSlotDisplayText(currentState, nextSlot.Value)));
             args.SetHandled(true);
         }
 
@@ -7164,22 +8546,19 @@ namespace TheRustweave
             }
         }
 
-        private int GetSelectedPreparedSlotIndex()
+        private int? GetSelectedPreparedSlotId()
         {
-            if (RustweaveStateService.IsValidSlotIndex(localSelectedPreparedSpellIndex))
+            if (RustweaveStateService.IsValidSlotId(localSelectedPreparedSlotId ?? -1))
             {
-                return localSelectedPreparedSpellIndex;
+                return localSelectedPreparedSlotId;
             }
 
-            return currentState.SelectedPreparedSpellIndex;
+            return currentState.ActivePreparedSlotId;
         }
 
         private void ApplyLocalPreparedSelection()
         {
-            if (RustweaveStateService.IsValidSlotIndex(localSelectedPreparedSpellIndex))
-            {
-                currentState.SelectedPreparedSpellIndex = localSelectedPreparedSpellIndex;
-            }
+            localSelectedPreparedSlotId = currentState.ActivePreparedSlotId;
         }
 
         private void UpdateTargetLockHud()
